@@ -1,0 +1,107 @@
+# Responsive rendering and presentation profile.
+compactMaxWidth: 820
+
+desktopCameraFov: 52
+desktopCameraMargin: 1.18
+desktopCameraElevation: 0.72
+# Grass overdraw is fill-bound. 1.25 keeps a retina edge without a 2.25× pixel
+# tax on every blade.
+desktopMaxPixelRatio: 1.25
+desktopAutoRotate: true
+desktopShadows: true
+# The sun's shadow frustum follows the character in a ~14 m box rather than
+# covering the streamed world, so 1024 is still far sharper than the 2048 map
+# that used to be stretched across 360 m.
+desktopShadowMapSize: 1024
+desktopShowGui: true
+desktopShowDecorativeText: true
+
+desktopCloudEnabled: true
+desktopCloudCoverage: 0.58
+desktopCloudSoftness: 0.11
+desktopCloudOpacity: 0.64
+desktopCloudBaseHeight: 720
+desktopCloudThickness: 180
+desktopCloudExtinction: 1.15
+desktopCloudMacroScale: 0.00055
+desktopCloudDetailScale: 0.0022
+desktopCloudWeatherScale: 0.00016
+desktopCloudWindX: 8
+desktopCloudWindZ: 3
+desktopCloudDetailWindX: -2
+desktopCloudDetailWindZ: 7
+desktopCloudSelfShadowStrength: 0.28
+desktopCloudSilverLiningStrength: 1.35
+desktopCloudShadowStrength: 0.10
+desktopCloudShadowSampleRadius: 24
+# One shared low-resolution cloud-plane transmittance field. It modulates direct
+# sunlight only; ambient/sky lighting is deliberately never multiplied by it.
+desktopCloudShadowMapResolution: 256
+desktopCloudShadowWorldSize: 1536
+desktopCloudShadowSteps: 4
+desktopCloudShadowEdgeFade: 0.08
+desktopCloudShadowDistanceFadeStart: 420
+desktopCloudShadowDistanceFadeEnd: 1200
+desktopCloudMinimumDirectTransmittance: 0.90
+desktopCloudLightResponseRate: 0.7
+desktopCloudWeatherGradeStrength: 0.24
+desktopCloudVolumetricEnabled: true
+desktopCloudVolumetricResolutionScale: 0.50
+# Twelve independently jittered strata remove the visible shell/ring pattern
+# while the half-resolution pass keeps the cost bounded.
+desktopCloudVolumetricSteps: 12
+# Keep enough current-frame weight that old raymarch strata cannot persist as
+# temporal bands after camera or cloud motion.
+desktopCloudTemporalBlend: 0.84
+desktopCloudGodRays: true
+desktopCloudGodRayStrength: 0.14
+desktopCloudAmbientColor: "#d8e1e8"
+desktopCloudShadowColor: "#9fb0bf"
+desktopCloudSunlitColor: "#fff6e7"
+
+compactCameraFov: 50
+compactCameraMargin: 1.28
+compactCameraElevation: 1.05
+compactMaxPixelRatio: 1.35
+compactAutoRotate: false
+compactShadows: false
+compactShadowMapSize: 1024
+compactShowGui: false
+compactShowDecorativeText: false
+
+compactCloudEnabled: true
+compactCloudCoverage: 0.60
+compactCloudSoftness: 0.12
+compactCloudOpacity: 0.58
+compactCloudBaseHeight: 720
+compactCloudThickness: 150
+compactCloudExtinction: 1.05
+compactCloudMacroScale: 0.00055
+compactCloudDetailScale: 0.0020
+compactCloudWeatherScale: 0.00016
+compactCloudWindX: 8
+compactCloudWindZ: 3
+compactCloudDetailWindX: -2
+compactCloudDetailWindZ: 7
+compactCloudSelfShadowStrength: 0.10
+compactCloudSilverLiningStrength: 1.10
+compactCloudShadowStrength: 0.10
+compactCloudShadowSampleRadius: 28
+compactCloudShadowMapResolution: 128
+compactCloudShadowWorldSize: 1280
+compactCloudShadowSteps: 2
+compactCloudShadowEdgeFade: 0.10
+compactCloudShadowDistanceFadeStart: 320
+compactCloudShadowDistanceFadeEnd: 900
+compactCloudMinimumDirectTransmittance: 0.90
+compactCloudLightResponseRate: 0.65
+compactCloudWeatherGradeStrength: 0.18
+compactCloudVolumetricEnabled: false
+compactCloudVolumetricResolutionScale: 0.33
+compactCloudVolumetricSteps: 6
+compactCloudTemporalBlend: 0.82
+compactCloudGodRays: true
+compactCloudGodRayStrength: 0.09
+compactCloudAmbientColor: "#d8e1e8"
+compactCloudShadowColor: "#a8b7c3"
+compactCloudSunlitColor: "#fff6e7"

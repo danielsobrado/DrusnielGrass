@@ -1,0 +1,45 @@
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+node_modules
+dist
+dist-ssr
+*.local
+
+# Vite and local tooling may read environment files. Never commit local values.
+.env
+.env.*
+!.env.example
+
+# Editor directories and files
+.vscode/*
+!.vscode/extensions.json
+# Per-machine agent/editor settings, not shared project configuration.
+.claude/
+.idea
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+tmp-uniform-probe/
+.character-check/
+preview-tmp/
+
+# Local dev probe pages. Each is a root html entry plus its tools/ module; they
+# are served by the dev server only and are not inputs to `npm run build`.
+lod-blink.html
+trail-probe.html
+tools/lod-blink/
+tools/trail-probe/
+
+# Local visual QA captures are generated artifacts, not source assets.
+.shots/
+.tmp-screenshots/

@@ -1,0 +1,292 @@
+{
+  "version": 3,
+  "communities": {
+    "short-sward": {
+      "index": 0,
+      "label": "Short Sward",
+      "weight": 1.15,
+      "archetypeBias": 0.6,
+      "preferences": {
+        "moisture": [
+          0.32,
+          0.3
+        ],
+        "fertility": [
+          0.55,
+          0.35
+        ],
+        "exposure": [
+          0.9,
+          0.3
+        ],
+        "disturbance": [
+          0.15,
+          0.5
+        ],
+        "rockiness": [
+          0.2,
+          0.3
+        ],
+        "shade": [
+          0.05,
+          0.35
+        ]
+      },
+      "response": {
+        "density": 1,
+        "height": 0.72,
+        "accentChance": 0.35,
+        "understory": 0.55,
+        "clumpScale": 0.88,
+        "clearingAffinity": 0.75,
+        "groundExposure": 0.55,
+        "organicCover": 0.12,
+        "dryGroundBias": 0.55
+      }
+    },
+    "tall-colony": {
+      "index": 1,
+      "label": "Tall Colony",
+      "weight": 1,
+      "archetypeBias": -0.7,
+      "preferences": {
+        "moisture": [
+          0.62,
+          0.25
+        ],
+        "fertility": [
+          0.92,
+          0.2
+        ],
+        "exposure": [
+          0.7,
+          0.35
+        ],
+        "disturbance": [
+          0.02,
+          0.3
+        ],
+        "rockiness": [
+          0.03,
+          0.2
+        ],
+        "shade": [
+          0.15,
+          0.4
+        ]
+      },
+      "response": {
+        "density": 1.06,
+        "height": 1.22,
+        "accentChance": 0.55,
+        "understory": 0.8,
+        "clumpScale": 1.18,
+        "clearingAffinity": 0.18,
+        "groundExposure": 0.12,
+        "organicCover": 0.45,
+        "dryGroundBias": 0.08
+      }
+    },
+    "bare-break": {
+      "index": 2,
+      "label": "Bare Break",
+      "weight": 0.9,
+      "archetypeBias": 0.9,
+      "preferences": {
+        "moisture": [
+          0.16,
+          0.22
+        ],
+        "fertility": [
+          0.1,
+          0.35
+        ],
+        "exposure": [
+          0.85,
+          0.35
+        ],
+        "disturbance": [
+          0.35,
+          0.6
+        ],
+        "rockiness": [
+          0.65,
+          0.35
+        ],
+        "shade": [
+          0.05,
+          0.35
+        ]
+      },
+      "response": {
+        "density": 0.28,
+        "height": 0.8,
+        "accentChance": 0.3,
+        "understory": 0.4,
+        "clumpScale": 0.7,
+        "clearingAffinity": 1.0,
+        "groundExposure": 1.0,
+        "organicCover": 0.05,
+        "dryGroundBias": 0.85
+      }
+    },
+    "flower-meadow": {
+      "index": 3,
+      "label": "Flower Meadow",
+      "weight": 0.62,
+      "archetypeBias": -0.1,
+      "preferences": {
+        "moisture": [
+          0.45,
+          0.28
+        ],
+        "fertility": [
+          0.85,
+          0.25
+        ],
+        "exposure": [
+          0.88,
+          0.25
+        ],
+        "disturbance": [
+          0.06,
+          0.4
+        ],
+        "rockiness": [
+          0.08,
+          0.25
+        ],
+        "shade": [
+          0.03,
+          0.3
+        ]
+      },
+      "response": {
+        "density": 0.94,
+        "height": 0.98,
+        "accentChance": 2.1,
+        "understory": 1.05,
+        "clumpScale": 1,
+        "clearingAffinity": 0.45,
+        "groundExposure": 0.25,
+        "organicCover": 0.25,
+        "dryGroundBias": 0.15
+      }
+    },
+    "broadleaf-understory": {
+      "index": 4,
+      "label": "Broadleaf Understory",
+      "weight": 1.05,
+      "archetypeBias": -0.4,
+      "preferences": {
+        "moisture": [
+          0.55,
+          0.3
+        ],
+        "fertility": [
+          0.95,
+          0.22
+        ],
+        "exposure": [
+          0.5,
+          0.3
+        ],
+        "disturbance": [
+          0.03,
+          0.35
+        ],
+        "rockiness": [
+          0.06,
+          0.25
+        ],
+        "shade": [
+          0.45,
+          0.55
+        ]
+      },
+      "response": {
+        "density": 0.86,
+        "height": 0.92,
+        "accentChance": 1.7,
+        "understory": 1.35,
+        "clumpScale": 1.06,
+        "clearingAffinity": 0.12,
+        "groundExposure": 0.12,
+        "organicCover": 1.0,
+        "dryGroundBias": 0.05
+      }
+    }
+  },
+  "speciesAffinity": {
+    "daisy": [
+      1.3,
+      0.55,
+      0.3,
+      1.8,
+      0.45
+    ],
+    "round-bloom": [
+      0.7,
+      0.75,
+      0.25,
+      2,
+      0.55
+    ],
+    "seed-head": [
+      1.1,
+      1.6,
+      0.65,
+      0.55,
+      0.3
+    ],
+    "grass-tuft": [
+      1.2,
+      1.45,
+      0.6,
+      0.8,
+      0.75
+    ],
+    "fern": [
+      0.2,
+      0.85,
+      0.1,
+      0.35,
+      2
+    ],
+    "small-fern": [
+      0.35,
+      0.8,
+      0.15,
+      0.45,
+      1.85
+    ],
+    "broadleaf-rosette": [
+      0.55,
+      0.7,
+      0.3,
+      0.6,
+      2
+    ],
+    "clover-patch": [
+      1.55,
+      0.7,
+      0.35,
+      1.25,
+      0.85
+    ],
+    "low-shrub": [
+      0.3,
+      1.05,
+      0.55,
+      0.4,
+      1.3
+    ],
+    "leaf-litter": [
+      0.6,
+      0.9,
+      1.1,
+      0.55,
+      1.6
+    ]
+  }
+}

@@ -1,0 +1,89 @@
+body {
+  margin: 0;
+  background: #bfd4df;
+  color: #223;
+  font: 12px monospace;
+}
+
+canvas {
+  display: block;
+}
+
+#out {
+  position: fixed;
+  left: 8px;
+  bottom: 8px;
+  z-index: 20;
+  max-width: min(520px, calc(100vw - 16px));
+  white-space: pre-wrap;
+}
+
+.stone-cluster-menu {
+  position: fixed;
+  top: 8px;
+  right: 8px;
+  z-index: 30;
+  width: 260px;
+  max-height: calc(100dvh - 16px);
+  overflow: auto;
+  padding: 9px 10px 10px;
+  border: 1px solid rgb(34 51 51 / 18%);
+  border-radius: 10px;
+  background: rgb(18 24 22 / 86%);
+  box-shadow: 0 8px 28px rgb(0 0 0 / 22%);
+  color: #edf5e9;
+  font: 11px/1.25 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  backdrop-filter: blur(10px);
+}
+
+.stone-cluster-menu summary {
+  cursor: pointer;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.stone-cluster-section {
+  margin-top: 8px;
+}
+
+.stone-cluster-menu label {
+  display: grid;
+  grid-template-columns: 92px 1fr;
+  align-items: center;
+  gap: 8px;
+  margin-top: 7px;
+}
+
+.stone-cluster-menu button {
+  width: 100%;
+  margin-top: 8px;
+  padding: 6px 8px;
+  border: 1px solid rgb(255 255 255 / 16%);
+  border-radius: 5px;
+  background: rgb(83 126 63 / 82%);
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.stone-cluster-range {
+  display: grid;
+  grid-template-columns: 1fr 43px;
+  align-items: center;
+  gap: 5px;
+}
+
+.stone-cluster-range input {
+  width: 100%;
+}
+
+.stone-cluster-range output {
+  text-align: right;
+  color: #bed6b0;
+}
+
+.stone-cluster-status {
+  margin-top: 8px;
+  color: #d7e7c8;
+  white-space: pre-wrap;
+}

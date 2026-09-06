@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Waterfall lab</title>
+    <style>
+      body { margin: 0; background: #9fb4c4; color: #eef3f7; font: 12px monospace; }
+      canvas { display: block; }
+      #hud {
+        position: fixed;
+        left: 10px;
+        top: 10px;
+        margin: 0;
+        padding: 10px 12px;
+        white-space: pre;
+        background: rgba(12, 18, 24, 0.62);
+        border-radius: 4px;
+        pointer-events: none;
+        line-height: 1.5;
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="canvas"></canvas>
+    <pre id="hud">starting…</pre>
+    <script type="module" src="/tools/waterfall-lab/main.ts"></script>
+  </body>
+</html>

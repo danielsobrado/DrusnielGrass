@@ -1,0 +1,57 @@
+# Dense opaque mesh blades with responsive runtime hemi-octahedral far impostors.
+instanceCount: 1400
+patchSize: 4
+variantCount: 4
+bladesPerClump: 12
+bladeSegments: 3
+clumpRadius: 0.64
+bladeHeightMin: 0.34
+bladeHeightMax: 0.70
+# Carry more leaf area in the lower body while the geometric tip remains a
+# point. This closes the canopy more efficiently than adding more roots.
+bladeWidthMin: 0.050
+bladeWidthMax: 0.094
+bladeLeanMin: 0.020
+bladeLeanMax: 0.22
+# Total turn of the blade's rest arc, root to tip, in radians. The height above
+# is spent as arc length, so a curved blade stands lower than a straight blade.
+bladeCurve: 0.68
+midBladesPerClump: 12
+midBladeSegments: 1
+midRadiusScale: 1
+midHeightScale: 1
+midWidthScale: 1
+midLeanScale: 1
+seed: 1337
+rootSink: 0.025
+maxSlopeDegrees: 48
+heightVariation: 0.16
+widthVariation: 0.24
+densityMin: 0.2
+densityMax: 1
+densityScale: 0.08
+windDirectionX: 0.8
+windDirectionZ: 0.35
+windStrength: 0.10
+gustScale: 0.08
+gustSpeed: 0.65
+flutterStrength: 0.025
+flutterSpeed: 3.8
+baseColor: "#2f7c35"
+tipColor: "#c7dc61"
+dryColor: "#9f9552"
+rootDarkening: 0.42
+normalUp: 0.76
+ambientBoost: 0.09
+backlightStrength: 0.34
+nearMaxDistance: 12
+midMaxDistance: 30
+farMaxDistance: 80
+hysteresisDistance: 1.25
+transitionDistance: 2.5
+qaWarmupSeconds: 1.5
+qaSampleSeconds: 4
+impostorViewsPerAxis: 6
+impostorFrameResolution: 64
+impostorPadding: 8
+impostorCameraMargin: 1.08

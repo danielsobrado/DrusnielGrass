@@ -1,0 +1,12 @@
+{
+  "moss": "#44553b",
+  "soilNormal": "#706a60",
+  "soilRich": "#4f463c",
+  "soilDry": "#8a7554",
+  "pathSoil": "#73573e",
+  "pathDust": "#9a8067",
+  "pathGrit": "#9b927f",
+  "stoneContactSoil": "#433a32",
+  "rockBase": "#655e55",
+  "rockWarm": "#806f59"
+}

@@ -1,0 +1,616 @@
+# Drusniel World large-world performance benchmark.
+seed: 42017
+worldSize: 2048
+chunkSize: 64
+
+terrainRadiusDesktop: 6
+terrainRadiusCompact: 3
+grassRadiusDesktop: 5
+grassRadiusCompact: 3
+
+terrainNearResolution: 25
+terrainMidResolution: 13
+terrainFarResolution: 7
+terrainChunksPerFrame: 2
+grassChunksPerFrame: 1
+
+# Permanent horizon shell. One static draw call covering the whole world plus an
+# apron beyond its edge, so nothing capable of breaking the skyline is ever
+# absent. 10.67 m spacing follows the far-chunk lattice (six cells per 64 m
+# chunk), putting 50% more vertices into distant ridge silhouettes without
+# adding a draw call. Twenty-six gently growing apron rings spend the remainder
+# of the 120k-triangle horizon budget breaking up the long planar bands that a
+# handful of aggressively growing outer rings produced. The apron still carries
+# the ground well past the distance at which fog closes, so the horizon is haze
+# rather than an edge.
+horizonEnabled: 1
+horizonSpacing: 10.666666666666666
+horizonApronRings: 26
+horizonApronGrowth: 1.121
+
+# Multi-blade patches are used only by the mid and far grass LODs.
+grassPatchSize: 4
+# Split each streamed chunk into independently culled 32 m render batches.
+grassRenderBatchesPerAxis: 2
+# One instance now contains four genuine 2x2 m subpatch impostors.
+grassFarImpostorsPerPatch: 1
+grassBladesPerSquareMeterDesktop: 84
+grassBladesPerSquareMeterCompact: 40
+
+# Closest LOD uses individually instanced blades in streamed eight-metre tiles.
+grassNearTileSize: 8
+grassNearBladesPerSquareMeterDesktop: 84
+grassNearBladesPerSquareMeterCompact: 40
+
+# An additional single-blade layer doubles density, and the segmented blade
+# geometry replaces the one-triangle silhouette, inside this radius. 6 m is what
+# the desktop near-field triangle ceiling affords: 7 m measures 1,004,544
+# against the 1,000,000 bound.
+grassUltraNearDistance: 6
+# Left at 1 m deliberately. This is a geometry swap, not a coverage change: the
+# same blades stand on both sides of it, the segmented silhouette simply gives
+# way to the one-triangle one at the same roots. Widening it bought nothing the
+# eye can see and cost 24k triangles against the near-field ceiling.
+grassUltraNearTransitionDistance: 1
+grassUltraNearDensityMultiplier: 2
+grassUltraNearDensityMultiplierCompact: 1.5
+
+# How far the doubled blade population reaches, and how gradually it decays. The
+# segmented silhouette above is a detail layer and stops at 6 m because triangles
+# are expensive; this is a coverage layer on one-triangle blades and is what
+# actually stops the ground showing through. Ending the doubling at 6 m halved
+# density across a single metre, which read as a brightness ring riding at a
+# fixed radius around the player. The decay must finish before the mid patches
+# take over, since they carry no counterpart population.
+grassNearDensityBoostDistance: 13
+grassNearDensityBoostTransition: 6
+
+# Bridge LOD keeps the near field's exact blade placements before the repeated
+# patch LOD begins. The first handoff completes before the patch crossfade starts.
+grassNearBridgeDistance: 18
+grassNearBridgeTransitionDistance: 2
+
+# Where a blade stops being shaded as an individual leaf and starts being shaded
+# as canopy: the high-frequency trough normal smooths back to the existing
+# canopy bias, per-blade tone variation collapses, and flutter stops. Every near
+# and mid layer uses this one range, so the same blade at the same distance is
+# lit the same way whichever layer draws it. Keyed to the world, deliberately
+# not to any LOD boundary.
+grassMicroDetailFadeStart: 3
+grassMicroDetailFadeEnd: 13
+
+# Sparse is relative to each biome's own expected density. This keeps normal
+# steppe/alpine open without applying the sparse-cluster suppression twice.
+grassSparseDensityRetentionThreshold: 0.55
+
+# Natural near-grass tuft distribution. Shape, tiering, and blade-plane
+# coherence are clump-scale first; blade-level variation is deliberately small.
+grassClumpRadiusScaleMin: 0.40
+grassClumpRadiusScaleMax: 0.62
+grassClumpAspectMin: 0.70
+grassClumpAspectMax: 1.38
+grassClumpRadialExponent: 0.60
+grassClumpDominantDirectionWeight: 0.60
+grassClumpRadialDirectionWeight: 0.14
+grassClumpPlaneCoherence: 0.24
+grassClumpEdgeCoverage: 0.90
+grassAccentBladeShare: 0.055
+grassUnderstoryHeightScale: 0.46
+grassMainHeightScale: 0.83
+grassAccentHeightScale: 1.18
+grassBladeHeightJitter: 0.04
+
+# Macro grass habitat. These modulate ecology rather than inventing a second field.
+# Strength is the look: wet banks, dry crowns, rock, and paths must read from
+# a standing camera, not only from a habitat debug overlay.
+grassMacroPatchWorldSize: 84
+# Reduced from 0.52 with the community field. This 36 m patch field responds to
+# the same ecology the communities now do, so at its old strength the two fought:
+# a doubled structure at two nearby scales reads as mud rather than as either.
+grassMacroPatchStrength: 0.34
+grassWetDensityBoost: 0.45
+grassDryDensityReduction: 0.68
+grassRockDensityReduction: 0.82
+# Bare ground. Coverage is the share of the meadow that opens up; strength is
+# how completely it opens. Strength 1 is real negative space -- density reaches
+# zero, blades stop, and the terrain shader stops tinting that ground as grass.
+grassClearingCoverage: 0.28
+grassClearingStrength: 1.0
+grassDisturbanceDensityReduction: 0.88
+grassWetHeightBoost: 0.32
+grassDryHeightReduction: 0.42
+grassDryColorStrength: 0.58
+
+# How far every grass palette colour is pulled toward its own luminance.
+#
+# Applied inside setBalancedGrassPaletteColors, so it moves the near blades, the
+# mid blades, the impostor cards and the terrain's grass tint by exactly the same
+# amount -- which is what makes one saturation lever safe at all. It preserves
+# luminance by construction, so it cannot move the field's brightness or the LOD
+# colour-parity budget. Provisional at 0.06; the full palette pass raises it.
+grassPaletteDesaturation: 0.14
+
+# Vegetation communities.
+#
+# The meadow varied dryness, vigour, clearing and patch density, but nothing
+# ever named a *community* -- so every point in it was "grass, a bit drier or
+# wetter", and nothing made density, height, accent share, understory ratio and
+# clump archetype agree about what a given patch of ground is.
+#
+# Ecology decides which communities are possible here; this field decides which
+# of the possible ones organises, and gives the patch its shape. The art tables
+# (prior weights, preference curves, responses, species affinity) are in
+# src/world/ecology/WorldCommunityProfiles.json.
+#
+# Metres per lattice cell: a patch you can trace the boundary of from a standing
+# camera, and above twice the coarsest terrain vertex spacing so the ground can
+# still carry the field at the far ring. The validator enforces that floor.
+grassCommunityWorldSize: 26
+# Large historical territories distort the local community lattice without
+# moving the real ecology sampled at a point.
+grassCommunityWarpWorldSize: 96
+grassCommunityWarpDistance: 14
+# How much ecology constrains the choice. At 1 the communities follow moisture
+# and slope isolines and read as a contour map; at 0 they are pure noise, which
+# is the scatter this field replaces. 0.78 leaves noise enough room to break up
+# the contours without letting a bare break open on wet, sheltered ground.
+grassCommunityEcologyStrength: 0.78
+# How hard a community expresses itself in the middle of its own patch.
+grassCommunityStrength: 0.85
+# Half-width of the ecotone, in units of the score margin. Wider means more
+# ground where two communities interleave.
+grassCommunityBorderWidth: 0.18
+# How much incident a quiet patch gives up. Takes the accent layer and the
+# clump-scale variety, never density: quiet ground is not bare ground, it is
+# somewhere for the eye to rest between the richer patches.
+grassCommunityQuietStrength: 0.7
+# How far the ground agrees with the community standing on it. This is what
+# keeps dark colonies, dry patches and bare breaks legible at 200 m, where the
+# blades are long gone and only the terrain is left.
+terrainCommunityTintStrength: 0.42
+
+# Detail foliage composition. Tile topology, material, atlas, LOD and radius stay fixed.
+detailFoliageDensity: 20.0
+detailFoliageColonyWorldSize: 11
+detailFoliageClumpWorldSize: 2.25
+detailFoliageColonyStrength: 0.94
+detailFoliageDominantFamilyShare: 0.90
+detailFoliageTintCoherence: 1
+detailFoliageQuietZoneThreshold: 0.34
+# The only lever that creates quiet ground, despite the name of the threshold
+# above: quietZoneThreshold was measured at 0.34, 0.50, and 0.62 and moved the
+# quiet-cell ratio not at all, while this one moves it directly. Dropping it to
+# 0.34 for card count took the ratio to zero -- the accent layer became a
+# uniform sprinkle with no colonies or negative space -- and that went unnoticed
+# because verify-detail-foliage-distribution was still testing a stale 0.35
+# density. 0.50 is the smallest value that keeps the ratio inside its 20-60%
+# contract (0.217).
+detailFoliageBackgroundSuppression: 0.50
+detailFoliageCoreHeightBias: 0.12
+detailFoliageMaturePhenotypeBias: 0.62
+detailFoliageEcologyStrength: 0.72
+detailFoliageEdgeCompanionStrength: 0.30
+detailFoliageStoneFringeStrength: 0.38
+detailFoliagePathFringeStrength: 0.18
+# How much the community a plant stands in decides whether that species belongs
+# there. Multiplied into the ecology habitat score the layer already computes, so
+# a species becomes common in a community without becoming unconditional.
+detailFoliageCommunityStrength: 0.80
+# How far an accent takes its height from the grass around it. A daisy in a tall
+# colony should be a taller daisy; without this it is the same daisy in taller
+# grass, which is why the flowers read as sprinkled on rather than grown in.
+detailFoliageGrassHeightCoupling: 0.55
+
+# Mid blades use cheaper single triangles but retain every source blade.
+# Underlayer is the tuft body: raising it (and thinning the mid-height band in
+# placement) is what makes 5-15 m grass read as masses instead of needles.
+grassMidBladeFraction: 1
+grassUnderlayerFraction: 0.58
+grassPatchJitter: 0.3
+
+# Character footfalls and landing pulse.
+grassInteractionStrength: 0.94
+grassInteractionSpeedForFullEffect: 4
+grassLandingPulseRadius: 2.4
+grassLandingPulseStrength: 1.05
+grassLandingPulseDecay: 5.2
+
+# Persistent crush map. Recovery is slower than contact so a running wake
+# lingers, then springs back, instead of snapping the moment a foot lifts.
+grassTrailResolution: 256
+grassTrailCoverage: 24
+grassTrailRecoveryRate: 0.32
+grassTrailFreshnessRate: 0.92
+grassTrailMaxAngleDegrees: 74
+grassTrailWobbleFrequency: 12
+grassTrailWobbleAmplitude: 0.16
+grassFootContactRadius: 0.28
+grassFootContactStrength: 1
+grassBodyContactRadius: 0.55
+grassBodyContactStrength: 0.38
+
+spawnSearchRadius: 640
+spawnSearchStep: 24
+spawnNeighborhoodRadius: 18
+spawnEyeHeight: 2.2
+spawnPitchDegrees: -8
+
+baseHeight: 2
+rollingHeight: 34
+mountainHeight: 210
+mountainScale: 0.00115
+detailScale: 0.0055
+
+# Procedural hydrology. River corridors carve the terrain; deterministic basin
+# cells create lowland lakes. Humidity reaches farther than the visible water.
+waterEnabled: 1
+# Water optics preset. 0 keeps the standard single-pass surface; 1 turns on the
+# richer depth extinction and Fresnel balance, which costs real fragment time
+# and is selectable from the river HUD menu rather than being the default.
+waterQuality: 0
+riverWidth: 21
+riverBankWidth: 4.5
+riverDepth: 3
+riverSpacing: 640
+riverMeander: 105
+riverMaxAltitude: 72
+# Channel morphology — reload required while tuning.
+riverWidthVariation: 0.08
+riverBendBankAsymmetry: 0.04
+riverDepthVariation: 0.22
+riverBendChannelShift: 0.20
+waterHumidityRadius: 34
+lakeSpacing: 480
+lakeChance: 0.38
+lakeRadiusMin: 26
+lakeRadiusMax: 58
+lakeDepth: 3
+lakeShoreWidth: 8
+waterSurfaceOffset: 0.08
+waterOpacity: 0.72
+waterRippleStrength: 0.14
+waterRippleScale: 0.085
+waterFlowSpeed: 0.85
+# River visual velocity — live uniform tuning.
+waterRiverPoolFlowScale: 0.80
+waterRiverRiffleFlowScale: 1.20
+waterFoamStrength: 0.9
+# Foam cause balance. Overall amount remains waterFoamStrength.
+waterShoreFoamWeight: 0.14
+waterRiffleFoamWeight: 0.40
+waterStoneFoamWeight: 0.56
+waterFresnelStrength: 1.65
+waterDepthFade: 1.35
+waterDetailDistance: 110
+waterLakeWaveStrength: 0.55
+waterRoughness: 0.12
+# Flow-aligned breakup, shallow subsurface light, sparse glints, and stone wakes.
+waterFlowNoiseScale: 0.052
+waterFlowNoiseStrength: 0.34
+waterCausticStrength: 0.28
+waterGlintStrength: 0.32
+waterStoneWakeStrength: 0.95
+waterStoneWakeLength: 4.2
+# Riverbed seen through the sheet: cobbles, sand, and algae, displaced along the
+# view ray to their real depth and bent by the wave slope so they swim about.
+waterBedStrength: 0.78
+waterBedScale: 0.78
+waterBedRefraction: 0.55
+waterAlgaeStrength: 0.55
+
+# Deterministic knickpoints. Small rivers break over ledges often, major rivers
+# rarely; the cascade itself is drawn as its own geometry so it keeps a vertical
+# silhouette no matter what the terrain LOD does with the few metres of ledge.
+waterfallEnabled: 1
+waterfallScale: 1
+waterfallFoamStrength: 1
+waterfallMistStrength: 0.85
+
+# Bare walking ways worn through the grass.
+pathWidth: 3
+pathBranchWidth: 1.7
+pathSpacing: 640
+pathEdgeRoughness: 0.5
+pathGrassClearance: 0.15
+# How far the vegetation boundary wanders, against pathEdgeRoughness (0.5) for
+# the mineral one. Deliberately larger: only the dirt core used to be ragged, so
+# a torn patch of earth sat inside a cleanly-offset green cut-out and the verge
+# read as a stencil laid over the meadow. Trampling makes the plant edge the more
+# irregular of the two, not the less.
+pathGrassEdgeRoughness: 0.9
+# A used way is not sterile. This share of blades survives in the tread itself,
+# shorter and flattened, thinning toward the compacted middle -- which is what
+# stops the verge reading as a cut rather than a gradient.
+grassPathPioneerChance: 0.06
+grassPathPioneerHeightLoss: 0.45
+grassPathPioneerCoverage: 0.55
+# How far trampling shortens blades approaching a way. Was a 0.28 literal inside
+# the habitat mapper, which is too weak to read at walking height.
+grassDisturbanceHeightReduction: 0.52
+# Mineral soil carried up into the vegetation beside a tread. Without it the
+# verge is two flat fields meeting at a line; with it the boundary is a gradient
+# of exposure, which is what the eye reads as a worn edge.
+terrainVergeFleckStrength: 0.34
+
+# Ground substrate.
+#
+# Soil colour was a function of how the grass was doing: humidity is derived from
+# grass dryness, and the soil mix reads humidity, so every term that greened the
+# blades also warmed the earth under them. The two could never separate, which is
+# most of why the meadow read as one hue. Real soil colour comes from parent
+# material and drainage, and neither is decided by the vegetation.
+#
+# Metres per cell of the independent soil-tone field, and how far it overrides
+# the humidity mix.
+terrainSoilHueWorldSize: 72
+terrainSoilHueStrength: 0.68
+# A 2-5 m mottle. The existing octaves sit at 64, 29.5 and 7.4 m, so nothing
+# occupied the band a walking camera reads as soil texture.
+terrainGroundFleckStrength: 0.16
+# Depressions collect water, litter and shadow. Without curvature the ground has
+# exactly one tone per ecology value, which is what makes an open patch read as a
+# flat fill however much noise is layered on it.
+terrainHollowDarkening: 0.14
+terrainHollowMoisture: 0.12
+# Organic matter, not more grass tint: it accumulates where water sits and light
+# is scarce, and it is a genuinely different material from both soil and canopy.
+terrainMossStrength: 0.30
+# The ground under a tuft is darker than the ground between tufts, and the eye
+# uses exactly that to decide whether a blade stands in the earth or is pasted
+# onto it. Sampled on the same lattice the blades are placed on.
+terrainClumpContactAo: 0.20
+terrainClumpLitterStrength: 0.18
+
+# Blade lighting.
+#
+# normalUp is 0.76 in every preset, so more than three quarters of each blade's
+# normal was world up: a blade facing the sun and a blade facing away returned
+# nearly the same Lambert response, and the near field had no form, only colour.
+# It also flattened the transmission term, so the backlighting was implemented
+# correctly and then suppressed by the same constant.
+#
+# The preset value stays the *far* end, which a distant card needs to stay
+# stable and which must match the impostor material. This scales the near end.
+grassNearNormalUpScale: 0.66
+# A blade standing under its neighbours receives less sky. The clump profile
+# already knows how tall its main tier is, so the shortfall of this blade against
+# that tier is how deep in the canopy it sits: no neighbour search, no runtime
+# cost, and it is the other half of the contact the ground now draws under a tuft.
+grassCanopyDepthAo: 0.26
+# And blades near a tuft's centre are more occluded than blades at its rim.
+grassClumpCoreAo: 0.12
+
+# Per-blade silhouette.
+#
+# Every near blade instances one cached source triangle, and its apex sits at
+# local x = 0 — so the entire near population is symmetric isoceles triangles
+# differing only in width, height, yaw and lean. That is the "many identical thin
+# triangles" read, and no amount of density or palette work touches it, because
+# the missing information is shape.
+#
+# All four are applied in the vertex shader against the shared source, so the
+# population still draws in one call per tile.
+#
+# How far a blade's apex may fall sideways, in source half-widths. Grows
+# quadratically along the blade, so roots stay put and only the silhouette's
+# upper half leans — this is what breaks the mirrored read.
+grassBladeTipDrift: 0.9
+# A minority of blades are broad and blunt rather than lance-like.
+grassBroadBladeShare: 0.09
+grassBroadBladeWidthScale: 1.75
+# And a few are broken: blunt at the tip rather than shorter with a point.
+grassBladeDamageShare: 0.07
+
+# Rosette clusters.
+#
+# Grass does not grow as evenly spaced single blades; it grows as tufts, and a
+# tuft is one crown with several leaves fanned off it. The clump lattice already
+# gathers blades into tufts, but each blade in one is still an independent
+# plant, which is why a tuft reads as a handful of separate spikes rather than
+# one plant.
+#
+# The extra leaves are emitted from a cell that has already sampled its ecology,
+# so they cost a matrix compose each. Raising the chance does NOT densify the
+# meadow: per-blade coverage divides by the same expected factor, so the field
+# trades single blades for fewer, fuller plants at a constant blade count.
+grassRosetteChance: 0.12
+# Angle between neighbouring leaves in a fan, in radians.
+grassRosetteFanRadians: 0.42
+
+# Shared ground/grass procedural surface.
+terrainGroundNoiseWorldSize: 64
+terrainGroundMesoStrength: 0.18
+terrainGroundMicroStrength: 0.12
+terrainGroundNormalStrength: 0.30
+terrainGroundCanopyDarkening: 0.22
+terrainPathCoreDarkening: 0.08
+terrainPathVergeDryness: 0.38
+
+# The ground's own distance schedules. These used to be borrowed from the grass
+# preset's near (28 m) and mid (54 m) distances, which is what made the hillside
+# band: three ground terms and three vegetation terms all changed across the
+# same two radii, so six soft fades read as one hard ring following the camera.
+# Each now owns its range, and no two share an edge.
+#
+# Micro grain was the worst of them at 6 -> 7 m: a one-metre transition on a
+# term that is not fully mean-preserved. 18 m of transition is long enough that
+# the speckle leaving is never an event.
+terrainMicroDetailStart: 9
+terrainMicroDetailEnd: 27
+# Meso mottling is zero-mean, so only its variance collapses here. Kept well
+# clear of both the near-to-mid handoff and the canopy merge below.
+terrainMesoDetailStart: 46
+terrainMesoDetailEnd: 100
+# Where the open ground starts reading as canopy instead of soil. This is the
+# only ground term that moves the mean colour rather than the grain, so it is
+# the one that most needed its own schedule: it now begins past the mid layer's
+# density falloff (74 m), where the blades have genuinely thinned, rather than
+# at the 28 m near handoff where they have not.
+terrainCanopyMergeStart: 70
+terrainCanopyMergeEnd: 160
+# And it no longer completes. Ground fully replaced by canopy colour is a claim
+# the impostor cards are already making; the ground only needs to agree with
+# them, not to become them.
+terrainCanopyMergeStrength: 1.0
+
+# Share of a distance schedule's own transition width spent wandering in world
+# space. Separating the edges stops the fades stacking; this stops each
+# remaining one from tracing a circle centred on the viewer. Applied to the
+# distance rather than to the edges, so a jittered start can never cross a
+# jittered end.
+lodBandJitterRatio: 0.33
+
+grassMinAltitude: -20
+grassMaxAltitude: 118
+grassMaxSlopeDegrees: 44
+
+# Procedural stones.
+stonesEnabled: 1
+stoneCellSize: 16
+stoneDensity: 0.30
+stoneVariantsPerArchetype: 10
+stoneClusterChance: 0.82
+# Macro stone geology. 56 m intentionally does not divide the 16 m stone cell
+# or 64 m terrain chunk, avoiding visible lattice lock.
+stoneClusterSpacing: 56
+stoneClusterCenterJitter: 0.26
+stoneClusterRadiusMin: 10
+stoneClusterRadiusMax: 22
+stoneClusterAspectMin: 0.58
+stoneClusterAspectMax: 0.92
+stoneClusterBudgetMin: 4
+stoneClusterBudgetMax: 8
+stoneClusterCoreRatio: 0.42
+stoneClusterShoulderRatio: 0.78
+stoneClusterHaloRatio: 1.12
+stoneClusterDensityResponse: 6
+# True detached fragments are rare. Ordinary stone recipes already carry cuts
+# and chips, so a visible crack normally stays part of one readable rock mass.
+stoneFormationChance: 0.12
+# Aperture scales with the stable parent footprint. Quadratic sampling strongly
+# favours hairlines; the metre cap keeps exceptional landmark stones reasonable.
+stoneFormationGapRatioMin: 0.006
+stoneFormationGapRatioMax: 0.025
+stoneFormationGapMax: 0.03
+# Both fragments keep one rigid transform. The ground below the smaller fragment
+# may differ only slightly from the anchor before the formation is rejected.
+stoneFormationSupportHeightRatio: 0.08
+stoneFormationSupportHeightMax: 0.05
+stoneSingletonChance: 0.17
+# Keep the bare contact strip inside the stone footprint and recover quickly
+# through a short-grass fringe instead of exposing a broad soil halo.
+stoneGrassClearanceFeather: 0.24
+stoneRadiusDesktop: 6
+stoneRadiusCompact: 3
+# Chipped geometry is only useful in the near field; compact keeps it to one
+# 64 m ring because the extra facets are sub-pixel earlier on smaller screens.
+stoneDetailRadius: 2
+stoneDetailRadiusCompact: 1
+# Merge a stable 2x2 terrain-chunk block into one stone draw.
+stoneRenderBatchChunksPerAxis: 2
+stoneChunksPerFrame: 1
+# Paths keep occasional kicked-aside stones without becoming decorative kerbs.
+stoneVergeChance: 0.62
+# Close-range surface grain.
+#
+# The normal term is on and the albedo term stays off, and the reason both
+# changed is the same: the material is no longer pure Lambert. It previously had
+# no specular lobe for dry stone, so a perturbed normal only changed N.L -- a
+# brightness blotch, indistinguishable from an albedo blotch -- and the earlier
+# sweep correctly measured no effect and switched both terms off. What that
+# sweep could not know is that the missing mechanism, a highlight sliding across
+# the relief, already existed on this material for wet stone and only needed
+# opening to dry (STONE_DRY_SHEEN_* in StoneGrowthShader.ts).
+#
+# With the lobe present the normal term does what it was written for, and the
+# feature size moves with it: the old finding that it needed roughly 3 m before
+# it stopped reading as lichen was a property of modulating albedo, not relief.
+# The albedo term stays at zero -- it still reads as dirty concrete, because
+# painting a blotch is what it does and no lobe changes that.
+stoneGrainStrength: 0
+stoneGrainNormalStrength: 0.05
+stoneGrainSize: 1.6
+stoneGrainFadeDistance: 18
+
+# Biological growth.
+stoneGrowthDetailStrength: 0.56
+stoneGrowthDetailSize: 0.32
+stoneGrowthDetailFadeDistance: 24
+stoneMossExposureStrength: 0.44
+stoneMossExposureAzimuthDegrees: 32
+stoneMossExposureElevationDegrees: 49
+stoneMossStreakStrength: 0.22
+
+grassNearDistance: 28
+grassMidDistance: 80
+grassFarDistance: 280
+grassTransitionDistance: 8
+grassHysteresisDistance: 3
+
+flySpeed: 45
+flyBoostMultiplier: 4
+flyMinSpeed: 8
+flyMaxSpeed: 240
+initialAltitude: 85
+initialDistance: 180
+
+# Third-person movement and terrain-aware jump physics.
+characterScale: 1
+characterWalkSpeed: 2.5
+characterRunSpeed: 5.4
+characterRollInitialSpeedMultiplier: 1.25
+characterRollSustainSpeedMultiplier: 1.15
+characterAcceleration: 26
+characterDeceleration: 30
+characterTurnRate: 11
+characterJumpSpeed: 7.4
+characterGravity: 23
+characterFallGravityMultiplier: 1.42
+characterAirControl: 0.38
+characterCoyoteTime: 0.13
+characterJumpBufferTime: 0.14
+characterJumpHoldTime: 0.17
+characterJumpHoldGravityScale: 0.42
+characterLandingRecoveryTime: 0.3
+characterLandingImpactForFullEffect: 10.5
+
+characterCameraDistance: 4.5
+characterCameraMinDistance: 2.8
+characterCameraMaxDistance: 10
+characterCameraLookHeight: 1.05
+characterCameraElevationDegrees: 38
+characterCameraMinElevationDegrees: 20
+characterCameraMaxElevationDegrees: 62
+characterCameraFollowRate: 5
+characterCameraGroundClearance: 0.7
+characterMouseLookSensitivity: 0.0022
+characterTouchLookSensitivity: 0.004
+characterZoomSensitivity: 0.004
+
+# Fauna. Deer herds streamed around the player from the same seed the trees and
+# stones use, so a herd is always in country that could feed one.
+faunaEnabled: 1
+faunaDeerDesktopCount: 10
+faunaDeerCompactCount: 4
+# Villagers stay near the player's spawn rather than streaming, so a person is
+# always somewhere findable rather than appearing out in open country.
+faunaVillagerDesktopCount: 3
+faunaVillagerCompactCount: 1
+faunaVillagerWalkSpeed: 1.35
+# Comfortably past the cull distance plus the retire margin, so there is always
+# a herd ahead to recycle a retired animal onto.
+faunaStreamRadius: 170
+faunaDeerWalkSpeed: 1.15
+# Animation quality bands. Contact IK and secondary motion stop at the reduced
+# boundary, where a foot sinking a few centimetres is under a pixel; the pose
+# rate drops before that, which is invisible because the gait phase is driven by
+# distance travelled rather than by time.
+faunaFullDistance: 18
+faunaReducedDistance: 45
+faunaMinimalDistance: 90
+faunaCullDistance: 130
+faunaReducedUpdateHz: 20
+faunaMinimalUpdateHz: 6
+# Deciding what to do next is far cheaper than animating, and stays running for
+# animals that are too far away to be drawn.
+faunaBehaviorHz: 5

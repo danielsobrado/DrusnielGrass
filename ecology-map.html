@@ -1,0 +1,20 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Ecology field probe</title>
+    <style>
+      body { margin: 0; background: #12171a; color: #dde6e2; font: 12px ui-monospace, Menlo, Consolas, monospace; }
+      main { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 10px; padding: 10px; }
+      figure { margin: 0; }
+      figcaption { padding: 4px 2px; opacity: 0.85; }
+      canvas { width: 100%; height: auto; image-rendering: pixelated; border-radius: 6px; background: #0b0f11; }
+      #out { padding: 6px 12px; white-space: pre-wrap; }
+    </style>
+  </head>
+  <body>
+    <pre id="out">sampling…</pre>
+    <main id="panels"></main>
+    <script type="module" src="/tools/ecology-map/main.ts"></script>
+  </body>
+</html>

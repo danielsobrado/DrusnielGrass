@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1, viewport-fit=cover"
+  />
+  <meta
+    name="description"
+    content="Drusniel World: double-density ultra-near grass, continuous distant LODs, and a procedural Drow ranger."
+  />
+  <meta name="referrer" content="strict-origin-when-cross-origin" />
+  <meta
+    http-equiv="Content-Security-Policy"
+    content="default-src 'self'; base-uri 'none'; object-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self'; font-src 'self'; form-action 'none'"
+  />
+  <meta name="theme-color" content="#312742" />
+  <title>Drusniel World</title>
+  <link rel="stylesheet" href="/src/style.css" />
+  <link rel="stylesheet" href="/src/character-controls.css" />
+</head>
+<body>
+  <header class="app-title">
+    <strong>Drusniel World</strong>
+    <span id="scene-mode">Drow Ranger · Full-Density LOD · Grass Presets</span>
+    <span id="build-version">Loading build…</span>
+  </header>
+  <div id="world-reveal" class="world-reveal" role="status">
+    Finding the meadow…
+  </div>
+  <output id="world-fps" class="world-fps" aria-hidden="true">FPS</output>
+  <button
+    id="ui-toggle"
+    class="ui-toggle"
+    type="button"
+    aria-pressed="false"
+    aria-label="Minimize interface"
+    title="Minimize interface"
+  >−</button>
+  <pre id="world-stats">Loading Drusniel World…</pre>
+  <div id="control-help" class="flight-help">
+    Click to look · WASD move · Shift run · Space jump · F reset · M map
+  </div>
+  <nav>
+    <a
+      href="https://github.com/danielsobrado/FluffyGrass"
+      aria-label="View Drusniel World on GitHub"
+    >
+      <img src="/github-mark.svg" alt="" />
+    </a>
+  </nav>
+  <canvas id="canvas" aria-label="Interactive Drusniel World 3D scene">
+    This experience requires a browser with WebGL support.
+  </canvas>
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>

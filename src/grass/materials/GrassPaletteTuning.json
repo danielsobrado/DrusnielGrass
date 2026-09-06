@@ -1,0 +1,21 @@
+{
+  "tipStart": 0.38,
+  "tipEnd": 1,
+  "tipLuminanceScale": 1.24,
+  "dryLuminanceScale": 0.9,
+  "shadeDrynessPivot": 0.18,
+  "shadeDrynessScale": 0.2,
+  "shadeDrynessMaximum": 0.035,
+  "instanceDrynessBase": 0.52,
+  "instanceDrynessTip": 0.22,
+  "drynessMaximum": 0.62,
+  "rootFadeEnd": 0.5,
+  "shadeLightMinimum": 0.84,
+  "shadeLightMaximum": 1.05,
+  "shadowDesaturation": 0.44,
+  "groundContactStart": 0,
+  "groundContactEnd": 0.33,
+  "groundContactStrength": 0.62,
+  "groundContactBaseScale": 0.4,
+  "groundContactDryScale": 0.5
+}
