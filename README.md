@@ -6,7 +6,7 @@ The default experience places an articulated Drow ranger inside a very dense int
 
 ## Live demo
 
-- GitHub Pages: [https://danielsobrado.github.io/FluffyGrass/](https://danielsobrado.github.io/FluffyGrass/)
+- GitHub Pages: [https://danielsobrado.github.io/DrusnielGrass/](https://danielsobrado.github.io/DrusnielGrass/)
 - Add a cache-busting query when testing a new deployment, for example `?v=<commit>`.
 - Add `?control=fly` to use the flight controller instead of the third-person character.
 
