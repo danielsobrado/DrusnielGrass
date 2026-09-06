@@ -58,6 +58,7 @@ const HORIZON_SHELL_MAX_LINES = 410;
 const HORIZON_GRID_MAX_LINES = 120;
 const HORIZON_MATERIAL_MAX_LINES = 120;
 const HORIZON_COVERAGE_MAX_LINES = 120;
+const HORIZON_SHADER_MAX_LINES = 120;
 const EXTRACTED_MODULE_MAX_LINES = 260;
 const CONFIG_LOADER_MAX_LINES = 220;
 const CONFIG_READER_MAX_LINES = 120;
@@ -121,6 +122,7 @@ const waterShader = read("src/world/hydrology/WaterShader.ts");
 const horizonShell = read("src/world/horizon/WorldHorizonShell.ts");
 const horizonGrid = read("src/world/horizon/WorldHorizonGrid.ts");
 const horizonMaterial = read("src/world/horizon/WorldHorizonMaterial.ts");
+const horizonShader = read("src/world/horizon/WorldHorizonShader.ts");
 const horizonCoverage = read("src/world/horizon/WorldHorizonCoverage.ts");
 const stoneSystem = read("src/world/stones/WorldStoneSystem.ts");
 const stoneClearance = read("src/world/stones/StoneClearance.ts");
@@ -444,6 +446,7 @@ assert(
     lineCount(horizonGrid) <= HORIZON_GRID_MAX_LINES &&
     lineCount(horizonMaterial) <= HORIZON_MATERIAL_MAX_LINES &&
     lineCount(horizonCoverage) <= HORIZON_COVERAGE_MAX_LINES &&
+    lineCount(horizonShader) <= HORIZON_SHADER_MAX_LINES &&
     horizonShell.includes("private disposed = false") &&
     horizonShell.includes("createWorldHorizonAxis") &&
     horizonShell.includes("WorldHorizonMaterial") &&
@@ -460,7 +463,7 @@ assert(
 );
 assert(
   horizonMaterial.includes("uHorizonSinkFocus") &&
-    horizonMaterial.includes("max(horizonToFocus.x, horizonToFocus.y)"),
+    horizonShader.includes("max(horizonToFocus.x, horizonToFocus.y)"),
   "The shell's sink must follow the streamed ring focus and its square boundary in Chebyshev distance.",
 );
 assert(
