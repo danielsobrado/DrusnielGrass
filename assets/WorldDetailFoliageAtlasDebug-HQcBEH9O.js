@@ -1,0 +1,1 @@
+function n(t){const e=t.canvas;e.style.position="fixed",e.style.left="8px",e.style.top="8px",e.style.zIndex="20",e.style.width=`${Math.min(t.width,1024)}px`,e.style.imageRendering="pixelated",e.style.background="repeating-conic-gradient(#444 0% 25%, #666 0% 50%) 50% / 16px 16px",document.body.appendChild(e)}export{n as appendDetailFoliageAtlasDebugCanvas};
