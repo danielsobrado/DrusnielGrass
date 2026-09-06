@@ -176,7 +176,7 @@ function deploy() {
     assertSourceStillCurrent(sourceHead);
     run(
       "git",
-      ["push", CONFIG.remote, `HEAD:${CONFIG.branch}`],
+      ["push", CONFIG.remote, `HEAD:refs/heads/${CONFIG.branch}`],
       { cwd: deploymentDirectory },
     );
 
