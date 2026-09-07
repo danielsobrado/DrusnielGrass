@@ -1,4 +1,4 @@
-import type * as THREE from "three";
+import type { RendererWithCanvas } from "../render/RendererDiagnosticsTypes";
 
 const PANEL_ID = "grass-qa-downloads";
 const REVOKE_DELAY_MS = 1_000;
@@ -11,7 +11,7 @@ export class GrassQaDownloads {
   private disposed = false;
 
   captureScreenshot(
-    renderer: THREE.WebGLRenderer,
+    renderer: RendererWithCanvas,
     name: string,
     signal?: AbortSignal,
   ): Promise<Blob> {

@@ -1,0 +1,2382 @@
+{
+  "note": "Generated inventory. A \"ported\" entry means a portable implementation exists and a named check compares it against the shipped one; it is not a claim that the production route has been switched. Pending entries are unmigrated.",
+  "counts": {
+    "pending": 22,
+    "not a renderer coupling": 6,
+    "comparison harness, development only": 95,
+    "ported, comparison-gated": 93
+  },
+  "entries": [
+    {
+      "file": "src/app/IslandApp.ts",
+      "line": 27,
+      "symbols": [
+        "WebGLRenderer"
+      ],
+      "owner": "G02/G05",
+      "status": "pending",
+      "source": "renderer: THREE.WebGLRenderer;"
+    },
+    {
+      "file": "src/app/IslandApp.ts",
+      "line": 36,
+      "symbols": [
+        "WebGLRenderer"
+      ],
+      "owner": "G02/G05",
+      "status": "pending",
+      "source": "private readonly renderer: THREE.WebGLRenderer;"
+    },
+    {
+      "file": "src/app/IslandApp.ts",
+      "line": 400,
+      "symbols": [
+        "WebGLRenderer"
+      ],
+      "owner": "G02/G05",
+      "status": "pending",
+      "source": "let renderer: THREE.WebGLRenderer | undefined;"
+    },
+    {
+      "file": "src/app/IslandApp.ts",
+      "line": 406,
+      "symbols": [
+        "WebGLRenderer"
+      ],
+      "owner": "G02/G05",
+      "status": "pending",
+      "source": "renderer = new THREE.WebGLRenderer({"
+    },
+    {
+      "file": "src/app/WorldApp.ts",
+      "line": 53,
+      "symbols": [
+        "WebGLRenderer"
+      ],
+      "owner": "G02/G05",
+      "status": "pending",
+      "source": "private readonly renderer: THREE.WebGLRenderer;"
+    },
+    {
+      "file": "src/app/WorldApp.ts",
+      "line": 106,
+      "symbols": [
+        "WebGLRenderer"
+      ],
+      "owner": "G02/G05",
+      "status": "pending",
+      "source": "this.renderer = new THREE.WebGLRenderer({"
+    },
+    {
+      "file": "src/app/WorldCloudShadowController.ts",
+      "line": 31,
+      "symbols": [
+        "WebGLRenderer"
+      ],
+      "owner": "G03",
+      "status": "pending",
+      "source": "renderer: THREE.WebGLRenderer,"
+    },
+    {
+      "file": "src/app/WorldCloudShadowDebugPanel.ts",
+      "line": 140,
+      "symbols": [
+        "getContext("
+      ],
+      "owner": "G03",
+      "status": "pending",
+      "source": "const context = canvas.getContext(\"2d\", { alpha: false });"
+    },
+    {
+      "file": "src/app/WorldEnvironmentController.ts",
+      "line": 48,
+      "symbols": [
+        "WebGLRenderer"
+      ],
+      "owner": "G02/G05",
+      "status": "pending",
+      "source": "private readonly renderer: THREE.WebGLRenderer,"
+    },
+    {
+      "file": "src/app/WorldMinimap.ts",
+      "line": 77,
+      "symbols": [
+        "getContext("
+      ],
+      "owner": "G02/G05",
+      "status": "not a renderer coupling",
+      "reason": "a 2D canvas context, unrelated to the 3D renderer",
+      "source": "this.context = this.canvas.getContext(\"2d\");"
+    },
+    {
+      "file": "src/app/WorldMinimap.ts",
+      "line": 81,
+      "symbols": [
+        "getContext("
+      ],
+      "owner": "G02/G05",
+      "status": "not a renderer coupling",
+      "reason": "a 2D canvas context, unrelated to the 3D renderer",
+      "source": "this.terrainContext = this.terrainCanvas.getContext(\"2d\");"
+    },
+    {
+      "file": "src/app/WorldStatsPanel.ts",
+      "line": 2,
+      "symbols": [
+        "WebGLRenderer"
+      ],
+      "owner": "G02/G05",
+      "status": "pending",
+      "source": "import type { WebGLRenderer } from \"three\";"
+    },
+    {
+      "file": "src/app/WorldStatsPanel.ts",
+      "line": 12,
+      "symbols": [
+        "WebGLRenderer"
+      ],
+      "owner": "G02/G05",
+      "status": "pending",
+      "source": "renderer: WebGLRenderer,"
+    },
+    {
+      "file": "src/app/WorldVisualMatrixContext.ts",
+      "line": 14,
+      "symbols": [
+        "WebGLRenderer"
+      ],
+      "owner": "G02/G05",
+      "status": "pending",
+      "source": "readonly renderer: THREE.WebGLRenderer;"
+    },
+    {
+      "file": "src/dev/ActorEnvironmentComparison.ts",
+      "line": 8,
+      "symbols": [
+        "WebGLRenderer",
+        "WebGLRenderTarget"
+      ],
+      "owner": "G05",
+      "status": "comparison harness, development only",
+      "source": "import { WebGLRenderer, WebGLRenderTarget } from \"three\";"
+    },
+    {
+      "file": "src/dev/ActorEnvironmentComparison.ts",
+      "line": 198,
+      "symbols": [
+        "WebGLRenderer"
+      ],
+      "owner": "G05",
+      "status": "comparison harness, development only",
+      "source": "const legacy = new WebGLRenderer();"
+    },
+    {
+      "file": "src/dev/ActorEnvironmentComparison.ts",
+      "line": 200,
+      "symbols": [
+        "WebGLRenderTarget"
+      ],
+      "owner": "G05",
+      "status": "comparison harness, development only",
+      "source": "const legacyTarget = new WebGLRenderTarget(width, height);"
+    },
+    {
+      "file": "src/dev/ActorEnvironmentComparison.ts",
+      "line": 210,
+      "symbols": [
+        "readRenderTargetPixels"
+      ],
+      "owner": "G05",
+      "status": "comparison harness, development only",
+      "source": "legacy.readRenderTargetPixels(legacyTarget, 0, 0, width, height, expected);"
+    },
+    {
+      "file": "src/dev/CloudFieldComparison.ts",
+      "line": 2,
+      "symbols": [
+        "ShaderMaterial"
+      ],
+      "owner": "G03",
+      "status": "comparison harness, development only",
+      "source": "import { OrthographicCamera, PlaneGeometry, Mesh, Scene, ShaderMaterial, Vector2,"
+    },
+    {
+      "file": "src/dev/CloudFieldComparison.ts",
+      "line": 3,
+      "symbols": [
+        "WebGLRenderer",
+        "WebGLRenderTarget"
+      ],
+      "owner": "G03",
+      "status": "comparison harness, development only",
+      "source": "WebGLRenderer, WebGLRenderTarget, NoToneMapping } from \"three\";"
+    },
+    {
+      "file": "src/dev/CloudFieldComparison.ts",
+      "line": 21,
+      "symbols": [
+        "WebGLRenderer"
+      ],
+      "owner": "G03",
+      "status": "comparison harness, development only",
+      "source": "const legacy = new WebGLRenderer({ antialias: false });"
+    },
+    {
+      "file": "src/dev/CloudFieldComparison.ts",
+      "line": 23,
+      "symbols": [
+        "WebGLRenderTarget"
+      ],
+      "owner": "G03",
+      "status": "comparison harness, development only",
+      "source": "const legacyTarget = new WebGLRenderTarget(width, height, { depthBuffer: false });"
+    },
+    {
+      "file": "src/dev/CloudFieldComparison.ts",
+      "line": 24,
+      "symbols": [
+        "ShaderMaterial"
+      ],
+      "owner": "G03",
+      "status": "comparison harness, development only",
+      "source": "const legacyMaterial = new ShaderMaterial({ depthTest: false, depthWrite: false, toneMapped: false,"
+    },
+    {
+      "file": "src/dev/CloudFieldComparison.ts",
+      "line": 52,
+      "symbols": [
+        "readRenderTargetPixels"
+      ],
+      "owner": "G03",
+      "status": "comparison harness, development only",
+      "source": "legacy.readRenderTargetPixels(legacyTarget, 0, 0, width, height, pixels);"
+    },
+    {
+      "file": "src/dev/CloudShadowComparison.ts",
+      "line": 2,
+      "symbols": [
+        "WebGLRenderer"
+      ],
+      "owner": "G03",
+      "status": "comparison harness, development only",
+      "source": "import { WebGLRenderer } from \"three\";"
+    },
+    {
+      "file": "src/dev/CloudShadowComparison.ts",
+      "line": 12,
+      "symbols": [
+        "WebGLRenderer"
+      ],
+      "owner": "G03",
+      "status": "comparison harness, development only",
+      "source": "const legacy = new WebGLRenderer();"
+    },
+    {
+      "file": "src/dev/CloudShadowResponseComparison.ts",
+      "line": 6,
+      "symbols": [
+        "WebGLRenderer",
+        "WebGLRenderTarget"
+      ],
+      "owner": "G03",
+      "status": "comparison harness, development only",
+      "source": "import { MeshStandardMaterial, WebGLRenderer, WebGLRenderTarget } from \"three\";"
+    },
+    {
+      "file": "src/dev/CloudShadowResponseComparison.ts",
+      "line": 70,
+      "symbols": [
+        "onBeforeCompile"
+      ],
+      "owner": "G03",
+      "status": "comparison harness, development only",
+      "source": "* patches `reflectedLight` through `onBeforeCompile`; the node route has no"
+    },
+    {
+      "file": "src/dev/CloudShadowResponseComparison.ts",
+      "line": 101,
+      "symbols": [
+        "onBeforeCompile"
+      ],
+      "owner": "G03",
+      "status": "comparison harness, development only",
+      "source": "const patched = legacyMaterial.onBeforeCompile;"
+    },
+    {
+      "file": "src/dev/CloudShadowResponseComparison.ts",
+      "line": 102,
+      "symbols": [
+        "onBeforeCompile"
+      ],
+      "owner": "G03",
+      "status": "comparison harness, development only",
+      "source": "legacyMaterial.onBeforeCompile = (shader, gl) => {"
+    },
+    {
+      "file": "src/dev/CloudShadowResponseComparison.ts",
+      "line": 126,
+      "symbols": [
+        "WebGLRenderer"
+      ],
+      "owner": "G03",
+      "status": "comparison harness, development only",
+      "source": "const legacy = new WebGLRenderer();"
+    },
+    {
+      "file": "src/dev/CloudShadowResponseComparison.ts",
+      "line": 128,
+      "symbols": [
+        "WebGLRenderTarget"
+      ],
+      "owner": "G03",
+      "status": "comparison harness, development only",
+      "source": "const legacyTarget = new WebGLRenderTarget(width, height);"
+    },
+    {
+      "file": "src/dev/CloudShadowResponseComparison.ts",
+      "line": 137,
+      "symbols": [
+        "readRenderTargetPixels"
+      ],
+      "owner": "G03",
+      "status": "comparison harness, development only",
+      "source": "legacy.readRenderTargetPixels(legacyTarget, 0, 0, width, height, expected);"
+    },
+    {
+      "file": "src/dev/CloudTemporalComparison.ts",
+      "line": 2,
+      "symbols": [
+        "WebGLRenderer",
+        "WebGLRenderTarget"
+      ],
+      "owner": "G03",
+      "status": "comparison harness, development only",
+      "source": "import { PerspectiveCamera, OrthographicCamera, PlaneGeometry, Mesh, Scene, WebGLRenderer, WebGLRenderTarget } from \"three\";"
+    },
+    {
+      "file": "src/dev/CloudTemporalComparison.ts",
+      "line": 50,
+      "symbols": [
+        "WebGLRenderTarget"
+      ],
+      "owner": "G03",
+      "status": "comparison harness, development only",
+      "source": "const legacyTarget = new WebGLRenderTarget(width, height, { depthBuffer: false });"
+    },
+    {
+      "file": "src/dev/CloudTemporalComparison.ts",
+      "line": 51,
+      "symbols": [
+        "WebGLRenderer"
+      ],
+      "owner": "G03",
+      "status": "comparison harness, development only",
+      "source": "const legacy = new WebGLRenderer();"
+    },
+    {
+      "file": "src/dev/CloudTemporalComparison.ts",
+      "line": 64,
+      "symbols": [
+        "readRenderTargetPixels"
+      ],
+      "owner": "G03",
+      "status": "comparison harness, development only",
+      "source": "legacy.readRenderTargetPixels(legacyTarget, 0, 0, width, height, expected);"
+    },
+    {
+      "file": "src/dev/CloudVolumeComparison.ts",
+      "line": 3,
+      "symbols": [
+        "WebGLRenderer",
+        "WebGLRenderTarget"
+      ],
+      "owner": "G03",
+      "status": "comparison harness, development only",
+      "source": "WebGLRenderer, WebGLRenderTarget } from \"three\";"
+    },
+    {
+      "file": "src/dev/CloudVolumeComparison.ts",
+      "line": 32,
+      "symbols": [
+        "WebGLRenderTarget"
+      ],
+      "owner": "G03",
+      "status": "comparison harness, development only",
+      "source": "const legacyTarget = new WebGLRenderTarget(width, height, { depthBuffer: false });"
+    },
+    {
+      "file": "src/dev/CloudVolumeComparison.ts",
+      "line": 33,
+      "symbols": [
+        "WebGLRenderer"
+      ],
+      "owner": "G03",
+      "status": "comparison harness, development only",
+      "source": "const legacy = new WebGLRenderer();"
+    },
+    {
+      "file": "src/dev/CloudVolumeComparison.ts",
+      "line": 43,
+      "symbols": [
+        "readRenderTargetPixels"
+      ],
+      "owner": "G03",
+      "status": "comparison harness, development only",
+      "source": "legacy.readRenderTargetPixels(legacyTarget, 0, 0, width, height, expected);"
+    },
+    {
+      "file": "src/dev/GrassDevelopmentController.ts",
+      "line": 11,
+      "symbols": [
+        "WebGLRenderer"
+      ],
+      "owner": "G04",
+      "status": "comparison harness, development only",
+      "source": "renderer: THREE.WebGLRenderer;"
+    },
+    {
+      "file": "src/dev/GrassFoliageComparison.ts",
+      "line": 5,
+      "symbols": [
+        "WebGLRenderer",
+        "WebGLRenderTarget"
+      ],
+      "owner": "G04",
+      "status": "comparison harness, development only",
+      "source": "import { WebGLRenderer, WebGLRenderTarget } from \"three\";"
+    },
+    {
+      "file": "src/dev/GrassFoliageComparison.ts",
+      "line": 76,
+      "symbols": [
+        "WebGLRenderer"
+      ],
+      "owner": "G04",
+      "status": "comparison harness, development only",
+      "source": "const legacy = new WebGLRenderer();"
+    },
+    {
+      "file": "src/dev/GrassFoliageComparison.ts",
+      "line": 78,
+      "symbols": [
+        "WebGLRenderTarget"
+      ],
+      "owner": "G04",
+      "status": "comparison harness, development only",
+      "source": "const legacyTarget = new WebGLRenderTarget(width, height);"
+    },
+    {
+      "file": "src/dev/GrassFoliageComparison.ts",
+      "line": 87,
+      "symbols": [
+        "readRenderTargetPixels"
+      ],
+      "owner": "G04",
+      "status": "comparison harness, development only",
+      "source": "legacy.readRenderTargetPixels(legacyTarget, 0, 0, width, height, expected);"
+    },
+    {
+      "file": "src/dev/GrassImpostorComparison.ts",
+      "line": 5,
+      "symbols": [
+        "WebGLRenderer",
+        "WebGLRenderTarget"
+      ],
+      "owner": "G04",
+      "status": "comparison harness, development only",
+      "source": "import { WebGLRenderer, WebGLRenderTarget } from \"three\";"
+    },
+    {
+      "file": "src/dev/GrassImpostorComparison.ts",
+      "line": 68,
+      "symbols": [
+        "WebGLRenderer"
+      ],
+      "owner": "G04",
+      "status": "comparison harness, development only",
+      "source": "const legacy = new WebGLRenderer();"
+    },
+    {
+      "file": "src/dev/GrassImpostorComparison.ts",
+      "line": 70,
+      "symbols": [
+        "WebGLRenderTarget"
+      ],
+      "owner": "G04",
+      "status": "comparison harness, development only",
+      "source": "const legacyTarget = new WebGLRenderTarget(width, height);"
+    },
+    {
+      "file": "src/dev/GrassImpostorComparison.ts",
+      "line": 79,
+      "symbols": [
+        "readRenderTargetPixels"
+      ],
+      "owner": "G04",
+      "status": "comparison harness, development only",
+      "source": "legacy.readRenderTargetPixels(legacyTarget, 0, 0, width, height, expected);"
+    },
+    {
+      "file": "src/dev/GrassNearComparison.ts",
+      "line": 5,
+      "symbols": [
+        "WebGLRenderer",
+        "WebGLRenderTarget"
+      ],
+      "owner": "G04",
+      "status": "comparison harness, development only",
+      "source": "import { WebGLRenderer, WebGLRenderTarget, DoubleSide } from \"three\";"
+    },
+    {
+      "file": "src/dev/GrassNearComparison.ts",
+      "line": 71,
+      "symbols": [
+        "onBeforeCompile"
+      ],
+      "owner": "G04",
+      "status": "comparison harness, development only",
+      "source": "const compile = legacyMaterial.onBeforeCompile;"
+    },
+    {
+      "file": "src/dev/GrassNearComparison.ts",
+      "line": 72,
+      "symbols": [
+        "onBeforeCompile"
+      ],
+      "owner": "G04",
+      "status": "comparison harness, development only",
+      "source": "legacyMaterial.onBeforeCompile = (shader, gl) => {"
+    },
+    {
+      "file": "src/dev/GrassNearComparison.ts",
+      "line": 107,
+      "symbols": [
+        "WebGLRenderer"
+      ],
+      "owner": "G04",
+      "status": "comparison harness, development only",
+      "source": "const legacy = new WebGLRenderer();"
+    },
+    {
+      "file": "src/dev/GrassNearComparison.ts",
+      "line": 109,
+      "symbols": [
+        "WebGLRenderTarget"
+      ],
+      "owner": "G04",
+      "status": "comparison harness, development only",
+      "source": "const legacyTarget = new WebGLRenderTarget(width, height);"
+    },
+    {
+      "file": "src/dev/GrassNearComparison.ts",
+      "line": 118,
+      "symbols": [
+        "readRenderTargetPixels"
+      ],
+      "owner": "G04",
+      "status": "comparison harness, development only",
+      "source": "legacy.readRenderTargetPixels(legacyTarget, 0, 0, width, height, expected);"
+    },
+    {
+      "file": "src/dev/GrassTrailComparison.ts",
+      "line": 6,
+      "symbols": [
+        "ShaderMaterial",
+        "WebGLRenderer",
+        "WebGLRenderTarget"
+      ],
+      "owner": "G04",
+      "status": "comparison harness, development only",
+      "source": "Mesh, OrthographicCamera, PlaneGeometry, Scene, ShaderMaterial, WebGLRenderer, WebGLRenderTarget,"
+    },
+    {
+      "file": "src/dev/GrassTrailComparison.ts",
+      "line": 90,
+      "symbols": [
+        "WebGLRenderer"
+      ],
+      "owner": "G04",
+      "status": "comparison harness, development only",
+      "source": "const legacy = new WebGLRenderer();"
+    },
+    {
+      "file": "src/dev/GrassTrailComparison.ts",
+      "line": 91,
+      "symbols": [
+        "WebGLRenderTarget"
+      ],
+      "owner": "G04",
+      "status": "comparison harness, development only",
+      "source": "const legacyTarget = new WebGLRenderTarget(RESOLUTION, RESOLUTION);"
+    },
+    {
+      "file": "src/dev/GrassTrailComparison.ts",
+      "line": 93,
+      "symbols": [
+        "ShaderMaterial"
+      ],
+      "owner": "G04",
+      "status": "comparison harness, development only",
+      "source": "const blitMaterial = new ShaderMaterial({"
+    },
+    {
+      "file": "src/dev/GrassTrailComparison.ts",
+      "line": 122,
+      "symbols": [
+        "readRenderTargetPixels"
+      ],
+      "owner": "G04",
+      "status": "comparison harness, development only",
+      "source": "legacy.readRenderTargetPixels(legacyTarget, 0, 0, RESOLUTION, RESOLUTION, legacyPrimedPixels);"
+    },
+    {
+      "file": "src/dev/GrassTrailComparison.ts",
+      "line": 131,
+      "symbols": [
+        "readRenderTargetPixels"
+      ],
+      "owner": "G04",
+      "status": "comparison harness, development only",
+      "source": "legacy.readRenderTargetPixels(legacyTarget, 0, 0, RESOLUTION, RESOLUTION, expected);"
+    },
+    {
+      "file": "src/dev/ImpostorBakeComparison.ts",
+      "line": 5,
+      "symbols": [
+        "WebGLRenderer"
+      ],
+      "owner": "G04",
+      "status": "comparison harness, development only",
+      "source": "import { MeshBasicMaterial, WebGLRenderer } from \"three\";"
+    },
+    {
+      "file": "src/dev/ImpostorBakeComparison.ts",
+      "line": 44,
+      "symbols": [
+        "WebGLRenderer"
+      ],
+      "owner": "G04",
+      "status": "comparison harness, development only",
+      "source": "const legacy = new WebGLRenderer({ antialias: false });"
+    },
+    {
+      "file": "src/dev/MaterialSceneComparison.ts",
+      "line": 2,
+      "symbols": [
+        "WebGLRenderer",
+        "WebGLRenderTarget"
+      ],
+      "owner": "G02/G05",
+      "status": "comparison harness, development only",
+      "source": "import { WebGLRenderer, WebGLRenderTarget } from \"three\";"
+    },
+    {
+      "file": "src/dev/MaterialSceneComparison.ts",
+      "line": 9,
+      "symbols": [
+        "WebGLRenderer"
+      ],
+      "owner": "G02/G05",
+      "status": "comparison harness, development only",
+      "source": "const legacy = new WebGLRenderer();"
+    },
+    {
+      "file": "src/dev/MaterialSceneComparison.ts",
+      "line": 10,
+      "symbols": [
+        "WebGLRenderTarget"
+      ],
+      "owner": "G02/G05",
+      "status": "comparison harness, development only",
+      "source": "const target = new RenderTarget(width, height), legacyTarget = new WebGLRenderTarget(width, height);"
+    },
+    {
+      "file": "src/dev/MaterialSceneComparison.ts",
+      "line": 26,
+      "symbols": [
+        "readRenderTargetPixels"
+      ],
+      "owner": "G02/G05",
+      "status": "comparison harness, development only",
+      "source": "legacy.readRenderTargetPixels(legacyTarget, 0, 0, width, height, expected);"
+    },
+    {
+      "file": "src/dev/SceneryMaterialComparison.ts",
+      "line": 37,
+      "symbols": [
+        "onBeforeCompile"
+      ],
+      "owner": "G02/G05",
+      "status": "comparison harness, development only",
+      "source": "const compile = legacy.material.onBeforeCompile;"
+    },
+    {
+      "file": "src/dev/SceneryMaterialComparison.ts",
+      "line": 38,
+      "symbols": [
+        "onBeforeCompile"
+      ],
+      "owner": "G02/G05",
+      "status": "comparison harness, development only",
+      "source": "legacy.material.onBeforeCompile = (shader, renderer) => {"
+    },
+    {
+      "file": "src/dev/StoneSurfaceComparison.ts",
+      "line": 7,
+      "symbols": [
+        "WebGLRenderer",
+        "WebGLRenderTarget"
+      ],
+      "owner": "G05",
+      "status": "comparison harness, development only",
+      "source": "import { MeshLambertMaterial, WebGLRenderer, WebGLRenderTarget } from \"three\";"
+    },
+    {
+      "file": "src/dev/StoneSurfaceComparison.ts",
+      "line": 199,
+      "symbols": [
+        "onBeforeCompile"
+      ],
+      "owner": "G05",
+      "status": "comparison harness, development only",
+      "source": "const compile = legacyMaterial.onBeforeCompile;"
+    },
+    {
+      "file": "src/dev/StoneSurfaceComparison.ts",
+      "line": 200,
+      "symbols": [
+        "onBeforeCompile"
+      ],
+      "owner": "G05",
+      "status": "comparison harness, development only",
+      "source": "legacyMaterial.onBeforeCompile = (shader, gl) => {"
+    },
+    {
+      "file": "src/dev/StoneSurfaceComparison.ts",
+      "line": 217,
+      "symbols": [
+        "WebGLRenderer"
+      ],
+      "owner": "G05",
+      "status": "comparison harness, development only",
+      "source": "const legacy = new WebGLRenderer();"
+    },
+    {
+      "file": "src/dev/StoneSurfaceComparison.ts",
+      "line": 219,
+      "symbols": [
+        "WebGLRenderTarget"
+      ],
+      "owner": "G05",
+      "status": "comparison harness, development only",
+      "source": "const legacyTarget = new WebGLRenderTarget(width, height);"
+    },
+    {
+      "file": "src/dev/StoneSurfaceComparison.ts",
+      "line": 228,
+      "symbols": [
+        "readRenderTargetPixels"
+      ],
+      "owner": "G05",
+      "status": "comparison harness, development only",
+      "source": "legacy.readRenderTargetPixels(legacyTarget, 0, 0, width, height, expected);"
+    },
+    {
+      "file": "src/dev/TerrainMaterialComparison.ts",
+      "line": 2,
+      "symbols": [
+        "WebGLRenderer",
+        "WebGLRenderTarget"
+      ],
+      "owner": "G03",
+      "status": "comparison harness, development only",
+      "source": "import { WebGLRenderer, WebGLRenderTarget } from \"three\";"
+    },
+    {
+      "file": "src/dev/TerrainMaterialComparison.ts",
+      "line": 32,
+      "symbols": [
+        "onBeforeCompile"
+      ],
+      "owner": "G03",
+      "status": "comparison harness, development only",
+      "source": "const compile = legacyController.material.onBeforeCompile;"
+    },
+    {
+      "file": "src/dev/TerrainMaterialComparison.ts",
+      "line": 33,
+      "symbols": [
+        "onBeforeCompile"
+      ],
+      "owner": "G03",
+      "status": "comparison harness, development only",
+      "source": "legacyController.material.onBeforeCompile = (shader, gl) => {"
+    },
+    {
+      "file": "src/dev/TerrainMaterialComparison.ts",
+      "line": 42,
+      "symbols": [
+        "WebGLRenderer"
+      ],
+      "owner": "G03",
+      "status": "comparison harness, development only",
+      "source": "const legacy = new WebGLRenderer();"
+    },
+    {
+      "file": "src/dev/TerrainMaterialComparison.ts",
+      "line": 44,
+      "symbols": [
+        "WebGLRenderTarget"
+      ],
+      "owner": "G03",
+      "status": "comparison harness, development only",
+      "source": "const legacyTarget = new WebGLRenderTarget(width, height);"
+    },
+    {
+      "file": "src/dev/TerrainMaterialComparison.ts",
+      "line": 53,
+      "symbols": [
+        "readRenderTargetPixels"
+      ],
+      "owner": "G03",
+      "status": "comparison harness, development only",
+      "source": "legacy.readRenderTargetPixels(legacyTarget, 0, 0, width, height, expected);"
+    },
+    {
+      "file": "src/dev/WaterBedComparison.ts",
+      "line": 5,
+      "symbols": [
+        "WebGLRenderer",
+        "WebGLRenderTarget"
+      ],
+      "owner": "G05",
+      "status": "comparison harness, development only",
+      "source": "import { WebGLRenderer, WebGLRenderTarget } from \"three\";"
+    },
+    {
+      "file": "src/dev/WaterBedComparison.ts",
+      "line": 102,
+      "symbols": [
+        "onBeforeCompile"
+      ],
+      "owner": "G05",
+      "status": "comparison harness, development only",
+      "source": "const compile = legacyMaterial.onBeforeCompile;"
+    },
+    {
+      "file": "src/dev/WaterBedComparison.ts",
+      "line": 103,
+      "symbols": [
+        "onBeforeCompile"
+      ],
+      "owner": "G05",
+      "status": "comparison harness, development only",
+      "source": "legacyMaterial.onBeforeCompile = (shader, gl) => {"
+    },
+    {
+      "file": "src/dev/WaterBedComparison.ts",
+      "line": 114,
+      "symbols": [
+        "WebGLRenderer"
+      ],
+      "owner": "G05",
+      "status": "comparison harness, development only",
+      "source": "const legacy = new WebGLRenderer();"
+    },
+    {
+      "file": "src/dev/WaterBedComparison.ts",
+      "line": 116,
+      "symbols": [
+        "WebGLRenderTarget"
+      ],
+      "owner": "G05",
+      "status": "comparison harness, development only",
+      "source": "const legacyTarget = new WebGLRenderTarget(width, height);"
+    },
+    {
+      "file": "src/dev/WaterBedComparison.ts",
+      "line": 125,
+      "symbols": [
+        "readRenderTargetPixels"
+      ],
+      "owner": "G05",
+      "status": "comparison harness, development only",
+      "source": "legacy.readRenderTargetPixels(legacyTarget, 0, 0, width, height, expected);"
+    },
+    {
+      "file": "src/dev/WaterCascadeComparison.ts",
+      "line": 5,
+      "symbols": [
+        "WebGLRenderer",
+        "WebGLRenderTarget"
+      ],
+      "owner": "G05",
+      "status": "comparison harness, development only",
+      "source": "import { WebGLRenderer, WebGLRenderTarget } from \"three\";"
+    },
+    {
+      "file": "src/dev/WaterCascadeComparison.ts",
+      "line": 78,
+      "symbols": [
+        "onBeforeCompile"
+      ],
+      "owner": "G05",
+      "status": "comparison harness, development only",
+      "source": "const compile = legacyMaterial.onBeforeCompile;"
+    },
+    {
+      "file": "src/dev/WaterCascadeComparison.ts",
+      "line": 79,
+      "symbols": [
+        "onBeforeCompile"
+      ],
+      "owner": "G05",
+      "status": "comparison harness, development only",
+      "source": "legacyMaterial.onBeforeCompile = (shader, gl) => {"
+    },
+    {
+      "file": "src/dev/WaterCascadeComparison.ts",
+      "line": 93,
+      "symbols": [
+        "WebGLRenderer"
+      ],
+      "owner": "G05",
+      "status": "comparison harness, development only",
+      "source": "const legacy = new WebGLRenderer();"
+    },
+    {
+      "file": "src/dev/WaterCascadeComparison.ts",
+      "line": 95,
+      "symbols": [
+        "WebGLRenderTarget"
+      ],
+      "owner": "G05",
+      "status": "comparison harness, development only",
+      "source": "const legacyTarget = new WebGLRenderTarget(width, height);"
+    },
+    {
+      "file": "src/dev/WaterCascadeComparison.ts",
+      "line": 104,
+      "symbols": [
+        "readRenderTargetPixels"
+      ],
+      "owner": "G05",
+      "status": "comparison harness, development only",
+      "source": "legacy.readRenderTargetPixels(legacyTarget, 0, 0, width, height, expected);"
+    },
+    {
+      "file": "src/dev/WaterRefractionComparison.ts",
+      "line": 6,
+      "symbols": [
+        "ShaderMaterial",
+        "WebGLRenderer",
+        "WebGLRenderTarget"
+      ],
+      "owner": "G05",
+      "status": "comparison harness, development only",
+      "source": "import { ShaderMaterial, WebGLRenderer, WebGLRenderTarget } from \"three\";"
+    },
+    {
+      "file": "src/dev/WaterRefractionComparison.ts",
+      "line": 71,
+      "symbols": [
+        "WebGLRenderer"
+      ],
+      "owner": "G05",
+      "status": "comparison harness, development only",
+      "source": "const legacy = new WebGLRenderer();"
+    },
+    {
+      "file": "src/dev/WaterRefractionComparison.ts",
+      "line": 79,
+      "symbols": [
+        "WebGLRenderTarget"
+      ],
+      "owner": "G05",
+      "status": "comparison harness, development only",
+      "source": "let legacyMaskTarget: WebGLRenderTarget | undefined;"
+    },
+    {
+      "file": "src/dev/WaterRefractionComparison.ts",
+      "line": 98,
+      "symbols": [
+        "readRenderTargetPixels"
+      ],
+      "owner": "G05",
+      "status": "comparison harness, development only",
+      "source": "legacy.readRenderTargetPixels(legacyCapture, 0, 0, captureWidth, captureHeight, expected);"
+    },
+    {
+      "file": "src/dev/WaterRefractionComparison.ts",
+      "line": 114,
+      "symbols": [
+        "WebGLRenderTarget"
+      ],
+      "owner": "G05",
+      "status": "comparison harness, development only",
+      "source": "legacyMaskTarget = new WebGLRenderTarget(captureWidth, captureHeight);"
+    },
+    {
+      "file": "src/dev/WaterRefractionComparison.ts",
+      "line": 116,
+      "symbols": [
+        "ShaderMaterial"
+      ],
+      "owner": "G05",
+      "status": "comparison harness, development only",
+      "source": "maskMesh = new Mesh(maskGeometry, new ShaderMaterial({"
+    },
+    {
+      "file": "src/dev/WaterRefractionComparison.ts",
+      "line": 127,
+      "symbols": [
+        "readRenderTargetPixels"
+      ],
+      "owner": "G05",
+      "status": "comparison harness, development only",
+      "source": "legacy.readRenderTargetPixels(legacyMaskTarget, 0, 0, captureWidth, captureHeight, expected);"
+    },
+    {
+      "file": "src/dev/WaterRefractionComparison.ts",
+      "line": 154,
+      "symbols": [
+        "ShaderMaterial"
+      ],
+      "owner": "G05",
+      "status": "comparison harness, development only",
+      "source": "maskMesh?.material as ShaderMaterial | undefined]);"
+    },
+    {
+      "file": "src/dev/WaterSurfaceComparison.ts",
+      "line": 6,
+      "symbols": [
+        "WebGLRenderer",
+        "WebGLRenderTarget"
+      ],
+      "owner": "G05",
+      "status": "comparison harness, development only",
+      "source": "import { WebGLRenderer, WebGLRenderTarget } from \"three\";"
+    },
+    {
+      "file": "src/dev/WaterSurfaceComparison.ts",
+      "line": 148,
+      "symbols": [
+        "onBeforeCompile"
+      ],
+      "owner": "G05",
+      "status": "comparison harness, development only",
+      "source": "const compile = legacyMaterial.onBeforeCompile;"
+    },
+    {
+      "file": "src/dev/WaterSurfaceComparison.ts",
+      "line": 149,
+      "symbols": [
+        "onBeforeCompile"
+      ],
+      "owner": "G05",
+      "status": "comparison harness, development only",
+      "source": "legacyMaterial.onBeforeCompile = (shader, gl) => {"
+    },
+    {
+      "file": "src/dev/WaterSurfaceComparison.ts",
+      "line": 161,
+      "symbols": [
+        "WebGLRenderer"
+      ],
+      "owner": "G05",
+      "status": "comparison harness, development only",
+      "source": "const legacy = new WebGLRenderer();"
+    },
+    {
+      "file": "src/dev/WaterSurfaceComparison.ts",
+      "line": 163,
+      "symbols": [
+        "WebGLRenderTarget"
+      ],
+      "owner": "G05",
+      "status": "comparison harness, development only",
+      "source": "const legacyTarget = new WebGLRenderTarget(width, height);"
+    },
+    {
+      "file": "src/dev/WaterSurfaceComparison.ts",
+      "line": 206,
+      "symbols": [
+        "readRenderTargetPixels"
+      ],
+      "owner": "G05",
+      "status": "comparison harness, development only",
+      "source": "legacy.readRenderTargetPixels(legacyCapture.renderTarget!, 0, 0, width / 2, height / 2, rawExpected);"
+    },
+    {
+      "file": "src/dev/WaterSurfaceComparison.ts",
+      "line": 217,
+      "symbols": [
+        "readRenderTargetPixels"
+      ],
+      "owner": "G05",
+      "status": "comparison harness, development only",
+      "source": "legacy.readRenderTargetPixels(legacyTarget, 0, 0, width, height, expected);"
+    },
+    {
+      "file": "src/grass/impostors/OctahedralImpostorBaker.ts",
+      "line": 62,
+      "symbols": [
+        "WebGLRenderer"
+      ],
+      "owner": "G04",
+      "status": "ported, comparison-gated",
+      "replacement": "src/grass/impostors/OctahedralImpostorNodeBaker.ts",
+      "check": "check-renderer-harness.mjs bake",
+      "source": "constructor(private readonly renderer: THREE.WebGLRenderer) {}"
+    },
+    {
+      "file": "src/grass/impostors/OctahedralImpostorBaker.ts",
+      "line": 69,
+      "symbols": [
+        "WebGLRenderTarget"
+      ],
+      "owner": "G04",
+      "status": "ported, comparison-gated",
+      "replacement": "src/grass/impostors/OctahedralImpostorNodeBaker.ts",
+      "check": "check-renderer-harness.mjs bake",
+      "source": "const target = new THREE.WebGLRenderTarget(atlasSize, atlasSize, {"
+    },
+    {
+      "file": "src/grass/impostors/OctahedralImpostorBaker.ts",
+      "line": 117,
+      "symbols": [
+        "readRenderTargetPixels"
+      ],
+      "owner": "G04",
+      "status": "ported, comparison-gated",
+      "replacement": "src/grass/impostors/OctahedralImpostorNodeBaker.ts",
+      "check": "check-renderer-harness.mjs bake",
+      "source": "this.renderer.readRenderTargetPixels("
+    },
+    {
+      "file": "src/grass/impostors/OctahedralImpostorBaker.ts",
+      "line": 342,
+      "symbols": [
+        "getContext("
+      ],
+      "owner": "G04",
+      "status": "ported, comparison-gated",
+      "replacement": "src/grass/impostors/OctahedralImpostorNodeBaker.ts",
+      "check": "check-renderer-harness.mjs bake",
+      "source": "const context = canvas.getContext(\"2d\");"
+    },
+    {
+      "file": "src/grass/interaction/GrassTrailField.ts",
+      "line": 235,
+      "symbols": [
+        "WebGLRenderer"
+      ],
+      "owner": "G04",
+      "status": "ported, comparison-gated",
+      "replacement": "src/grass/interaction/GrassTrailNodes.ts, GrassTrailNodePass.ts",
+      "check": "check-renderer-harness.mjs trail (scripted walk plus an end-to-end sampling probe)",
+      "source": "private renderer?: THREE.WebGLRenderer;"
+    },
+    {
+      "file": "src/grass/interaction/GrassTrailField.ts",
+      "line": 236,
+      "symbols": [
+        "WebGLRenderTarget",
+        "WebGLRenderTarget"
+      ],
+      "owner": "G04",
+      "status": "ported, comparison-gated",
+      "replacement": "src/grass/interaction/GrassTrailNodes.ts, GrassTrailNodePass.ts",
+      "check": "check-renderer-harness.mjs trail (scripted walk plus an end-to-end sampling probe)",
+      "source": "private targets?: [THREE.WebGLRenderTarget, THREE.WebGLRenderTarget];"
+    },
+    {
+      "file": "src/grass/interaction/GrassTrailField.ts",
+      "line": 251,
+      "symbols": [
+        "ShaderMaterial"
+      ],
+      "owner": "G04",
+      "status": "ported, comparison-gated",
+      "replacement": "src/grass/interaction/GrassTrailNodes.ts, GrassTrailNodePass.ts",
+      "check": "check-renderer-harness.mjs trail (scripted walk plus an end-to-end sampling probe)",
+      "source": "private material?: THREE.ShaderMaterial;"
+    },
+    {
+      "file": "src/grass/interaction/GrassTrailField.ts",
+      "line": 277,
+      "symbols": [
+        "WebGLRenderer"
+      ],
+      "owner": "G04",
+      "status": "ported, comparison-gated",
+      "replacement": "src/grass/interaction/GrassTrailNodes.ts, GrassTrailNodePass.ts",
+      "check": "check-renderer-harness.mjs trail (scripted walk plus an end-to-end sampling probe)",
+      "source": "attach(renderer: THREE.WebGLRenderer): void {"
+    },
+    {
+      "file": "src/grass/interaction/GrassTrailField.ts",
+      "line": 289,
+      "symbols": [
+        "WebGLRenderTarget"
+      ],
+      "owner": "G04",
+      "status": "ported, comparison-gated",
+      "replacement": "src/grass/interaction/GrassTrailNodes.ts, GrassTrailNodePass.ts",
+      "check": "check-renderer-harness.mjs trail (scripted walk plus an end-to-end sampling probe)",
+      "source": "const pendingTargets: THREE.WebGLRenderTarget[] = [];"
+    },
+    {
+      "file": "src/grass/interaction/GrassTrailField.ts",
+      "line": 311,
+      "symbols": [
+        "ShaderMaterial"
+      ],
+      "owner": "G04",
+      "status": "ported, comparison-gated",
+      "replacement": "src/grass/interaction/GrassTrailNodes.ts, GrassTrailNodePass.ts",
+      "check": "check-renderer-harness.mjs trail (scripted walk plus an end-to-end sampling probe)",
+      "source": "this.material = new THREE.ShaderMaterial({"
+    },
+    {
+      "file": "src/grass/interaction/GrassTrailField.ts",
+      "line": 456,
+      "symbols": [
+        "getContext("
+      ],
+      "owner": "G04",
+      "status": "ported, comparison-gated",
+      "replacement": "src/grass/interaction/GrassTrailNodes.ts, GrassTrailNodePass.ts",
+      "check": "check-renderer-harness.mjs trail (scripted walk plus an end-to-end sampling probe)",
+      "source": "if (renderer && renderer.getContext().isContextLost()) {"
+    },
+    {
+      "file": "src/grass/interaction/GrassTrailField.ts",
+      "line": 711,
+      "symbols": [
+        "WebGLRenderer"
+      ],
+      "owner": "G04",
+      "status": "ported, comparison-gated",
+      "replacement": "src/grass/interaction/GrassTrailNodes.ts, GrassTrailNodePass.ts",
+      "check": "check-renderer-harness.mjs trail (scripted walk plus an end-to-end sampling probe)",
+      "source": "function resolveTargetType(renderer: THREE.WebGLRenderer): THREE.TextureDataType {"
+    },
+    {
+      "file": "src/grass/interaction/GrassTrailField.ts",
+      "line": 722,
+      "symbols": [
+        "WebGLRenderTarget"
+      ],
+      "owner": "G04",
+      "status": "ported, comparison-gated",
+      "replacement": "src/grass/interaction/GrassTrailNodes.ts, GrassTrailNodePass.ts",
+      "check": "check-renderer-harness.mjs trail (scripted walk plus an end-to-end sampling probe)",
+      "source": "): THREE.WebGLRenderTarget {"
+    },
+    {
+      "file": "src/grass/interaction/GrassTrailField.ts",
+      "line": 723,
+      "symbols": [
+        "WebGLRenderTarget"
+      ],
+      "owner": "G04",
+      "status": "ported, comparison-gated",
+      "replacement": "src/grass/interaction/GrassTrailNodes.ts, GrassTrailNodePass.ts",
+      "check": "check-renderer-harness.mjs trail (scripted walk plus an end-to-end sampling probe)",
+      "source": "const target = new THREE.WebGLRenderTarget(size, size, {"
+    },
+    {
+      "file": "src/grass/materials/GrassNearMaterial.ts",
+      "line": 965,
+      "symbols": [
+        "WebGLRenderer"
+      ],
+      "owner": "G04",
+      "status": "ported, comparison-gated",
+      "replacement": "src/grass/materials/GrassNearNodes.ts, GrassNearNodeMaterial.ts",
+      "check": "check-renderer-harness.mjs grass (4 configurations x deformation/albedo/ambient lighting)",
+      "source": "* WebGLRenderer), and its opaque sort groups by `material.id` before depth. The"
+    },
+    {
+      "file": "src/grass/materials/GrassNearMaterial.ts",
+      "line": 1212,
+      "symbols": [
+        "onBeforeCompile"
+      ],
+      "owner": "G04",
+      "status": "ported, comparison-gated",
+      "replacement": "src/grass/materials/GrassNearNodes.ts, GrassNearNodeMaterial.ts",
+      "check": "check-renderer-harness.mjs grass (4 configurations x deformation/albedo/ambient lighting)",
+      "source": "this.material.onBeforeCompile = (shader) => {"
+    },
+    {
+      "file": "src/render/ActorEnvironmentResponse.ts",
+      "line": 81,
+      "symbols": [
+        "onBeforeCompile"
+      ],
+      "owner": "G05",
+      "status": "ported, comparison-gated",
+      "replacement": "src/render/ActorEnvironmentNodeResponse.ts",
+      "check": "check-renderer-harness.mjs actor (unpatched control and responded run)",
+      "source": "material.onBeforeCompile = (shader) => {"
+    },
+    {
+      "file": "src/render/RendererDebugInfo.ts",
+      "line": 18,
+      "symbols": [
+        "WebGLRenderer"
+      ],
+      "owner": "G02/G05",
+      "status": "pending",
+      "source": "/** A classic `WebGLRenderer`, which reaches its context directly. */"
+    },
+    {
+      "file": "src/render/RendererDebugInfo.ts",
+      "line": 20,
+      "symbols": [
+        "getContext("
+      ],
+      "owner": "G02/G05",
+      "status": "pending",
+      "source": "getContext(): WebGLRenderingContext | WebGL2RenderingContext;"
+    },
+    {
+      "file": "src/render/RenderTargetReadback.ts",
+      "line": 6,
+      "symbols": [
+        "readRenderTargetPixels"
+      ],
+      "owner": "G02/G05",
+      "status": "not a renderer coupling",
+      "reason": "the portable readback helper itself",
+      "source": "export async function readRenderTargetRgba8(renderer: Pick<WebGPURenderer, \"readRenderTargetPixelsAsync\">,"
+    },
+    {
+      "file": "src/render/RenderTargetReadback.ts",
+      "line": 11,
+      "symbols": [
+        "readRenderTargetPixels"
+      ],
+      "owner": "G02/G05",
+      "status": "not a renderer coupling",
+      "reason": "the portable readback helper itself",
+      "source": "const raw = await renderer.readRenderTargetPixelsAsync(target, 0, 0, width, height);"
+    },
+    {
+      "file": "src/render/WorldCloudShadowMaterialPatch.ts",
+      "line": 24,
+      "symbols": [
+        "onBeforeCompile"
+      ],
+      "owner": "G03",
+      "status": "ported, comparison-gated",
+      "replacement": "src/world/sky/WorldCloudShadowNodes.ts",
+      "check": "check-renderer-harness.mjs cloudresponse (direct-light scale, both response strengths)",
+      "source": "const previousCompile = material.onBeforeCompile;"
+    },
+    {
+      "file": "src/render/WorldCloudShadowMaterialPatch.ts",
+      "line": 34,
+      "symbols": [
+        "onBeforeCompile"
+      ],
+      "owner": "G03",
+      "status": "ported, comparison-gated",
+      "replacement": "src/world/sky/WorldCloudShadowNodes.ts",
+      "check": "check-renderer-harness.mjs cloudresponse (direct-light scale, both response strengths)",
+      "source": "material.onBeforeCompile = (shader, renderer) => {"
+    },
+    {
+      "file": "src/render/WorldCloudShadowMaterialPatch.ts",
+      "line": 119,
+      "symbols": [
+        "onBeforeCompile"
+      ],
+      "owner": "G03",
+      "status": "ported, comparison-gated",
+      "replacement": "src/world/sky/WorldCloudShadowNodes.ts",
+      "check": "check-renderer-harness.mjs cloudresponse (direct-light scale, both response strengths)",
+      "source": "const previousCompile = material.onBeforeCompile;"
+    },
+    {
+      "file": "src/render/WorldCloudShadowMaterialPatch.ts",
+      "line": 121,
+      "symbols": [
+        "onBeforeCompile"
+      ],
+      "owner": "G03",
+      "status": "ported, comparison-gated",
+      "replacement": "src/world/sky/WorldCloudShadowNodes.ts",
+      "check": "check-renderer-harness.mjs cloudresponse (direct-light scale, both response strengths)",
+      "source": "material.onBeforeCompile = (shader, renderer) => {"
+    },
+    {
+      "file": "src/render/WorldCloudShadowMaterialPatch.ts",
+      "line": 159,
+      "symbols": [
+        "ShaderMaterial"
+      ],
+      "owner": "G03",
+      "status": "ported, comparison-gated",
+      "replacement": "src/world/sky/WorldCloudShadowNodes.ts",
+      "check": "check-renderer-harness.mjs cloudresponse (direct-light scale, both response strengths)",
+      "source": "export function patchGrassVertexLitShaderMaterial("
+    },
+    {
+      "file": "src/render/WorldCloudShadowMaterialPatch.ts",
+      "line": 160,
+      "symbols": [
+        "ShaderMaterial"
+      ],
+      "owner": "G03",
+      "status": "ported, comparison-gated",
+      "replacement": "src/world/sky/WorldCloudShadowNodes.ts",
+      "check": "check-renderer-harness.mjs cloudresponse (direct-light scale, both response strengths)",
+      "source": "material: THREE.ShaderMaterial,"
+    },
+    {
+      "file": "src/runtime/GpuFrameTimer.ts",
+      "line": 31,
+      "symbols": [
+        "WebGLRenderer"
+      ],
+      "owner": "G02/G05",
+      "status": "ported, comparison-gated",
+      "replacement": "src/render/GpuTimingAdapter.ts",
+      "check": "verify-renderer-session.mjs (coalesced resolve, disposal, unsupported fallback)",
+      "source": "constructor(renderer: THREE.WebGLRenderer, enabled: boolean) {"
+    },
+    {
+      "file": "src/runtime/GpuFrameTimer.ts",
+      "line": 37,
+      "symbols": [
+        "getContext("
+      ],
+      "owner": "G02/G05",
+      "status": "ported, comparison-gated",
+      "replacement": "src/render/GpuTimingAdapter.ts",
+      "check": "verify-renderer-session.mjs (coalesced resolve, disposal, unsupported fallback)",
+      "source": "const context = renderer.getContext();"
+    },
+    {
+      "file": "src/runtime/GpuFrameTimer.ts",
+      "line": 79,
+      "symbols": [
+        "beginQuery("
+      ],
+      "owner": "G02/G05",
+      "status": "ported, comparison-gated",
+      "replacement": "src/render/GpuTimingAdapter.ts",
+      "check": "verify-renderer-session.mjs (coalesced resolve, disposal, unsupported fallback)",
+      "source": "this.gl.beginQuery(this.extension.TIME_ELAPSED_EXT, query);"
+    },
+    {
+      "file": "src/runtime/GrassWorkloadProbe.ts",
+      "line": 67,
+      "symbols": [
+        "WebGLRenderer"
+      ],
+      "owner": "G04",
+      "status": "pending",
+      "source": "renderer?: THREE.WebGLRenderer;"
+    },
+    {
+      "file": "src/runtime/GrassWorkloadProbe.ts",
+      "line": 90,
+      "symbols": [
+        "WebGLRenderer"
+      ],
+      "owner": "G04",
+      "status": "pending",
+      "source": "renderer: THREE.WebGLRenderer;"
+    },
+    {
+      "file": "src/runtime/WorldDiagnosticsController.ts",
+      "line": 19,
+      "symbols": [
+        "WebGLRenderer"
+      ],
+      "owner": "G02/G05",
+      "status": "pending",
+      "source": "private readonly renderer: THREE.WebGLRenderer;"
+    },
+    {
+      "file": "src/runtime/WorldDiagnosticsController.ts",
+      "line": 20,
+      "symbols": [
+        "WebGLRenderer"
+      ],
+      "owner": "G02/G05",
+      "status": "pending",
+      "source": "private readonly originalRender: THREE.WebGLRenderer[\"render\"];"
+    },
+    {
+      "file": "src/runtime/WorldDiagnosticsController.ts",
+      "line": 32,
+      "symbols": [
+        "WebGLRenderer"
+      ],
+      "owner": "G02/G05",
+      "status": "pending",
+      "source": "renderer: THREE.WebGLRenderer,"
+    },
+    {
+      "file": "src/runtime/WorldDiagnosticsController.ts",
+      "line": 89,
+      "symbols": [
+        "WebGLRenderer"
+      ],
+      "owner": "G02/G05",
+      "status": "pending",
+      "source": "private readonly renderWithDiagnostics: THREE.WebGLRenderer[\"render\"] = ("
+    },
+    {
+      "file": "src/world/grass/WorldDetailFoliageAtlasFactory.ts",
+      "line": 98,
+      "symbols": [
+        "getContext("
+      ],
+      "owner": "G04",
+      "status": "not a renderer coupling",
+      "reason": "a 2D canvas used to author an atlas on the CPU, not a renderer coupling",
+      "source": "const context = canvas.getContext(\"2d\", { alpha: true });"
+    },
+    {
+      "file": "src/world/grass/WorldDetailFoliageMaterial.ts",
+      "line": 474,
+      "symbols": [
+        "ShaderMaterial"
+      ],
+      "owner": "G04",
+      "status": "ported, comparison-gated",
+      "replacement": "src/world/grass/WorldDetailFoliageNodes.ts, WorldDetailFoliageNodeMaterial.ts",
+      "check": "check-renderer-harness.mjs foliage (single-pass and production settings)",
+      "source": "readonly material: THREE.ShaderMaterial;"
+    },
+    {
+      "file": "src/world/grass/WorldDetailFoliageMaterial.ts",
+      "line": 552,
+      "symbols": [
+        "ShaderMaterial"
+      ],
+      "owner": "G04",
+      "status": "ported, comparison-gated",
+      "replacement": "src/world/grass/WorldDetailFoliageNodes.ts, WorldDetailFoliageNodeMaterial.ts",
+      "check": "check-renderer-harness.mjs foliage (single-pass and production settings)",
+      "source": "this.material = new THREE.ShaderMaterial({"
+    },
+    {
+      "file": "src/world/grass/WorldGrassImpostorAtlasFactory.ts",
+      "line": 80,
+      "symbols": [
+        "getContext("
+      ],
+      "owner": "G04",
+      "status": "not a renderer coupling",
+      "reason": "a 2D canvas used to author an atlas on the CPU, not a renderer coupling",
+      "source": "const context = canvas.getContext(\"2d\", { alpha: true });"
+    },
+    {
+      "file": "src/world/grass/WorldGrassImpostorMaterial.ts",
+      "line": 624,
+      "symbols": [
+        "ShaderMaterial"
+      ],
+      "owner": "G04",
+      "status": "ported, comparison-gated",
+      "replacement": "src/world/grass/WorldGrassImpostorNodes.ts, WorldGrassImpostorNodeMaterial.ts",
+      "check": "check-renderer-harness.mjs impostor",
+      "source": "readonly material: THREE.ShaderMaterial;"
+    },
+    {
+      "file": "src/world/grass/WorldGrassImpostorMaterial.ts",
+      "line": 660,
+      "symbols": [
+        "ShaderMaterial"
+      ],
+      "owner": "G04",
+      "status": "ported, comparison-gated",
+      "replacement": "src/world/grass/WorldGrassImpostorNodes.ts, WorldGrassImpostorNodeMaterial.ts",
+      "check": "check-renderer-harness.mjs impostor",
+      "source": "let createdMaterial: THREE.ShaderMaterial | undefined;"
+    },
+    {
+      "file": "src/world/grass/WorldGrassImpostorMaterial.ts",
+      "line": 721,
+      "symbols": [
+        "ShaderMaterial"
+      ],
+      "owner": "G04",
+      "status": "ported, comparison-gated",
+      "replacement": "src/world/grass/WorldGrassImpostorNodes.ts, WorldGrassImpostorNodeMaterial.ts",
+      "check": "check-renderer-harness.mjs impostor",
+      "source": "createdMaterial = new THREE.ShaderMaterial({"
+    },
+    {
+      "file": "src/world/horizon/WorldHorizonMaterial.ts",
+      "line": 43,
+      "symbols": [
+        "onBeforeCompile"
+      ],
+      "owner": "G03",
+      "status": "ported, comparison-gated",
+      "replacement": "src/world/horizon/WorldHorizonNodeMaterial.ts",
+      "check": "check-renderer-harness.mjs scenery and volume (horizon comparison)",
+      "source": "this.material.onBeforeCompile = (shader) => {"
+    },
+    {
+      "file": "src/world/hydrology/WaterBedMaterialController.ts",
+      "line": 151,
+      "symbols": [
+        "onBeforeCompile"
+      ],
+      "owner": "G05",
+      "status": "ported, comparison-gated",
+      "replacement": "src/world/hydrology/WaterBedNodes.ts, WaterBedNodeMaterial.ts",
+      "check": "check-renderer-harness.mjs water (desktop and compact detail scales)",
+      "source": "this.material.onBeforeCompile = (shader) => {"
+    },
+    {
+      "file": "src/world/hydrology/WaterCascadeMaterialController.ts",
+      "line": 76,
+      "symbols": [
+        "onBeforeCompile"
+      ],
+      "owner": "G05",
+      "status": "ported, comparison-gated",
+      "replacement": "src/world/hydrology/WaterCascadeNodes.ts, WaterCascadeNodeMaterial.ts",
+      "check": "check-renderer-harness.mjs water (cascade albedo and alpha, both detail scales)",
+      "source": "this.material.onBeforeCompile = (shader) => {"
+    },
+    {
+      "file": "src/world/hydrology/WaterMaterialController.ts",
+      "line": 210,
+      "symbols": [
+        "onBeforeCompile"
+      ],
+      "owner": "G05",
+      "status": "ported, comparison-gated",
+      "replacement": "src/world/hydrology/WaterSurfaceNodes.ts, WaterSurfaceNodeMaterial.ts",
+      "check": "check-renderer-harness.mjs water (albedo/alpha on both optics presets, normal, roughness, live captured refraction)",
+      "source": "this.material.onBeforeCompile = (shader) => {"
+    },
+    {
+      "file": "src/world/hydrology/WaterRefractionPass.ts",
+      "line": 19,
+      "symbols": [
+        "WebGLRenderer"
+      ],
+      "owner": "G05",
+      "status": "ported, comparison-gated",
+      "replacement": "src/world/hydrology/WaterRefractionNodePass.ts",
+      "check": "check-renderer-harness.mjs water (capture, depth coverage and surface sampling after shader warmup)",
+      "source": "renderer: THREE.WebGLRenderer,"
+    },
+    {
+      "file": "src/world/hydrology/WaterRefractionPass.ts",
+      "line": 36,
+      "symbols": [
+        "WebGLRenderTarget"
+      ],
+      "owner": "G05",
+      "status": "ported, comparison-gated",
+      "replacement": "src/world/hydrology/WaterRefractionNodePass.ts",
+      "check": "check-renderer-harness.mjs water (capture, depth coverage and surface sampling after shader warmup)",
+      "source": "private target?: THREE.WebGLRenderTarget;"
+    },
+    {
+      "file": "src/world/hydrology/WaterRefractionPass.ts",
+      "line": 53,
+      "symbols": [
+        "WebGLRenderTarget"
+      ],
+      "owner": "G05",
+      "status": "ported, comparison-gated",
+      "replacement": "src/world/hydrology/WaterRefractionNodePass.ts",
+      "check": "check-renderer-harness.mjs water (capture, depth coverage and surface sampling after shader warmup)",
+      "source": "get renderTarget(): THREE.WebGLRenderTarget | undefined {"
+    },
+    {
+      "file": "src/world/hydrology/WaterRefractionPass.ts",
+      "line": 58,
+      "symbols": [
+        "WebGLRenderer"
+      ],
+      "owner": "G05",
+      "status": "ported, comparison-gated",
+      "replacement": "src/world/hydrology/WaterRefractionNodePass.ts",
+      "check": "check-renderer-harness.mjs water (capture, depth coverage and surface sampling after shader warmup)",
+      "source": "renderer: THREE.WebGLRenderer,"
+    },
+    {
+      "file": "src/world/hydrology/WaterRefractionPass.ts",
+      "line": 92,
+      "symbols": [
+        "WebGLRenderTarget"
+      ],
+      "owner": "G05",
+      "status": "ported, comparison-gated",
+      "replacement": "src/world/hydrology/WaterRefractionNodePass.ts",
+      "check": "check-renderer-harness.mjs water (capture, depth coverage and surface sampling after shader warmup)",
+      "source": "this.target = new THREE.WebGLRenderTarget(width, height, {"
+    },
+    {
+      "file": "src/world/sky/WorldCloudPassMaterials.ts",
+      "line": 15,
+      "symbols": [
+        "ShaderMaterial"
+      ],
+      "owner": "G03",
+      "status": "ported, comparison-gated",
+      "replacement": "src/world/sky/WorldCloudFieldNodes.ts, WorldCloudVolumeNodes.ts",
+      "check": "check-renderer-harness.mjs scenery (cloud field) and volume (raymarch)",
+      "source": "): THREE.ShaderMaterial {"
+    },
+    {
+      "file": "src/world/sky/WorldCloudPassMaterials.ts",
+      "line": 17,
+      "symbols": [
+        "ShaderMaterial"
+      ],
+      "owner": "G03",
+      "status": "ported, comparison-gated",
+      "replacement": "src/world/sky/WorldCloudFieldNodes.ts, WorldCloudVolumeNodes.ts",
+      "check": "check-renderer-harness.mjs scenery (cloud field) and volume (raymarch)",
+      "source": "return new THREE.ShaderMaterial({"
+    },
+    {
+      "file": "src/world/sky/WorldCloudPassMaterials.ts",
+      "line": 57,
+      "symbols": [
+        "ShaderMaterial"
+      ],
+      "owner": "G03",
+      "status": "ported, comparison-gated",
+      "replacement": "src/world/sky/WorldCloudFieldNodes.ts, WorldCloudVolumeNodes.ts",
+      "check": "check-renderer-harness.mjs scenery (cloud field) and volume (raymarch)",
+      "source": "): THREE.ShaderMaterial {"
+    },
+    {
+      "file": "src/world/sky/WorldCloudPassMaterials.ts",
+      "line": 59,
+      "symbols": [
+        "ShaderMaterial"
+      ],
+      "owner": "G03",
+      "status": "ported, comparison-gated",
+      "replacement": "src/world/sky/WorldCloudFieldNodes.ts, WorldCloudVolumeNodes.ts",
+      "check": "check-renderer-harness.mjs scenery (cloud field) and volume (raymarch)",
+      "source": "return new THREE.ShaderMaterial({"
+    },
+    {
+      "file": "src/world/sky/WorldCloudShadowMap.ts",
+      "line": 32,
+      "symbols": [
+        "WebGLRenderTarget"
+      ],
+      "owner": "G03",
+      "status": "ported, comparison-gated",
+      "replacement": "src/world/sky/WorldCloudShadowNodeMap.ts",
+      "check": "check-renderer-harness.mjs scenery and volume (shadow map, focus and origin)",
+      "source": "private renderTarget?: THREE.WebGLRenderTarget;"
+    },
+    {
+      "file": "src/world/sky/WorldCloudShadowMap.ts",
+      "line": 34,
+      "symbols": [
+        "ShaderMaterial"
+      ],
+      "owner": "G03",
+      "status": "ported, comparison-gated",
+      "replacement": "src/world/sky/WorldCloudShadowNodeMap.ts",
+      "check": "check-renderer-harness.mjs scenery and volume (shadow map, focus and origin)",
+      "source": "private material?: THREE.ShaderMaterial;"
+    },
+    {
+      "file": "src/world/sky/WorldCloudShadowMap.ts",
+      "line": 35,
+      "symbols": [
+        "ShaderMaterial"
+      ],
+      "owner": "G03",
+      "status": "ported, comparison-gated",
+      "replacement": "src/world/sky/WorldCloudShadowNodeMap.ts",
+      "check": "check-renderer-harness.mjs scenery and volume (shadow map, focus and origin)",
+      "source": "private mesh?: THREE.Mesh<THREE.PlaneGeometry, THREE.ShaderMaterial>;"
+    },
+    {
+      "file": "src/world/sky/WorldCloudShadowMap.ts",
+      "line": 41,
+      "symbols": [
+        "WebGLRenderer"
+      ],
+      "owner": "G03",
+      "status": "ported, comparison-gated",
+      "replacement": "src/world/sky/WorldCloudShadowNodeMap.ts",
+      "check": "check-renderer-harness.mjs scenery and volume (shadow map, focus and origin)",
+      "source": "private readonly renderer: THREE.WebGLRenderer,"
+    },
+    {
+      "file": "src/world/sky/WorldCloudShadowMap.ts",
+      "line": 53,
+      "symbols": [
+        "WebGLRenderTarget"
+      ],
+      "owner": "G03",
+      "status": "ported, comparison-gated",
+      "replacement": "src/world/sky/WorldCloudShadowNodeMap.ts",
+      "check": "check-renderer-harness.mjs scenery and volume (shadow map, focus and origin)",
+      "source": "let renderTarget: THREE.WebGLRenderTarget | undefined;"
+    },
+    {
+      "file": "src/world/sky/WorldCloudShadowMap.ts",
+      "line": 55,
+      "symbols": [
+        "ShaderMaterial"
+      ],
+      "owner": "G03",
+      "status": "ported, comparison-gated",
+      "replacement": "src/world/sky/WorldCloudShadowNodeMap.ts",
+      "check": "check-renderer-harness.mjs scenery and volume (shadow map, focus and origin)",
+      "source": "let material: THREE.ShaderMaterial | undefined;"
+    },
+    {
+      "file": "src/world/sky/WorldCloudShadowMap.ts",
+      "line": 56,
+      "symbols": [
+        "ShaderMaterial"
+      ],
+      "owner": "G03",
+      "status": "ported, comparison-gated",
+      "replacement": "src/world/sky/WorldCloudShadowNodeMap.ts",
+      "check": "check-renderer-harness.mjs scenery and volume (shadow map, focus and origin)",
+      "source": "let mesh: THREE.Mesh<THREE.PlaneGeometry, THREE.ShaderMaterial> | undefined;"
+    },
+    {
+      "file": "src/world/sky/WorldCloudShadowMap.ts",
+      "line": 62,
+      "symbols": [
+        "WebGLRenderTarget"
+      ],
+      "owner": "G03",
+      "status": "ported, comparison-gated",
+      "replacement": "src/world/sky/WorldCloudShadowNodeMap.ts",
+      "check": "check-renderer-harness.mjs scenery and volume (shadow map, focus and origin)",
+      "source": "renderTarget = new THREE.WebGLRenderTarget(resolution, resolution, {"
+    },
+    {
+      "file": "src/world/sky/WorldCloudShadowMap.ts",
+      "line": 77,
+      "symbols": [
+        "ShaderMaterial"
+      ],
+      "owner": "G03",
+      "status": "ported, comparison-gated",
+      "replacement": "src/world/sky/WorldCloudShadowNodeMap.ts",
+      "check": "check-renderer-harness.mjs scenery and volume (shadow map, focus and origin)",
+      "source": "material = new THREE.ShaderMaterial({"
+    },
+    {
+      "file": "src/world/sky/WorldCloudShadowMap.ts",
+      "line": 222,
+      "symbols": [
+        "readRenderTargetPixels"
+      ],
+      "owner": "G03",
+      "status": "ported, comparison-gated",
+      "replacement": "src/world/sky/WorldCloudShadowNodeMap.ts",
+      "check": "check-renderer-harness.mjs scenery and volume (shadow map, focus and origin)",
+      "source": "this.renderer.readRenderTargetPixels("
+    },
+    {
+      "file": "src/world/sky/WorldCloudShadowMap.ts",
+      "line": 263,
+      "symbols": [
+        "getContext("
+      ],
+      "owner": "G03",
+      "status": "ported, comparison-gated",
+      "replacement": "src/world/sky/WorldCloudShadowNodeMap.ts",
+      "check": "check-renderer-harness.mjs scenery and volume (shadow map, focus and origin)",
+      "source": "return this.renderer.getContext().isContextLost();"
+    },
+    {
+      "file": "src/world/sky/WorldCloudShadowSceneIntegrator.ts",
+      "line": 4,
+      "symbols": [
+        "ShaderMaterial"
+      ],
+      "owner": "G03",
+      "status": "ported, comparison-gated",
+      "replacement": "src/render/WorldNodeMaterialContext.ts (construction-time injection; the node route has no scene-walking integrator)",
+      "check": "check-renderer-harness.mjs cloudresponse (direct-light scale, both response strengths)",
+      "source": "patchGrassVertexLitShaderMaterial,"
+    },
+    {
+      "file": "src/world/sky/WorldCloudShadowSceneIntegrator.ts",
+      "line": 72,
+      "symbols": [
+        "ShaderMaterial"
+      ],
+      "owner": "G03",
+      "status": "ported, comparison-gated",
+      "replacement": "src/render/WorldNodeMaterialContext.ts (construction-time injection; the node route has no scene-walking integrator)",
+      "check": "check-renderer-harness.mjs cloudresponse (direct-light scale, both response strengths)",
+      "source": "material instanceof THREE.ShaderMaterial &&"
+    },
+    {
+      "file": "src/world/sky/WorldCloudShadowSceneIntegrator.ts",
+      "line": 76,
+      "symbols": [
+        "ShaderMaterial"
+      ],
+      "owner": "G03",
+      "status": "ported, comparison-gated",
+      "replacement": "src/render/WorldNodeMaterialContext.ts (construction-time injection; the node route has no scene-walking integrator)",
+      "check": "check-renderer-harness.mjs cloudresponse (direct-light scale, both response strengths)",
+      "source": "patchGrassVertexLitShaderMaterial(material, this.uniforms);"
+    },
+    {
+      "file": "src/world/sky/WorldCloudTemporalPass.ts",
+      "line": 19,
+      "symbols": [
+        "ShaderMaterial"
+      ],
+      "owner": "G03",
+      "status": "ported, comparison-gated",
+      "replacement": "src/world/sky/WorldCloudTemporalNodePass.ts, WorldCloudTemporalNodes.ts",
+      "check": "check-renderer-harness.mjs volume (temporal reprojection, both reports)",
+      "source": "private readonly volumeMaterial: THREE.ShaderMaterial;"
+    },
+    {
+      "file": "src/world/sky/WorldCloudTemporalPass.ts",
+      "line": 20,
+      "symbols": [
+        "ShaderMaterial"
+      ],
+      "owner": "G03",
+      "status": "ported, comparison-gated",
+      "replacement": "src/world/sky/WorldCloudTemporalNodePass.ts, WorldCloudTemporalNodes.ts",
+      "check": "check-renderer-harness.mjs volume (temporal reprojection, both reports)",
+      "source": "private readonly temporalMaterial: THREE.ShaderMaterial;"
+    },
+    {
+      "file": "src/world/sky/WorldCloudTemporalPass.ts",
+      "line": 21,
+      "symbols": [
+        "ShaderMaterial"
+      ],
+      "owner": "G03",
+      "status": "ported, comparison-gated",
+      "replacement": "src/world/sky/WorldCloudTemporalNodePass.ts, WorldCloudTemporalNodes.ts",
+      "check": "check-renderer-harness.mjs volume (temporal reprojection, both reports)",
+      "source": "private readonly quad: THREE.Mesh<THREE.PlaneGeometry, THREE.ShaderMaterial>;"
+    },
+    {
+      "file": "src/world/sky/WorldCloudTemporalPass.ts",
+      "line": 38,
+      "symbols": [
+        "WebGLRenderer"
+      ],
+      "owner": "G03",
+      "status": "ported, comparison-gated",
+      "replacement": "src/world/sky/WorldCloudTemporalNodePass.ts, WorldCloudTemporalNodes.ts",
+      "check": "check-renderer-harness.mjs volume (temporal reprojection, both reports)",
+      "source": "constructor(renderer: THREE.WebGLRenderer, profile: RuntimeProfile) {"
+    },
+    {
+      "file": "src/world/sky/WorldCloudTemporalPass.ts",
+      "line": 58,
+      "symbols": [
+        "WebGLRenderer"
+      ],
+      "owner": "G03",
+      "status": "ported, comparison-gated",
+      "replacement": "src/world/sky/WorldCloudTemporalNodePass.ts, WorldCloudTemporalNodes.ts",
+      "check": "check-renderer-harness.mjs volume (temporal reprojection, both reports)",
+      "source": "renderer: THREE.WebGLRenderer,"
+    },
+    {
+      "file": "src/world/sky/WorldCloudTemporalPass.ts",
+      "line": 113,
+      "symbols": [
+        "WebGLRenderer"
+      ],
+      "owner": "G03",
+      "status": "ported, comparison-gated",
+      "replacement": "src/world/sky/WorldCloudTemporalNodePass.ts, WorldCloudTemporalNodes.ts",
+      "check": "check-renderer-harness.mjs volume (temporal reprojection, both reports)",
+      "source": "private ensureSize(renderer: THREE.WebGLRenderer): void {"
+    },
+    {
+      "file": "src/world/sky/WorldCloudTemporalPass.ts",
+      "line": 176,
+      "symbols": [
+        "WebGLRenderer"
+      ],
+      "owner": "G03",
+      "status": "ported, comparison-gated",
+      "replacement": "src/world/sky/WorldCloudTemporalNodePass.ts, WorldCloudTemporalNodes.ts",
+      "check": "check-renderer-harness.mjs volume (temporal reprojection, both reports)",
+      "source": "renderer: THREE.WebGLRenderer,"
+    },
+    {
+      "file": "src/world/sky/WorldCloudTemporalPass.ts",
+      "line": 177,
+      "symbols": [
+        "WebGLRenderTarget"
+      ],
+      "owner": "G03",
+      "status": "ported, comparison-gated",
+      "replacement": "src/world/sky/WorldCloudTemporalNodePass.ts, WorldCloudTemporalNodes.ts",
+      "check": "check-renderer-harness.mjs volume (temporal reprojection, both reports)",
+      "source": "target: THREE.WebGLRenderTarget,"
+    },
+    {
+      "file": "src/world/sky/WorldCloudTemporalPass.ts",
+      "line": 178,
+      "symbols": [
+        "ShaderMaterial"
+      ],
+      "owner": "G03",
+      "status": "ported, comparison-gated",
+      "replacement": "src/world/sky/WorldCloudTemporalNodePass.ts, WorldCloudTemporalNodes.ts",
+      "check": "check-renderer-harness.mjs volume (temporal reprojection, both reports)",
+      "source": "material: THREE.ShaderMaterial,"
+    },
+    {
+      "file": "src/world/sky/WorldCloudTemporalPass.ts",
+      "line": 208,
+      "symbols": [
+        "WebGLRenderTarget"
+      ],
+      "owner": "G03",
+      "status": "ported, comparison-gated",
+      "replacement": "src/world/sky/WorldCloudTemporalNodePass.ts, WorldCloudTemporalNodes.ts",
+      "check": "check-renderer-harness.mjs volume (temporal reprojection, both reports)",
+      "source": "function createTarget(): THREE.WebGLRenderTarget {"
+    },
+    {
+      "file": "src/world/sky/WorldCloudTemporalPass.ts",
+      "line": 209,
+      "symbols": [
+        "WebGLRenderTarget"
+      ],
+      "owner": "G03",
+      "status": "ported, comparison-gated",
+      "replacement": "src/world/sky/WorldCloudTemporalNodePass.ts, WorldCloudTemporalNodes.ts",
+      "check": "check-renderer-harness.mjs volume (temporal reprojection, both reports)",
+      "source": "return new THREE.WebGLRenderTarget(1, 1, {"
+    },
+    {
+      "file": "src/world/sky/WorldSky.ts",
+      "line": 35,
+      "symbols": [
+        "ShaderMaterial"
+      ],
+      "owner": "G03",
+      "status": "ported, comparison-gated",
+      "replacement": "src/world/sky/WorldSkyNode.ts, WorldSkyAnalyticNodeMaterial.ts",
+      "check": "check-renderer-harness.mjs scenery and volume (sky comparison)",
+      "source": "private readonly mesh: THREE.Mesh<THREE.SphereGeometry, THREE.ShaderMaterial>;"
+    },
+    {
+      "file": "src/world/sky/WorldSky.ts",
+      "line": 37,
+      "symbols": [
+        "WebGLRenderTarget"
+      ],
+      "owner": "G03",
+      "status": "ported, comparison-gated",
+      "replacement": "src/world/sky/WorldSkyNode.ts, WorldSkyAnalyticNodeMaterial.ts",
+      "check": "check-renderer-harness.mjs scenery and volume (sky comparison)",
+      "source": "private environmentTarget?: THREE.WebGLRenderTarget;"
+    },
+    {
+      "file": "src/world/sky/WorldSky.ts",
+      "line": 43,
+      "symbols": [
+        "WebGLRenderer"
+      ],
+      "owner": "G03",
+      "status": "ported, comparison-gated",
+      "replacement": "src/world/sky/WorldSkyNode.ts, WorldSkyAnalyticNodeMaterial.ts",
+      "check": "check-renderer-harness.mjs scenery and volume (sky comparison)",
+      "source": "private readonly renderer: THREE.WebGLRenderer,"
+    },
+    {
+      "file": "src/world/sky/WorldSky.ts",
+      "line": 149,
+      "symbols": [
+        "WebGLRenderTarget"
+      ],
+      "owner": "G03",
+      "status": "ported, comparison-gated",
+      "replacement": "src/world/sky/WorldSkyNode.ts, WorldSkyAnalyticNodeMaterial.ts",
+      "check": "check-renderer-harness.mjs scenery and volume (sky comparison)",
+      "source": "let environmentTarget: THREE.WebGLRenderTarget | undefined;"
+    },
+    {
+      "file": "src/world/sky/WorldSky.ts",
+      "line": 150,
+      "symbols": [
+        "PMREMGenerator"
+      ],
+      "owner": "G03",
+      "status": "ported, comparison-gated",
+      "replacement": "src/world/sky/WorldSkyNode.ts, WorldSkyAnalyticNodeMaterial.ts",
+      "check": "check-renderer-harness.mjs scenery and volume (sky comparison)",
+      "source": "let pmrem: THREE.PMREMGenerator | undefined;"
+    },
+    {
+      "file": "src/world/sky/WorldSky.ts",
+      "line": 151,
+      "symbols": [
+        "ShaderMaterial"
+      ],
+      "owner": "G03",
+      "status": "ported, comparison-gated",
+      "replacement": "src/world/sky/WorldSkyNode.ts, WorldSkyAnalyticNodeMaterial.ts",
+      "check": "check-renderer-harness.mjs scenery and volume (sky comparison)",
+      "source": "let bakeMaterial: THREE.ShaderMaterial | undefined;"
+    },
+    {
+      "file": "src/world/sky/WorldSky.ts",
+      "line": 153,
+      "symbols": [
+        "PMREMGenerator"
+      ],
+      "owner": "G03",
+      "status": "ported, comparison-gated",
+      "replacement": "src/world/sky/WorldSkyNode.ts, WorldSkyAnalyticNodeMaterial.ts",
+      "check": "check-renderer-harness.mjs scenery and volume (sky comparison)",
+      "source": "pmrem = new THREE.PMREMGenerator(this.renderer);"
+    },
+    {
+      "file": "src/world/sky/WorldSky.ts",
+      "line": 211,
+      "symbols": [
+        "ShaderMaterial"
+      ],
+      "owner": "G03",
+      "status": "ported, comparison-gated",
+      "replacement": "src/world/sky/WorldSkyNode.ts, WorldSkyAnalyticNodeMaterial.ts",
+      "check": "check-renderer-harness.mjs scenery and volume (sky comparison)",
+      "source": "): THREE.Mesh<THREE.SphereGeometry, THREE.ShaderMaterial> {"
+    },
+    {
+      "file": "src/world/sky/WorldSky.ts",
+      "line": 212,
+      "symbols": [
+        "ShaderMaterial"
+      ],
+      "owner": "G03",
+      "status": "ported, comparison-gated",
+      "replacement": "src/world/sky/WorldSkyNode.ts, WorldSkyAnalyticNodeMaterial.ts",
+      "check": "check-renderer-harness.mjs scenery and volume (sky comparison)",
+      "source": "let material: THREE.ShaderMaterial | undefined;"
+    },
+    {
+      "file": "src/world/sky/WorldSky.ts",
+      "line": 214,
+      "symbols": [
+        "ShaderMaterial"
+      ],
+      "owner": "G03",
+      "status": "ported, comparison-gated",
+      "replacement": "src/world/sky/WorldSkyNode.ts, WorldSkyAnalyticNodeMaterial.ts",
+      "check": "check-renderer-harness.mjs scenery and volume (sky comparison)",
+      "source": "let mesh: THREE.Mesh<THREE.SphereGeometry, THREE.ShaderMaterial> | undefined;"
+    },
+    {
+      "file": "src/world/sky/WorldSkyCloudVolumeController.ts",
+      "line": 9,
+      "symbols": [
+        "ShaderMaterial"
+      ],
+      "owner": "G03",
+      "status": "ported, comparison-gated",
+      "replacement": "src/world/sky/WorldCloudVolumeNodes.ts",
+      "check": "check-renderer-harness.mjs volume (matched raymarch)",
+      "source": "type SkyMesh = THREE.Mesh<THREE.SphereGeometry, THREE.ShaderMaterial>;"
+    },
+    {
+      "file": "src/world/sky/WorldSkyCloudVolumeController.ts",
+      "line": 19,
+      "symbols": [
+        "WebGLRenderer"
+      ],
+      "owner": "G03",
+      "status": "ported, comparison-gated",
+      "replacement": "src/world/sky/WorldCloudVolumeNodes.ts",
+      "check": "check-renderer-harness.mjs volume (matched raymarch)",
+      "source": "renderer: THREE.WebGLRenderer,"
+    },
+    {
+      "file": "src/world/sky/WorldSkyCloudVolumeController.ts",
+      "line": 63,
+      "symbols": [
+        "WebGLRenderer"
+      ],
+      "owner": "G03",
+      "status": "ported, comparison-gated",
+      "replacement": "src/world/sky/WorldCloudVolumeNodes.ts",
+      "check": "check-renderer-harness.mjs volume (matched raymarch)",
+      "source": "renderer: THREE.WebGLRenderer,"
+    },
+    {
+      "file": "src/world/sky/WorldSkyMaterial.ts",
+      "line": 62,
+      "symbols": [
+        "ShaderMaterial"
+      ],
+      "owner": "G03",
+      "status": "ported, comparison-gated",
+      "replacement": "src/world/sky/WorldSkyAnalyticNodeMaterial.ts",
+      "check": "check-renderer-harness.mjs scenery and volume (sky comparison)",
+      "source": "export function createWorldSkyMaterial(vertexShader: string): THREE.ShaderMaterial {"
+    },
+    {
+      "file": "src/world/sky/WorldSkyMaterial.ts",
+      "line": 63,
+      "symbols": [
+        "ShaderMaterial"
+      ],
+      "owner": "G03",
+      "status": "ported, comparison-gated",
+      "replacement": "src/world/sky/WorldSkyAnalyticNodeMaterial.ts",
+      "check": "check-renderer-harness.mjs scenery and volume (sky comparison)",
+      "source": "return new THREE.ShaderMaterial({"
+    },
+    {
+      "file": "src/world/sky/WorldSkyMaterial.ts",
+      "line": 103,
+      "symbols": [
+        "ShaderMaterial"
+      ],
+      "owner": "G03",
+      "status": "ported, comparison-gated",
+      "replacement": "src/world/sky/WorldSkyAnalyticNodeMaterial.ts",
+      "check": "check-renderer-harness.mjs scenery and volume (sky comparison)",
+      "source": "material: THREE.ShaderMaterial,"
+    },
+    {
+      "file": "src/world/sky/WorldSkyMaterial.ts",
+      "line": 151,
+      "symbols": [
+        "ShaderMaterial"
+      ],
+      "owner": "G03",
+      "status": "ported, comparison-gated",
+      "replacement": "src/world/sky/WorldSkyAnalyticNodeMaterial.ts",
+      "check": "check-renderer-harness.mjs scenery and volume (sky comparison)",
+      "source": "material: THREE.ShaderMaterial,"
+    },
+    {
+      "file": "src/world/sky/WorldSkyMaterial.ts",
+      "line": 161,
+      "symbols": [
+        "ShaderMaterial"
+      ],
+      "owner": "G03",
+      "status": "ported, comparison-gated",
+      "replacement": "src/world/sky/WorldSkyAnalyticNodeMaterial.ts",
+      "check": "check-renderer-harness.mjs scenery and volume (sky comparison)",
+      "source": "material: THREE.ShaderMaterial,"
+    },
+    {
+      "file": "src/world/sky/WorldSkyMaterial.ts",
+      "line": 171,
+      "symbols": [
+        "ShaderMaterial"
+      ],
+      "owner": "G03",
+      "status": "ported, comparison-gated",
+      "replacement": "src/world/sky/WorldSkyAnalyticNodeMaterial.ts",
+      "check": "check-renderer-harness.mjs scenery and volume (sky comparison)",
+      "source": "material: THREE.ShaderMaterial,"
+    },
+    {
+      "file": "src/world/sky/WorldSkyNode.ts",
+      "line": 1,
+      "symbols": [
+        "PMREMGenerator"
+      ],
+      "owner": "G03",
+      "status": "ported, comparison-gated",
+      "replacement": "this file is the portable route; it drives the node PMREMGenerator",
+      "check": "check-renderer-harness.mjs scenery and volume (data-sky-environment)",
+      "source": "import { CubeUVReflectionMapping, HalfFloatType, LinearFilter, LinearSRGBColorSpace, Mesh, PMREMGenerator,"
+    },
+    {
+      "file": "src/world/sky/WorldSkyNode.ts",
+      "line": 88,
+      "symbols": [
+        "PMREMGenerator"
+      ],
+      "owner": "G03",
+      "status": "ported, comparison-gated",
+      "replacement": "this file is the portable route; it drives the node PMREMGenerator",
+      "check": "check-renderer-harness.mjs scenery and volume (data-sky-environment)",
+      "source": "const generator = new PMREMGenerator(this.renderer);"
+    },
+    {
+      "file": "src/world/stones/StoneGrowthShader.ts",
+      "line": 583,
+      "symbols": [
+        "onBeforeCompile"
+      ],
+      "owner": "G05",
+      "status": "ported, comparison-gated",
+      "replacement": "src/world/stones/StoneSurfaceNodes.ts, StoneSurfaceNodeMaterial.ts",
+      "check": "check-renderer-harness.mjs stone (detail albedo/normal and coarse)",
+      "source": "material.onBeforeCompile = (shader) => {"
+    },
+    {
+      "file": "src/world/stones/StoneGrowthShader.ts",
+      "line": 665,
+      "symbols": [
+        "onBeforeCompile"
+      ],
+      "owner": "G05",
+      "status": "ported, comparison-gated",
+      "replacement": "src/world/stones/StoneSurfaceNodes.ts, StoneSurfaceNodeMaterial.ts",
+      "check": "check-renderer-harness.mjs stone (detail albedo/normal and coarse)",
+      "source": "material.onBeforeCompile = (shader) => {"
+    },
+    {
+      "file": "src/world/stones/StoneShaderPerformanceVerification.ts",
+      "line": 30,
+      "symbols": [
+        "onBeforeCompile"
+      ],
+      "owner": "G05",
+      "status": "pending",
+      "source": "material.onBeforeCompile("
+    },
+    {
+      "file": "src/world/stones/StoneShaderPerformanceVerification.ts",
+      "line": 32,
+      "symbols": [
+        "WebGLRenderer"
+      ],
+      "owner": "G05",
+      "status": "pending",
+      "source": "{} as THREE.WebGLRenderer,"
+    },
+    {
+      "file": "src/world/TerrainMaterialController.ts",
+      "line": 110,
+      "symbols": [
+        "onBeforeCompile"
+      ],
+      "owner": "G03",
+      "status": "ported, comparison-gated",
+      "replacement": "src/world/TerrainNodeMaterialController.ts",
+      "check": "check-renderer-harness.mjs terrain",
+      "source": "this.material.onBeforeCompile = (shader) => {"
+    }
+  ]
+}

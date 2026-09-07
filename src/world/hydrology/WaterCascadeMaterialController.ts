@@ -26,6 +26,15 @@ export class WaterCascadeMaterialController {
   private readonly noiseTexture: THREE.DataTexture;
   private readonly uniforms: Record<string, THREE.IUniform>;
 
+  /**
+   * The uniform table, for the node material built over the same state. One
+   * owner for the curtain's clock and strengths, so the two paths cannot
+   * advect the strands from two different times while both are alive.
+   */
+  get shaderUniforms(): Record<string, THREE.IUniform> {
+    return this.uniforms;
+  }
+
   constructor(config: WorldConfig, compact = false) {
     this.noiseTexture = createWaterFlowNoiseTexture(
       (config.seed ^ WATER_CASCADE_NOISE_SEED_SALT) >>> 0,

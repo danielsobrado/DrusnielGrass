@@ -2,7 +2,9 @@ import * as THREE from "three";
 import type { GrassImpostorConfig } from "../GrassConfig";
 import { OctahedralMapping, type OctahedralView } from "./OctahedralMapping";
 
-const BAKE_LAYER = 31;
+/** Shared with the portable baker so both isolate the source the same way. */
+export const IMPOSTOR_BAKE_LAYER = 31;
+const BAKE_LAYER = IMPOSTOR_BAKE_LAYER;
 const PNG_TYPE = "image/png";
 const DOWNLOAD_REVOKE_DELAY_MS = 1_000;
 
@@ -39,6 +41,8 @@ export interface ImpostorBakeMetadata {
 
 export interface ImpostorBakeResult {
   atlas: Blob;
+  /** The atlas before PNG encoding, in the renderer's own row order. */
+  pixels: Uint8Array;
   metadata: ImpostorBakeMetadata;
 }
 
@@ -118,10 +122,11 @@ export class OctahedralImpostorBaker {
         atlasSize,
         pixels,
       );
-      const atlas = await this.createAtlasBlob(pixels, atlasSize);
+      const atlas = await createImpostorAtlasBlob(pixels, atlasSize, true);
       return {
         atlas,
-        metadata: this.createMetadata(bounds, views, config, cellSize, atlasSize),
+        pixels,
+        metadata: createImpostorBakeMetadata(bounds, views, config, cellSize, atlasSize),
       };
     } finally {
       this.restoreBakeLayer(savedObjects);
@@ -308,73 +313,84 @@ export class OctahedralImpostorBaker {
     }
   }
 
-  private async createAtlasBlob(
-    pixels: Uint8Array,
-    atlasSize: number,
-  ): Promise<Blob> {
-    const flipped = new Uint8ClampedArray(pixels.length);
-    const rowBytes = atlasSize * 4;
-    for (let row = 0; row < atlasSize; row += 1) {
-      const sourceOffset = row * rowBytes;
-      const targetOffset = (atlasSize - 1 - row) * rowBytes;
-      flipped.set(pixels.subarray(sourceOffset, sourceOffset + rowBytes), targetOffset);
-    }
+}
 
-    const canvas = document.createElement("canvas");
-    canvas.width = atlasSize;
-    canvas.height = atlasSize;
-    const context = canvas.getContext("2d");
-    if (!context) {
-      throw new Error("Unable to create a 2D canvas for impostor export.");
-    }
-    context.putImageData(new ImageData(flipped, atlasSize, atlasSize), 0, 0);
-
-    return new Promise<Blob>((resolve, reject) => {
-      canvas.toBlob((blob) => {
-        if (blob) {
-          resolve(blob);
-        } else {
-          reject(new Error("Unable to encode the impostor atlas as PNG."));
-        }
-      }, PNG_TYPE);
-    });
+/**
+ * Encodes an atlas readback as a PNG.
+ *
+ * `bottomUp` says which end of the buffer the first row came from: WebGL 2
+ * reads a target from the bottom, WebGP from the top, and the canvas wants the
+ * top row first. Passing it in keeps the orientation an explicit decision of
+ * whichever renderer produced the pixels.
+ */
+export async function createImpostorAtlasBlob(
+  pixels: Uint8Array,
+  atlasSize: number,
+  bottomUp: boolean,
+): Promise<Blob> {
+  const ordered = new Uint8ClampedArray(pixels.length);
+  const rowBytes = atlasSize * 4;
+  for (let row = 0; row < atlasSize; row += 1) {
+    const sourceOffset = row * rowBytes;
+    const targetOffset = (bottomUp ? atlasSize - 1 - row : row) * rowBytes;
+    ordered.set(pixels.subarray(sourceOffset, sourceOffset + rowBytes), targetOffset);
   }
 
-  private createMetadata(
-    bounds: THREE.Box3,
-    views: OctahedralView[],
-    config: GrassImpostorConfig,
-    cellSize: number,
-    atlasSize: number,
-  ): ImpostorBakeMetadata {
-    const center = bounds.getCenter(new THREE.Vector3());
-    const size = bounds.getSize(new THREE.Vector3());
-    return {
-      version: 1,
-      mapping: "hemi-octahedral",
-      pass: "albedo-alpha",
-      viewsPerAxis: config.viewsPerAxis,
-      frameResolution: config.frameResolution,
-      padding: config.padding,
-      atlasSize,
-      sourceBounds: {
-        center: [center.x, center.y, center.z],
-        size: [size.x, size.y, size.z],
-      },
-      frames: views.map((view) => ({
-        index: view.index,
-        row: view.row,
-        column: view.column,
-        uv: view.uv,
-        direction: [view.direction.x, view.direction.y, view.direction.z],
-        viewport: [
-          view.column * cellSize + config.padding,
-          view.row * cellSize + config.padding,
-          config.frameResolution,
-          config.frameResolution,
-        ],
-      })),
-      pendingPasses: ["normal-roughness", "linear-depth-thickness"],
-    };
+  const canvas = document.createElement("canvas");
+  canvas.width = atlasSize;
+  canvas.height = atlasSize;
+  const context = canvas.getContext("2d");
+  if (!context) {
+    throw new Error("Unable to create a 2D canvas for impostor export.");
   }
+  context.putImageData(new ImageData(ordered, atlasSize, atlasSize), 0, 0);
+
+  return new Promise<Blob>((resolve, reject) => {
+    canvas.toBlob((blob) => {
+      if (blob) {
+        resolve(blob);
+      } else {
+        reject(new Error("Unable to encode the impostor atlas as PNG."));
+      }
+    }, PNG_TYPE);
+  });
+}
+
+/** The bake manifest, shared so both bakers describe an atlas identically. */
+export function createImpostorBakeMetadata(
+  bounds: THREE.Box3,
+  views: OctahedralView[],
+  config: GrassImpostorConfig,
+  cellSize: number,
+  atlasSize: number,
+): ImpostorBakeMetadata {
+  const center = bounds.getCenter(new THREE.Vector3());
+  const size = bounds.getSize(new THREE.Vector3());
+  return {
+    version: 1,
+    mapping: "hemi-octahedral",
+    pass: "albedo-alpha",
+    viewsPerAxis: config.viewsPerAxis,
+    frameResolution: config.frameResolution,
+    padding: config.padding,
+    atlasSize,
+    sourceBounds: {
+      center: [center.x, center.y, center.z],
+      size: [size.x, size.y, size.z],
+    },
+    frames: views.map((view) => ({
+      index: view.index,
+      row: view.row,
+      column: view.column,
+      uv: view.uv,
+      direction: [view.direction.x, view.direction.y, view.direction.z],
+      viewport: [
+        view.column * cellSize + config.padding,
+        view.row * cellSize + config.padding,
+        config.frameResolution,
+        config.frameResolution,
+      ],
+    })),
+    pendingPasses: ["normal-roughness", "linear-depth-thickness"],
+  };
 }

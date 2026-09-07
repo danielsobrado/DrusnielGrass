@@ -49,7 +49,12 @@ const WATER_BED_MATERIAL_MAX_LINES = 180;
 // context as the surface, so both passes agree about which part of the river
 // they are on. The composition itself still lives in WaterBedShader.
 const WATER_BED_MATERIAL_SHADER_MAX_LINES = 160;
-const WATER_MATERIAL_MAX_LINES = 220;
+// Raised from 220 when the surface gained its portable node material, which
+// reads this controller's uniform table rather than keeping a second copy of
+// the water's live visuals. The extra lines are the accessor exposing that
+// table and the base-roughness mirror the node path has no built-in for; the
+// surface composition itself still lives entirely in WaterShader.
+const WATER_MATERIAL_MAX_LINES = 240;
 const WATER_SHADER_MAX_LINES = 360;
 const STONE_GEOMETRY_MAX_LINES = 400;
 // Raised for the streamed-ring coverage mask. Chunk residency lives in

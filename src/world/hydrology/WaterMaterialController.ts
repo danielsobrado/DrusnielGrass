@@ -48,6 +48,16 @@ export class WaterMaterialController {
   readonly material: THREE.MeshPhysicalMaterial;
   private readonly flowNoiseTexture: THREE.DataTexture;
   private readonly uniforms: Record<string, THREE.IUniform>;
+  /**
+   * The uniform table, for the node material built over the same state.
+   *
+   * One owner for the surface's live visuals: the portable material reads these
+   * very objects, so a quality preset change, a refraction capture or a config
+   * reload cannot reach one implementation and not the other while both live.
+   */
+  get shaderUniforms(): Record<string, THREE.IUniform> {
+    return this.uniforms;
+  }
   private readonly detailScale: number;
   private disposed = false;
   constructor(config: WorldConfig, compact = false) {
@@ -120,6 +130,10 @@ export class WaterMaterialController {
         uWaterRefractionStrength: { value: 0.055 },
         uWaterOpticsDeepStart: { value: 3.4 },
         uWaterOpticsReflectionGain: { value: 0.78 },
+        // The GLSL path reads the base roughness through the built-in material
+        // uniform; the node path has no equivalent, so it is mirrored here and
+        // written wherever `material.roughness` is, keeping one owner for it.
+        uWaterRoughness: { value: config.waterRoughness },
       };
       this.configureMaterial();
     } catch (error) {
@@ -155,6 +169,7 @@ export class WaterMaterialController {
       return;
     }
     this.material.roughness = visuals.waterRoughness;
+    this.uniforms.uWaterRoughness.value = visuals.waterRoughness;
     // Selects the optics branch; both presets share one program because the
     // branch is on a uniform, so switching costs no recompile.
     this.uniforms.uWaterOpticsQuality.value = visuals.waterQuality >= 1 ? 1 : 0;

@@ -51,6 +51,16 @@ export class WaterBedMaterialController {
   readonly material: THREE.MeshLambertMaterial;
   private readonly bedTexture: THREE.DataTexture;
   private readonly uniforms: Record<string, THREE.IUniform>;
+  /**
+   * The uniform table, for the node material built over the same state.
+   *
+   * One owner for the bed's live visuals: the portable material reads these
+   * very objects, so a quality change or a config reload cannot reach one
+   * implementation and not the other while both are alive.
+   */
+  get shaderUniforms(): Record<string, THREE.IUniform> {
+    return this.uniforms;
+  }
   private readonly detailScale: number;
   private disposed = false;
 

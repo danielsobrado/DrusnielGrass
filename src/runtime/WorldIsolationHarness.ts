@@ -1,4 +1,8 @@
 import * as THREE from "three";
+import {
+  readRendererDebugInfo, readRendererError, type DebuggableRenderer, type RendererDebugInfo,
+} from "../render/RendererDebugInfo";
+import type { InspectableRenderer } from "../render/RendererDiagnosticsTypes";
 
 const PATCH_FLAG = "__fluffyGrassWorldIsolationHarness" as const;
 const HUD_UPDATE_INTERVAL_MS = 500;
@@ -34,7 +38,7 @@ interface IsolationOptions {
 }
 
 type SceneRenderHook = (
-  renderer: THREE.WebGLRenderer,
+  renderer: DebuggableRenderer & InspectableRenderer,
   scene: THREE.Scene,
   camera: THREE.Camera,
   ...args: unknown[]
@@ -49,17 +53,6 @@ interface ScenePrototype {
 interface StoneRenderHooks {
   readonly original: THREE.Object3D["onBeforeRender"];
   readonly installed: THREE.Object3D["onBeforeRender"];
-}
-
-interface DebugRendererInfo {
-  version: string;
-  renderer: string;
-  vendor: string;
-  depthBits: number;
-  maxTextureSize: number;
-  maxVertexAttribs: number;
-  vertexHighp: string;
-  fragmentHighp: string;
 }
 
 interface ValidationIssue {
@@ -80,7 +73,7 @@ class IsolationState {
   private readonly trackedStoneMeshes = new Map<THREE.Mesh, StoneRenderHooks>();
   private readonly submittedStoneBatches = new Set<string>();
   private readonly hud?: HTMLPreElement;
-  private rendererInfo?: DebugRendererInfo;
+  private rendererInfo?: RendererDebugInfo;
   private worldScene?: THREE.Scene;
   private lastHudUpdateMs = Number.NEGATIVE_INFINITY;
   private lastValidationMs = Number.NEGATIVE_INFINITY;
@@ -105,7 +98,7 @@ class IsolationState {
   }
 
   beforeRender(
-    renderer: THREE.WebGLRenderer,
+    renderer: DebuggableRenderer & InspectableRenderer,
     scene: THREE.Object3D,
     camera: THREE.Camera,
   ): void {
@@ -144,12 +137,12 @@ class IsolationState {
     }
 
     if (!this.rendererInfo) {
-      this.rendererInfo = collectRendererInfo(renderer);
+      this.rendererInfo = readRendererDebugInfo(renderer);
     }
   }
 
   afterRender(
-    renderer: THREE.WebGLRenderer,
+    renderer: DebuggableRenderer & InspectableRenderer,
     scene: THREE.Object3D,
     camera: THREE.Camera,
   ): void {
@@ -162,7 +155,7 @@ class IsolationState {
       return;
     }
     this.lastHudUpdateMs = now;
-    this.lastGlError = readGlError(renderer.getContext());
+    this.lastGlError = readRendererError(renderer);
     this.updateHud(renderer, camera);
   }
 
@@ -486,7 +479,7 @@ class IsolationState {
   }
 
   private updateHud(
-    renderer: THREE.WebGLRenderer,
+    renderer: DebuggableRenderer & InspectableRenderer,
     camera: THREE.Camera,
   ): void {
     if (!this.hud) {
@@ -505,10 +498,12 @@ class IsolationState {
       `camera near=${perspective?.near ?? "n/a"} far=${perspective?.far ?? "n/a"}`,
       info ? `GPU=${info.renderer} | ${info.vendor}` : "GPU=unknown",
       info
-        ? `${info.version} depth=${info.depthBits} maxTex=${info.maxTextureSize} attribs=${info.maxVertexAttribs}`
-        : "WebGL=unknown",
+        ? `${info.version} depth=${info.depthBits ?? "n/a"} maxTex=${info.maxTextureSize} attribs=${info.maxVertexAttribs}`
+        : "backend=unknown",
+      // Absent on WebGPU rather than blank: WGSL has no precision qualifiers,
+      // so there is nothing to report and nothing has gone wrong.
       info
-        ? `highp vertex=${info.vertexHighp} fragment=${info.fragmentHighp}`
+        ? `highp vertex=${info.vertexHighp ?? "f32"} fragment=${info.fragmentHighp ?? "f32"}`
         : "highp=unknown",
       `draws=${render.calls} tris=${render.triangles} lines=${render.lines} points=${render.points}`,
       `validateGpu=${this.options.validateGpu ? "on" : "off"} invalid=${this.invalidValueCount}`,
@@ -822,55 +817,4 @@ function describeObject(object: THREE.Object3D): string {
   return object.name.length > 0
     ? `${object.type}(${object.name})`
     : `${object.type}(${object.uuid})`;
-}
-
-function collectRendererInfo(
-  renderer: THREE.WebGLRenderer,
-): DebugRendererInfo {
-  const gl = renderer.getContext();
-  const debugInfo = gl.getExtension("WEBGL_debug_renderer_info") as
-    | {
-        UNMASKED_RENDERER_WEBGL: number;
-        UNMASKED_VENDOR_WEBGL: number;
-      }
-    | null;
-  const rendererName = debugInfo
-    ? String(gl.getParameter(debugInfo.UNMASKED_RENDERER_WEBGL))
-    : String(gl.getParameter(gl.RENDERER));
-  const vendor = debugInfo
-    ? String(gl.getParameter(debugInfo.UNMASKED_VENDOR_WEBGL))
-    : String(gl.getParameter(gl.VENDOR));
-
-  return {
-    version: String(gl.getParameter(gl.VERSION)),
-    renderer: rendererName,
-    vendor,
-    depthBits: Number(gl.getParameter(gl.DEPTH_BITS)),
-    maxTextureSize: Number(gl.getParameter(gl.MAX_TEXTURE_SIZE)),
-    maxVertexAttribs: Number(gl.getParameter(gl.MAX_VERTEX_ATTRIBS)),
-    vertexHighp: describePrecision(
-      gl.getShaderPrecisionFormat(gl.VERTEX_SHADER, gl.HIGH_FLOAT),
-    ),
-    fragmentHighp: describePrecision(
-      gl.getShaderPrecisionFormat(gl.FRAGMENT_SHADER, gl.HIGH_FLOAT),
-    ),
-  };
-}
-
-function describePrecision(
-  format: WebGLShaderPrecisionFormat | null,
-): string {
-  return format
-    ? `p${format.precision} [${format.rangeMin},${format.rangeMax}]`
-    : "unavailable";
-}
-
-function readGlError(
-  gl: WebGLRenderingContext | WebGL2RenderingContext,
-): string {
-  const error = gl.getError();
-  if (error === gl.NO_ERROR) {
-    return "NO_ERROR";
-  }
-  return `0x${error.toString(16)}`;
 }

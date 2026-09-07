@@ -9,6 +9,9 @@ function assert(condition, message) {
 const server = await createServer({
   configFile: false,
   appType: "custom",
+  // This SSR-only verifier never serves HTML. Do not launch a browser entry
+  // scan that will still be running when the short-lived server closes.
+  optimizeDeps: { noDiscovery: true, include: [] },
   server: {
     middlewareMode: true,
     watch: null,

@@ -547,12 +547,12 @@ const SKY_SIDE_AMBIENT = `
  * Large enough to hide the facet, small enough that a body cannot flip from
  * crusted to stained on noise alone.
  */
-const STONE_CRUST_BREAKUP = 0.55;
+export const STONE_CRUST_BREAKUP = 0.55;
 /** How far wet stone darkens where the film is unbroken. */
-const STONE_WET_DARKEN = 0.58;
+export const STONE_WET_DARKEN = 0.58;
 /** Narrow enough to read as a film of water rather than polish. */
-const STONE_WET_SHEEN_POWER = 110;
-const STONE_WET_SHEEN_STRENGTH = 0.28;
+export const STONE_WET_SHEEN_POWER = 110;
+export const STONE_WET_SHEEN_STRENGTH = 0.28;
 /**
  * The lobe dry stone gets.
  *
@@ -567,8 +567,8 @@ const STONE_WET_SHEEN_STRENGTH = 0.28;
  * it. At this width the term reads as a sheen across a whole plane rather than
  * a specular dot, which is what stone at this scale actually does.
  */
-const STONE_DRY_SHEEN_POWER = 16;
-const STONE_DRY_SHEEN_STRENGTH = 0.075;
+export const STONE_DRY_SHEEN_POWER = 16;
+export const STONE_DRY_SHEEN_STRENGTH = 0.075;
 
 export function applyStoneSurfaceShader(
   material: THREE.MeshLambertMaterial,

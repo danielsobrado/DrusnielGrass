@@ -40,6 +40,22 @@ export interface GrassTrailConfig {
   freshnessRate: number;
 }
 
+/**
+ * The renderer-specific half of the update pass.
+ *
+ * The field owns the covered square, the contact list, the accumulation clock
+ * and the ping-pong index; a backend owns only the targets and the draw. That
+ * split is what lets the legacy WebGL pass and the portable node pass share one
+ * set of uniform objects and one exactly-once update order.
+ */
+export interface GrassTrailBackend {
+  /** True when the targets hold half float rather than bytes. */
+  readonly precise: boolean;
+  texture(index: number): THREE.Texture;
+  render(readIndex: number, writeIndex: number): void;
+  dispose(): void;
+}
+
 const DEFAULT_CONFIG: GrassTrailConfig = {
   resolution: 256,
   coverage: 24,
@@ -183,6 +199,36 @@ void main() {
 }
 `;
 
+/** One table, written by the field and read by whichever pass is attached. */
+function createGrassTrailUniforms(): Record<string, THREE.IUniform> {
+  return {
+    uPrevious: { value: null as THREE.Texture | null },
+    uCenter: { value: new THREE.Vector2() },
+    uPreviousCenter: { value: new THREE.Vector2() },
+    uCoverage: { value: DEFAULT_CONFIG.coverage },
+    uInitialize: { value: 0 },
+    uDelta: { value: 0 },
+    uRecoveryRate: { value: DEFAULT_CONFIG.recoveryRate },
+    uRecoveryFloor: {
+      value: DEFAULT_CONFIG.recoveryRate * PRECISE_RECOVERY_FLOOR_RATIO,
+    },
+    uFreshnessRate: { value: DEFAULT_CONFIG.freshnessRate },
+    uContactCount: { value: 0 },
+    uContacts: {
+      value: Array.from(
+        { length: GRASS_TRAIL_MAX_CONTACTS },
+        () => new THREE.Vector4(),
+      ),
+    },
+    uContactShapes: {
+      value: Array.from(
+        { length: GRASS_TRAIL_MAX_CONTACTS },
+        () => new THREE.Vector4(0, 1, 0, 0),
+      ),
+    },
+  };
+}
+
 class GrassTrailField {
   private config: GrassTrailConfig = { ...DEFAULT_CONFIG };
   private inverseCoverage = 1 / DEFAULT_CONFIG.coverage;
@@ -204,6 +250,13 @@ class GrassTrailField {
   private accumulatedDeltaSeconds = 0;
   private material?: THREE.ShaderMaterial;
   private quad?: THREE.Mesh;
+  /** Shared with an attached node pass; see GrassTrailBackend. */
+  private readonly updateUniforms = createGrassTrailUniforms();
+  private backend?: GrassTrailBackend;
+  private backendFactory?: (
+    uniforms: Record<string, THREE.IUniform>,
+    size: number,
+  ) => GrassTrailBackend;
   private hasFocus = false;
   private enabled = false;
 
@@ -212,7 +265,9 @@ class GrassTrailField {
     validateConfig(next);
     this.config = next;
     this.inverseCoverage = 1 / this.config.coverage;
-    if (this.renderer) {
+    if (this.backendFactory) {
+      this.attachNodePass(this.backendFactory);
+    } else if (this.renderer) {
       const renderer = this.renderer;
       this.releaseTargets();
       this.attach(renderer);
@@ -220,12 +275,16 @@ class GrassTrailField {
   }
 
   attach(renderer: THREE.WebGLRenderer): void {
-    if (this.targets) {
-      if (this.renderer === renderer) {
-        return;
-      }
+    if (this.targets && this.renderer === renderer && !this.backend) {
+      return;
+    }
+    // Symmetric with attachNodePass: whichever pass is attached is released
+    // first. Guarding on targets alone left an attached node pass live while a
+    // second, unused WebGL pass was built over it.
+    if (this.targets || this.backend) {
       this.releaseTargets();
     }
+    this.backendFactory = undefined;
     this.renderer = renderer;
     const pendingTargets: THREE.WebGLRenderTarget[] = [];
     let pendingGeometry: THREE.PlaneGeometry | undefined;
@@ -243,37 +302,18 @@ class GrassTrailField {
       this.targets = [firstTarget, secondTarget];
       pendingTargets.length = 0;
 
+      this.updateUniforms.uPrevious.value = this.targets[0].texture;
+      this.updateUniforms.uCoverage.value = this.config.coverage;
+      this.updateUniforms.uRecoveryRate.value = this.config.recoveryRate;
+      this.updateUniforms.uRecoveryFloor.value =
+        this.config.recoveryRate * this.recoveryFloorRatio;
+      this.updateUniforms.uFreshnessRate.value = this.config.freshnessRate;
       this.material = new THREE.ShaderMaterial({
         vertexShader: UPDATE_VERTEX_SHADER,
         fragmentShader: UPDATE_FRAGMENT_SHADER,
         depthTest: false,
         depthWrite: false,
-        uniforms: {
-          uPrevious: { value: this.targets[0].texture },
-          uCenter: { value: new THREE.Vector2() },
-          uPreviousCenter: { value: new THREE.Vector2() },
-          uCoverage: { value: this.config.coverage },
-          uInitialize: { value: 0 },
-          uDelta: { value: 0 },
-          uRecoveryRate: { value: this.config.recoveryRate },
-          uRecoveryFloor: {
-            value: this.config.recoveryRate * this.recoveryFloorRatio,
-          },
-          uFreshnessRate: { value: this.config.freshnessRate },
-          uContactCount: { value: 0 },
-          uContacts: {
-            value: Array.from(
-              { length: GRASS_TRAIL_MAX_CONTACTS },
-              () => new THREE.Vector4(),
-            ),
-          },
-          uContactShapes: {
-            value: Array.from(
-              { length: GRASS_TRAIL_MAX_CONTACTS },
-              () => new THREE.Vector4(0, 1, 0, 0),
-            ),
-          },
-        },
+        uniforms: this.updateUniforms,
       });
       pendingGeometry = new THREE.PlaneGeometry(2, 2);
       this.quad = new THREE.Mesh(pendingGeometry, this.material);
@@ -281,6 +321,7 @@ class GrassTrailField {
       this.quad.frustumCulled = false;
       this.scene.add(this.quad);
       this.enabled = true;
+      this.resetScroll();
       this.primeTargets();
     } catch (error) {
       try {
@@ -310,6 +351,38 @@ class GrassTrailField {
         );
       }
       this.renderer = undefined;
+      throw error;
+    }
+  }
+
+  /**
+   * Attaches the portable pass instead of the legacy WebGL one.
+   *
+   * The factory receives this field's own uniform table, so the node pass reads
+   * the same objects `render` writes rather than a second copy of the state.
+   */
+  attachNodePass(
+    factory: (
+      uniforms: Record<string, THREE.IUniform>,
+      size: number,
+    ) => GrassTrailBackend,
+  ): void {
+    this.releaseTargets();
+    this.renderer = undefined;
+    this.backendFactory = factory;
+    try {
+      const backend = factory(this.updateUniforms, this.targetSize());
+      this.backend = backend;
+      this.recoveryFloorRatio = backend.precise
+        ? PRECISE_RECOVERY_FLOOR_RATIO
+        : QUANTIZED_RECOVERY_FLOOR_RATIO;
+      this.updateUniforms.uCoverage.value = this.config.coverage;
+      this.enabled = true;
+      this.resetScroll();
+      this.primeTargets();
+    } catch (error) {
+      this.backendFactory = undefined;
+      try { this.releaseTargets(); } catch (cleanupError) { console.warn("Trail node attachment cleanup failed.", cleanupError); }
       throw error;
     }
   }
@@ -371,11 +444,16 @@ class GrassTrailField {
     const renderer = this.renderer;
     const targets = this.targets;
     const material = this.material;
-    if (!renderer || !targets || !material || !this.enabled || !this.hasFocus) {
+    const backend = this.backend;
+    if (!this.enabled || !this.hasFocus) {
       this.resetPendingFrame();
       return;
     }
-    if (renderer.getContext().isContextLost()) {
+    if (!backend && (!renderer || !targets || !material)) {
+      this.resetPendingFrame();
+      return;
+    }
+    if (renderer && renderer.getContext().isContextLost()) {
       this.resetPendingFrame();
       return;
     }
@@ -404,8 +482,8 @@ class GrassTrailField {
       Math.round(this.focus.y / texelSize) * texelSize,
     );
 
-    const uniforms = material.uniforms;
-    uniforms.uPrevious.value = targets[this.readTarget].texture;
+    const uniforms = this.updateUniforms;
+    uniforms.uPrevious.value = this.readTexture();
     (uniforms.uCenter.value as THREE.Vector2).copy(this.center);
     (uniforms.uPreviousCenter.value as THREE.Vector2).copy(this.previousCenter);
     uniforms.uCoverage.value = this.config.coverage;
@@ -436,6 +514,15 @@ class GrassTrailField {
     this.contactCount = 0;
 
     const writeTarget = 1 - this.readTarget;
+    if (backend) {
+      // The node pass restores renderer state itself; see RenderNodePass.
+      backend.render(this.readTarget, writeTarget);
+      this.readTarget = writeTarget;
+      return;
+    }
+    if (!renderer || !targets) {
+      return;
+    }
     const previousRenderTarget = renderer.getRenderTarget();
     try {
       renderer.setRenderTarget(targets[writeTarget]);
@@ -447,11 +534,35 @@ class GrassTrailField {
   }
 
   isEnabled(): boolean {
-    return this.enabled && this.hasFocus && this.targets !== undefined;
+    return (
+      this.enabled &&
+      this.hasFocus &&
+      (this.targets !== undefined || this.backend !== undefined)
+    );
   }
 
-  /** Null until {@link attach} has built the targets; see {@link isEnabled}. */
+  /**
+   * True when the attached pass holds half float rather than bytes.
+   *
+   * The recovery floor is derived from it, so the two passes must agree about
+   * precision before their outputs can be compared at all.
+   */
+  isPrecise(): boolean {
+    if (!this.targets && !this.backend) {
+      return false;
+    }
+    return this.recoveryFloorRatio === PRECISE_RECOVERY_FLOOR_RATIO;
+  }
+
+  /** Null until a pass has built the targets; see {@link isEnabled}. */
   getTexture(): THREE.Texture | null {
+    return this.readTexture();
+  }
+
+  private readTexture(): THREE.Texture | null {
+    if (this.backend) {
+      return this.backend.texture(this.readTarget);
+    }
     return this.targets?.[this.readTarget].texture ?? null;
   }
 
@@ -470,10 +581,25 @@ class GrassTrailField {
 
   dispose(): void {
     this.renderer = undefined;
+    this.backendFactory = undefined;
     this.enabled = false;
     this.hasFocus = false;
     this.resetPendingFrame();
     this.releaseTargets();
+  }
+
+  /**
+   * Drops the scroll history when the targets are rebuilt.
+   *
+   * Priming leaves both targets neutral, so a centre describing the previous
+   * contents no longer describes anything. Sampling neutral is harmless either
+   * way; keeping the stale centre would just make an attached pass's first
+   * reprojection depend on where the character stood before the rebuild.
+   */
+  private resetScroll(): void {
+    this.center.set(0, 0);
+    this.previousCenter.set(0, 0);
+    this.hasFocus = false;
   }
 
   private targetSize(): number {
@@ -489,9 +615,11 @@ class GrassTrailField {
     const quad = this.quad;
     const material = this.material;
     const targets = this.targets;
+    const backend = this.backend;
     this.quad = undefined;
     this.material = undefined;
     this.targets = undefined;
+    this.backend = undefined;
     this.readTarget = 0;
     this.enabled = false;
     disposeResources([
@@ -499,6 +627,7 @@ class GrassTrailField {
       quad?.geometry,
       material,
       ...(targets ?? []),
+      backend,
     ]);
   }
 
@@ -511,21 +640,45 @@ class GrassTrailField {
     const renderer = this.renderer;
     const targets = this.targets;
     const material = this.material;
-    if (!renderer || !targets || !material) {
+    const backend = this.backend;
+    const uniforms = this.updateUniforms;
+    if (!backend && (!renderer || !targets || !material)) {
       return;
     }
-    material.uniforms.uInitialize.value = 1;
-    material.uniforms.uContactCount.value = 0;
-    material.uniforms.uDelta.value = 0;
+    uniforms.uInitialize.value = 1;
+    uniforms.uContactCount.value = 0;
+    uniforms.uDelta.value = 0;
+    if (backend) {
+      try {
+        // Each target is written while the other is bound for reading. With
+        // initialization on the previous sample is never used, but binding a
+        // target as both source and attachment is invalid on WebGPU.
+        backend.render(1, 0);
+        backend.render(0, 1);
+      } finally {
+        uniforms.uInitialize.value = 0;
+      }
+      return;
+    }
+    if (!renderer || !targets) {
+      return;
+    }
     const previousRenderTarget = renderer.getRenderTarget();
     try {
-      for (const target of targets) {
+      for (const [index, target] of targets.entries()) {
+        // Bind the *other* target as the source. Initialization never reads the
+        // sample, but a texture attached to the framebuffer while also bound to
+        // a sampler is a feedback loop: WebGL drops the draw outright, which
+        // used to leave the first target cleared to zero instead of neutral, so
+        // every texel started with a crush direction of (-1, -1).
+        uniforms.uPrevious.value = targets[1 - index].texture;
         renderer.setRenderTarget(target);
         renderer.render(this.scene, this.camera);
       }
     } finally {
       renderer.setRenderTarget(previousRenderTarget);
-      material.uniforms.uInitialize.value = 0;
+      uniforms.uPrevious.value = targets[0].texture;
+      uniforms.uInitialize.value = 0;
     }
   }
 }

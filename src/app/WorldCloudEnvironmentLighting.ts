@@ -59,7 +59,7 @@ export class WorldCloudEnvironmentLighting {
 
   constructor(
     private readonly scene: THREE.Scene,
-    private readonly renderer: THREE.WebGLRenderer,
+    private readonly renderer: { toneMappingExposure: number },
     private readonly profile: RuntimeProfile,
     private readonly sun: THREE.DirectionalLight,
     private readonly hemisphere: THREE.HemisphereLight,

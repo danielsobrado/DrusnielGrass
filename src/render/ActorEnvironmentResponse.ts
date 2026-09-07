@@ -31,11 +31,20 @@ import {
  * still get their own program, because three appends this key to its own.
  */
 const ACTOR_ENVIRONMENT_CACHE_KEY = "snowflow-character-environment-v1";
-const RIM_COLOR = new THREE.Color(WORLD_SKY_ZENITH);
-const RIM_STRENGTH = 0.5;
-const RIM_POWER = 3.2;
-const BOUNCE_COLOR = new THREE.Color(WORLD_DEFAULT_HEMISPHERE_GROUND);
-const BOUNCE_STRENGTH = 0.35;
+/**
+ * Exported so the portable response reads these very objects rather than a
+ * second set of numbers that could be tuned apart from these ones.
+ */
+export const ACTOR_RIM_COLOR = new THREE.Color(WORLD_SKY_ZENITH);
+export const ACTOR_RIM_STRENGTH = 0.5;
+export const ACTOR_RIM_POWER = 3.2;
+export const ACTOR_BOUNCE_COLOR = new THREE.Color(WORLD_DEFAULT_HEMISPHERE_GROUND);
+export const ACTOR_BOUNCE_STRENGTH = 0.35;
+const RIM_COLOR = ACTOR_RIM_COLOR;
+const RIM_STRENGTH = ACTOR_RIM_STRENGTH;
+const RIM_POWER = ACTOR_RIM_POWER;
+const BOUNCE_COLOR = ACTOR_BOUNCE_COLOR;
+const BOUNCE_STRENGTH = ACTOR_BOUNCE_STRENGTH;
 
 const ENVIRONMENT_DECLARATIONS = `
 uniform vec3 uCharacterRimColor;

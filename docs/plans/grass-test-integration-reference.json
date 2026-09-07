@@ -1,0 +1,1999 @@
+{
+  "format": "grass-test-integration-reference",
+  "version": 1,
+  "capturedAt": "2026-09-06T13:11:27.690Z",
+  "sourceRoot": "F:\\Development\\grass-test",
+  "sourceRevision": "97db53662d4239f02a0f9a883fe1ba8a7602ed4f",
+  "sourceWorkingTree": [
+    "M public/Assets/Audio/insect2_alt.mp3",
+    "?? .cache/",
+    "?? public/Assets/Audio/CATALOG.md",
+    "?? public/Assets/Audio/ambient/",
+    "?? public/Assets/Audio/footsteps/",
+    "?? public/Assets/Audio/insect1_alt.mp3",
+    "?? public/Assets/Audio/insect3_alt.mp3",
+    "?? public/Assets/Audio/lake2_alt.mp3",
+    "?? public/Assets/Audio/rain_alt.mp3",
+    "?? public/Assets/Audio/transitions/",
+    "?? public/Assets/Audio/water-footstep3_alt.mp3",
+    "?? public/Assets/Audio/water/",
+    "?? public/Assets/Audio/wildlife/",
+    "?? scripts/build-sound-bank.mjs",
+    "?? scripts/inspect-packs.mjs",
+    "?? scripts/inspect-sources.mjs",
+    "?? scripts/scrape-audio-sources.mjs",
+    "?? scripts/scraped-sources.json",
+    "?? scripts/stage-audio-sources.mjs",
+    "?? scripts/verify-sound-bank.mjs"
+  ],
+  "destinationPlanningRevision": "5a2200558672e13c7fef55e7bc249a599d0b3479",
+  "warning": "Reference only. Source working tree includes uncommitted audio. Asset catalog licensing claims have not been independently verified. Do not import this document into runtime code.",
+  "configOrder": [
+    "config.yaml",
+    "ground-material.yaml",
+    "player-controls.yaml",
+    "visual-parity.yaml",
+    "character-visual.yaml",
+    "cinematic-wind.yaml",
+    "cinematic-look.yaml",
+    "painter-cursor.yaml",
+    "characters.yaml"
+  ],
+  "presets": {
+    "sunny": {
+      "label": "Highfield",
+      "grass": {
+        "blade": {
+          "bladeHeight": 2.5,
+          "bladeWidth": 0.2,
+          "bladeStiffness": 1,
+          "baseBend": 0,
+          "windIntensity": 2.4,
+          "windDirection": 0,
+          "windNoiseScale": 0.3,
+          "simulationSpeed": 1,
+          "baseColor": "#304f0b",
+          "tipColor": "#74a116",
+          "sheen": 0.25
+        },
+        "billboard": {
+          "bladeHeight": 1,
+          "bladeWidth": 1.5,
+          "bladeStiffness": 1,
+          "baseBend": 0,
+          "windIntensity": 1.7,
+          "windDirection": 0,
+          "windNoiseScale": 0.3,
+          "simulationSpeed": 1,
+          "baseColor": "#304f0b",
+          "tipColor": "#74a116",
+          "sheen": 0.25
+        }
+      },
+      "lighting": {
+        "color": "#ffd27a",
+        "directionalIntensity": 5,
+        "position": [
+          0,
+          30,
+          45
+        ],
+        "hemisphereSkyColor": "#8fcaff",
+        "hemisphereGroundColor": "#51402a",
+        "hemisphereIntensity": 0.38,
+        "ambientColor": "#fff0c4",
+        "ambientIntensity": 0.55,
+        "environmentIntensity": 0.32
+      },
+      "sky": {
+        "groundColor": "#c89b62",
+        "horizonColor": "#91d5ff",
+        "zenithColor": "#4174d9",
+        "sunHaloColor": "#ffd77d",
+        "sunDiskColor": "#fff9dc",
+        "haloPower": 100,
+        "diskPower": 10000,
+        "sunPosition": [
+          0,
+          30,
+          45
+        ],
+        "fogColor": "#a8cbd0",
+        "fogDensity": 0.005
+      },
+      "cloudCoverage": 0.65,
+      "rain": false
+    },
+    "goldenHour": {
+      "label": "Emberfall",
+      "grass": {
+        "blade": {
+          "bladeHeight": 1.5,
+          "bladeWidth": 0.2,
+          "bladeStiffness": 0.9,
+          "baseBend": 0.1,
+          "windIntensity": 1.5,
+          "windDirection": 45,
+          "windNoiseScale": 0.38,
+          "simulationSpeed": 0.95,
+          "baseColor": "#50852b",
+          "tipColor": "#a6bf65",
+          "sheen": 0.055
+        },
+        "billboard": {
+          "bladeHeight": 1,
+          "bladeWidth": 1.5,
+          "bladeStiffness": 0.9,
+          "baseBend": 0.1,
+          "windIntensity": 1.5,
+          "windDirection": 45,
+          "windNoiseScale": 0.38,
+          "simulationSpeed": 0.95,
+          "baseColor": "#50852b",
+          "tipColor": "#a6bf65",
+          "sheen": 0.055
+        }
+      },
+      "lighting": {
+        "color": "#fff0c9",
+        "directionalIntensity": 2.8,
+        "position": [
+          -28,
+          65,
+          -30
+        ],
+        "hemisphereSkyColor": "#b6def1",
+        "hemisphereGroundColor": "#78945d",
+        "hemisphereIntensity": 1.35,
+        "ambientColor": "#dceac5",
+        "ambientIntensity": 0.32,
+        "environmentIntensity": 0.65
+      },
+      "sky": {
+        "groundColor": "#a96b45",
+        "horizonColor": "#c5e7df",
+        "zenithColor": "#438ec5",
+        "sunHaloColor": "#ffe8ad",
+        "sunDiskColor": "#fff0c0",
+        "haloPower": 20,
+        "diskPower": 5800,
+        "sunPosition": [
+          -28,
+          65,
+          -30
+        ],
+        "fogColor": "#a5ced3",
+        "fogDensity": 0.0015
+      },
+      "cloudCoverage": 0.7,
+      "rain": false
+    },
+    "rainy": {
+      "label": "Greyrain",
+      "grass": {
+        "blade": {
+          "bladeHeight": 1.5,
+          "bladeWidth": 0.2,
+          "bladeStiffness": 0.85,
+          "baseBend": 0.16,
+          "windIntensity": 2,
+          "windDirection": 0,
+          "windNoiseScale": 0.3,
+          "simulationSpeed": 1.05,
+          "baseColor": "#193f20",
+          "tipColor": "#4f9b35",
+          "sheen": 0.65
+        },
+        "billboard": {
+          "bladeHeight": 1,
+          "bladeWidth": 1.5,
+          "bladeStiffness": 0.85,
+          "baseBend": 0.16,
+          "windIntensity": 2,
+          "windDirection": 0,
+          "windNoiseScale": 0.3,
+          "simulationSpeed": 1.05,
+          "baseColor": "#193f20",
+          "tipColor": "#4f9b35",
+          "sheen": 1
+        }
+      },
+      "lighting": {
+        "color": "#9bc7d7",
+        "directionalIntensity": 1,
+        "position": [
+          -20,
+          35,
+          20
+        ],
+        "hemisphereSkyColor": "#719fae",
+        "hemisphereGroundColor": "#202f2b",
+        "hemisphereIntensity": 0.38,
+        "ambientColor": "#719ca8",
+        "ambientIntensity": 0.65,
+        "environmentIntensity": 0.2
+      },
+      "sky": {
+        "groundColor": "#435d5c",
+        "horizonColor": "#83b5bd",
+        "zenithColor": "#263f50",
+        "sunHaloColor": "#9fbfc2",
+        "sunDiskColor": "#d2e3df",
+        "haloPower": 8,
+        "diskPower": 500,
+        "sunPosition": [
+          -20,
+          35,
+          20
+        ],
+        "fogColor": "#83aeb4",
+        "fogDensity": 0.007
+      },
+      "cloudCoverage": 0.05,
+      "rain": true
+    },
+    "windy": {
+      "label": "Galewind",
+      "grass": {
+        "blade": {
+          "bladeHeight": 1.5,
+          "bladeWidth": 0.2,
+          "bladeStiffness": 0.72,
+          "baseBend": 0.18,
+          "windIntensity": 2.8,
+          "windDirection": 75,
+          "windNoiseScale": 0.3,
+          "simulationSpeed": 1.08,
+          "baseColor": "#304f0b",
+          "tipColor": "#86b91a",
+          "sheen": 0.25
+        },
+        "billboard": {
+          "bladeHeight": 1,
+          "bladeWidth": 1.5,
+          "bladeStiffness": 0.72,
+          "baseBend": 0.18,
+          "windIntensity": 2.8,
+          "windDirection": 75,
+          "windNoiseScale": 0.3,
+          "simulationSpeed": 1.08,
+          "baseColor": "#304f0b",
+          "tipColor": "#86b91a",
+          "sheen": 0.25
+        }
+      },
+      "lighting": {
+        "color": "#ffd990",
+        "directionalIntensity": 3,
+        "position": [
+          -20,
+          35,
+          50
+        ],
+        "hemisphereSkyColor": "#91cbea",
+        "hemisphereGroundColor": "#4a3d28",
+        "hemisphereIntensity": 0.34,
+        "ambientColor": "#dceee8",
+        "ambientIntensity": 0.12,
+        "environmentIntensity": 0.3
+      },
+      "sky": {
+        "groundColor": "#b99a65",
+        "horizonColor": "#91d0e8",
+        "zenithColor": "#316fc5",
+        "sunHaloColor": "#ffd58b",
+        "sunDiskColor": "#fffbe5",
+        "haloPower": 26,
+        "diskPower": 5400,
+        "sunPosition": [
+          -20,
+          35,
+          50
+        ],
+        "fogColor": "#a6c8cf",
+        "fogDensity": 0.005
+      },
+      "cloudCoverage": 0.45,
+      "rain": false
+    },
+    "calm": {
+      "label": "Stillmeadow",
+      "grass": {
+        "blade": {
+          "bladeHeight": 1.5,
+          "bladeWidth": 0.2,
+          "bladeStiffness": 1,
+          "baseBend": 0.2,
+          "windIntensity": 0.65,
+          "windDirection": 0,
+          "windNoiseScale": 0.15,
+          "simulationSpeed": 0.98,
+          "baseColor": "#304f0b",
+          "tipColor": "#86b91a",
+          "sheen": 0.25
+        },
+        "billboard": {
+          "bladeHeight": 1,
+          "bladeWidth": 1.5,
+          "bladeStiffness": 1,
+          "baseBend": 0.2,
+          "windIntensity": 0.65,
+          "windDirection": 0,
+          "windNoiseScale": 0.15,
+          "simulationSpeed": 0.98,
+          "baseColor": "#304f0b",
+          "tipColor": "#86b91a",
+          "sheen": 0.25
+        }
+      },
+      "lighting": {
+        "color": "#ffd995",
+        "directionalIntensity": 3,
+        "position": [
+          10,
+          40,
+          20
+        ],
+        "hemisphereSkyColor": "#afd5ec",
+        "hemisphereGroundColor": "#5c4b31",
+        "hemisphereIntensity": 0.32,
+        "ambientColor": "#f4e4c0",
+        "ambientIntensity": 0.2,
+        "environmentIntensity": 0.31
+      },
+      "sky": {
+        "groundColor": "#cfb27b",
+        "horizonColor": "#b8dce1",
+        "zenithColor": "#6289b8",
+        "sunHaloColor": "#f5d18f",
+        "sunDiskColor": "#fff7dc",
+        "haloPower": 23,
+        "diskPower": 5000,
+        "sunPosition": [
+          10,
+          40,
+          20
+        ],
+        "fogColor": "#b7cfd0",
+        "fogDensity": 0.005
+      },
+      "cloudCoverage": 0.7,
+      "rain": false
+    },
+    "bowed": {
+      "label": "Lowsway",
+      "grass": {
+        "blade": {
+          "bladeHeight": 1.5,
+          "bladeWidth": 0.2,
+          "bladeStiffness": 0.7,
+          "baseBend": 0.9,
+          "windIntensity": 0.6,
+          "windDirection": 1,
+          "windNoiseScale": 1,
+          "simulationSpeed": 0.8,
+          "baseColor": "#304f0b",
+          "tipColor": "#86b91a",
+          "sheen": 0.25
+        },
+        "billboard": {
+          "bladeHeight": 1,
+          "bladeWidth": 1.5,
+          "bladeStiffness": 0.7,
+          "baseBend": 0.8,
+          "windIntensity": 0.6,
+          "windDirection": 1,
+          "windNoiseScale": 0.5,
+          "simulationSpeed": 0.8,
+          "baseColor": "#304f0b",
+          "tipColor": "#86b91a",
+          "sheen": 0.25
+        }
+      },
+      "lighting": {
+        "color": "#ffd27a",
+        "directionalIntensity": 3.2,
+        "position": [
+          0,
+          20,
+          45
+        ],
+        "hemisphereSkyColor": "#8fcaff",
+        "hemisphereGroundColor": "#51402a",
+        "hemisphereIntensity": 0.38,
+        "ambientColor": "#fff0c4",
+        "ambientIntensity": 0.55,
+        "environmentIntensity": 0.32
+      },
+      "sky": {
+        "groundColor": "#c89b62",
+        "horizonColor": "#91d5ff",
+        "zenithColor": "#2864d8",
+        "sunHaloColor": "#ffd77d",
+        "sunDiskColor": "#fff9dc",
+        "haloPower": 28,
+        "diskPower": 5500,
+        "sunPosition": [
+          0,
+          20,
+          45
+        ],
+        "fogColor": "#a8cbd0",
+        "fogDensity": 0.005
+      },
+      "cloudCoverage": 0.65,
+      "rain": false
+    },
+    "moonlight": {
+      "label": "Moonrise",
+      "grass": {
+        "blade": {
+          "bladeHeight": 1.5,
+          "bladeWidth": 0.2,
+          "bladeStiffness": 1.05,
+          "baseBend": 0.08,
+          "windIntensity": 0.8,
+          "windDirection": 20,
+          "windNoiseScale": 0.3,
+          "simulationSpeed": 0.92,
+          "baseColor": "#24451d",
+          "tipColor": "#65904b",
+          "sheen": 0.3
+        },
+        "billboard": {
+          "bladeHeight": 1,
+          "bladeWidth": 1.5,
+          "bladeStiffness": 1.05,
+          "baseBend": 0.08,
+          "windIntensity": 0.8,
+          "windDirection": 20,
+          "windNoiseScale": 0.3,
+          "simulationSpeed": 0.92,
+          "baseColor": "#24451d",
+          "tipColor": "#65904b",
+          "sheen": 0.3
+        }
+      },
+      "lighting": {
+        "color": "#8eafff",
+        "directionalIntensity": 1.6,
+        "position": [
+          -35,
+          20,
+          30
+        ],
+        "hemisphereSkyColor": "#405f8e",
+        "hemisphereGroundColor": "#151c1b",
+        "hemisphereIntensity": 0.2,
+        "ambientColor": "#7895c4",
+        "ambientIntensity": 0.55,
+        "environmentIntensity": 0.1
+      },
+      "sky": {
+        "groundColor": "#101715",
+        "horizonColor": "#526f8c",
+        "zenithColor": "#050b1c",
+        "sunHaloColor": "#9fc9ff",
+        "sunDiskColor": "#ffffff",
+        "haloPower": 500,
+        "diskPower": 12000,
+        "sunPosition": [
+          -35,
+          20,
+          30
+        ],
+        "fogColor": "#263d52",
+        "fogDensity": 0.005
+      },
+      "cloudCoverage": 0.2,
+      "rain": false
+    }
+  },
+  "windResolved": {
+    "model": "cinematic",
+    "baseStrength": 0.18,
+    "minStrength": 0.06,
+    "maxStrength": 1.25,
+    "noiseScaleReference": 0.3,
+    "direction": {
+      "variationDegrees": 12,
+      "scale": 0.03,
+      "speed": 0.035
+    },
+    "large": {
+      "scale": 0.015,
+      "speed": 0.08,
+      "strength": 0.7
+    },
+    "medium": {
+      "scale": 0.07,
+      "speed": 0.21,
+      "strength": 0.23
+    },
+    "flutter": {
+      "scale": 0.35,
+      "speed": 0.7,
+      "strength": 0.07
+    },
+    "warp": {
+      "scale": 0.01,
+      "speed": 0.045,
+      "amplitude": 0.85,
+      "lateralGain": 1.6
+    },
+    "gust": {
+      "threshold": 0.48,
+      "peak": 0.86,
+      "exponent": 1.6,
+      "inertiaSeconds": 0.12,
+      "inertiaGain": 0.2
+    },
+    "response": {
+      "blade": {
+        "bendScale": 0.28,
+        "tipFlutter": 0.035,
+        "tipExponent": 5,
+        "variationMin": 0.85,
+        "variationMax": 1.15
+      },
+      "billboard": {
+        "bendScale": 0.22,
+        "tipFlutter": 0.025,
+        "tipExponent": 4,
+        "variationMin": 0.9,
+        "variationMax": 1.1
+      },
+      "trees": {
+        "bendScale": 0.08,
+        "flutterScale": 0.025,
+        "heightMeters": 8,
+        "outerRadius": 3
+      },
+      "leaves": {
+        "advection": 0.52,
+        "turbulence": 0.22
+      }
+    }
+  },
+  "rain": {
+    "count": 10000,
+    "area": 20,
+    "top": 100,
+    "bottom": -100,
+    "speed": -45,
+    "dropLength": 1.8,
+    "dropWidth": 0.035,
+    "opacity": 2,
+    "color": "#cfe7ff",
+    "windX": 0.8,
+    "windZ": 0.25,
+    "windStrength": 10,
+    "windStrengthMultiplier": 10,
+    "windVariation": 0.6,
+    "turbulence": 0.8,
+    "colorLinear": [
+      0.78,
+      0.86,
+      1
+    ],
+    "defaultRoughness": 0.2
+  },
+  "cinematic": {
+    "enabled": true,
+    "exposure": 1.05,
+    "style": {
+      "enabled": true,
+      "grassRootBrightness": 0.9,
+      "grassGradientPower": 2.6,
+      "grassFill": 0.06,
+      "grassBacklight": 0.85,
+      "meadowPatchScale": 0.035,
+      "groundTipMix": 0.12,
+      "bladeWidthScale": 0.82,
+      "bladeCurve": 0.045,
+      "foliageFill": 0.28,
+      "canopyShadow": "#286746",
+      "canopyLight": "#8cb75a",
+      "canopyTint": 0.9,
+      "groundPath": "#b7a476"
+    },
+    "occlusion": {
+      "enabled": true,
+      "minTriangles": 256,
+      "minOccluderArea": 0.002,
+      "boundsPadding": 0.15,
+      "pixelPadding": 2,
+      "depthBias": 0.00002,
+      "minSavedTriangles": 25000,
+      "probeInterval": 30
+    },
+    "shadows": {
+      "cascades": 1,
+      "distance": 180,
+      "mapSize": 2048,
+      "intensity": 0.72,
+      "radius": 2.5
+    },
+    "atmosphere": {
+      "height": 10,
+      "falloff": 0.05,
+      "density": 0.00065
+    },
+    "post": {
+      "samples": 4,
+      "aoStrength": 0.18,
+      "aoRadius": 0.85,
+      "bloomStrength": 0.09,
+      "bloomThreshold": 2.1,
+      "saturation": 1.02,
+      "vignette": 0.045
+    },
+    "vegetation": {
+      "count": 3200,
+      "radius": 95,
+      "patchScale": 0.065,
+      "backlight": 0.32
+    },
+    "camera": {
+      "pitch": 0.12,
+      "distanceInHeights": 2.3,
+      "heightInHeights": 0.22,
+      "targetInHeights": 0.58,
+      "shoulderInHeights": 0.18
+    },
+    "motion": {
+      "walkSpeedInHeights": 0.85,
+      "runSpeedInHeights": 2.4,
+      "footPlacement": true
+    },
+    "water": {
+      "reflectionInterval": 0.75,
+      "reflectionDistance": 120,
+      "reflectionResolution": 256
+    },
+    "presentation": {
+      "title": "THE WILDS",
+      "subtitle": "A living landscape"
+    }
+  },
+  "ui": {
+    "showStats": true,
+    "showAdvanced": true,
+    "initialQuality": "ultra",
+    "initialPreset": "goldenHour",
+    "pixelRatio": 1,
+    "controls": {
+      "windStrength": {
+        "min": 0,
+        "max": 3,
+        "step": 0.1
+      },
+      "grassHeight": {
+        "min": 0.5,
+        "max": 3,
+        "step": 0.1
+      },
+      "simulationSpeed": {
+        "min": 0,
+        "max": 2,
+        "step": 0.05
+      },
+      "pixelRatio": {
+        "min": 0.5,
+        "max": 2,
+        "step": 0.25
+      }
+    }
+  },
+  "characters": {
+    "default": "drusniel",
+    "roster": [
+      {
+        "id": "drusniel",
+        "name": "Drusniel",
+        "title": "Dark Elf in the Wilds",
+        "blurb": "Tall, long-striding, looking for adventure.",
+        "model": "Assets/Drusniel_Dark_Elf.glb",
+        "player": {
+          "targetHeight": 5,
+          "animationSources": [],
+          "animations": {
+            "idle": null,
+            "walk": "Armature|walking_man|baselayer",
+            "run": "Armature|running|baselayer"
+          }
+        }
+      },
+      {
+        "id": "enanillo",
+        "name": "Enanillo",
+        "title": "Dwarven Delver",
+        "blurb": "Short and stout, with an authored walk cycle of his own.",
+        "model": "Assets/Enanillo_Dwarven.glb",
+        "player": {
+          "targetHeight": 3.4,
+          "animationSources": [],
+          "animations": {
+            "idle": null,
+            "walk": "Armature|walking_man|baselayer",
+            "run": "Armature|running|baselayer"
+          }
+        }
+      },
+      {
+        "id": "paladin",
+        "name": "Paladin",
+        "title": "Radiant Paladin",
+        "blurb": "Armoured and unhurried, standing eye to eye with the elf.",
+        "model": "Assets/Radiant_Paladin.glb",
+        "player": {
+          "targetHeight": 5,
+          "animationSources": [],
+          "animations": {
+            "idle": null,
+            "walk": "Armature|walking_man|baselayer",
+            "run": "Armature|running|baselayer"
+          }
+        }
+      }
+    ]
+  },
+  "audio": {
+    "masterVolume": 1,
+    "windVolume": 0.18,
+    "maxWindVolume": 0.42,
+    "rainVolume": 0.42,
+    "insectsVolume": 0.13,
+    "lakeVolume": 0.1,
+    "birdVolume": 0.24,
+    "footstepVolume": 0.42,
+    "transitionVolume": 0.3,
+    "ambientVariation": 0.12,
+    "footstepIntervals": {
+      "walk": 0.46,
+      "run": 0.3
+    },
+    "ambientVolume": 0.35,
+    "environmentVolume": 1,
+    "presetFadeDuration": 1.5,
+    "ambient": [
+      {
+        "name": "grassWind",
+        "sound": "Assets/Audio/wind-loop2_alt.mp3",
+        "volume": 0.25,
+        "loop": true,
+        "volumeVariation": 0.25,
+        "variationSpeed": 5
+      },
+      {
+        "name": "rain",
+        "sound": "Assets/Audio/rain.mp3",
+        "volume": 0.8,
+        "loop": true,
+        "preset": "rainy",
+        "volumeVariation": 0.08,
+        "variationSpeed": 1
+      },
+      {
+        "name": "nightInsects",
+        "sound": "Assets/Audio/insects.mp3",
+        "volume": 0.35,
+        "loop": true,
+        "preset": "moonlight",
+        "volumeVariation": 0.15,
+        "variationSpeed": 0.5
+      }
+    ],
+    "emitters": [
+      {
+        "name": "lake",
+        "position": [
+          250,
+          0,
+          149
+        ],
+        "sound": "Assets/Audio/lake2.mp3",
+        "volume": 5,
+        "refDistance": 110,
+        "maxDistance": 150,
+        "rolloffFactor": 6,
+        "loop": true
+      }
+    ],
+    "randomEmitters": {
+      "birds": {
+        "count": 100,
+        "sounds": [
+          "Assets/Audio/bird1.mp3",
+          "Assets/Audio/bird2.mp3",
+          "Assets/Audio/bird3.mp3",
+          "Assets/Audio/bird4.mp3",
+          "Assets/Audio/bird5.mp3"
+        ],
+        "position": {
+          "x": [
+            -450,
+            450
+          ],
+          "y": [
+            0,
+            20
+          ],
+          "z": [
+            -450,
+            450
+          ]
+        },
+        "volume": [
+          1,
+          1.5
+        ],
+        "radius": 100,
+        "refDistance": 8,
+        "maxDistance": 70,
+        "rolloffFactor": 1,
+        "minSoundCount": 1,
+        "maxSoundCount": 3,
+        "minDelay": [
+          2,
+          6
+        ],
+        "maxDelay": [
+          6,
+          12
+        ]
+      }
+    },
+    "presetRandomEmitters": [],
+    "footsteps": {
+      "grass": {
+        "sounds": [
+          "Assets/Audio/grass-footstep4.mp3",
+          "Assets/Audio/grass-footstep5.mp3",
+          "Assets/Audio/grass-footstep6.mp3"
+        ],
+        "volume": 0.1
+      },
+      "mud": {
+        "sounds": [
+          "Assets/Audio/mud-footstep1.mp3",
+          "Assets/Audio/mud-footstep2.mp3",
+          "Assets/Audio/mud-footstep3.mp3"
+        ],
+        "volume": 0.2
+      },
+      "water": {
+        "sounds": [
+          "Assets/Audio/water-footstep1.mp3",
+          "Assets/Audio/water-footstep2.mp3",
+          "Assets/Audio/water-footstep3.mp3"
+        ],
+        "volume": 0.5,
+        "proximityDistance": 100
+      },
+      "minPitch": 0.95,
+      "maxPitch": 1.05,
+      "minStepInterval": 0.25,
+      "animation": {
+        "walk": {
+          "steps": [
+            0.059880239520958084,
+            0.30538922155688625,
+            0.5508982035928144,
+            0.7964071856287425
+          ]
+        },
+        "run": {
+          "steps": [
+            0.32558139534883723,
+            0.813953488372093
+          ]
+        }
+      },
+      "refDistance": 3,
+      "maxDistance": 20,
+      "rolloffFactor": 1.5,
+      "terrainTexture": "Assets/blend2.jpg",
+      "grassThreshold": 0.5,
+      "terrainSize": 960,
+      "terrainOffsetX": 0,
+      "terrainOffsetZ": 0,
+      "footstepPredictionDistance": 2,
+      "terrainSampleRadius": 1
+    },
+    "presets": {
+      "default": {
+        "ambient": {},
+        "randomEmitters": {
+          "volumeMultiplier": 1,
+          "delayMultiplier": 1
+        }
+      },
+      "sunny": {
+        "ambient": {
+          "grassWind": {
+            "volumeMultiplier": 1
+          }
+        },
+        "randomEmitters": {
+          "volumeMultiplier": 1,
+          "delayMultiplier": 1
+        }
+      },
+      "goldenHour": {
+        "ambient": {
+          "grassWind": {
+            "volumeMultiplier": 0.8
+          }
+        },
+        "randomEmitters": {
+          "volumeMultiplier": 1,
+          "delayMultiplier": 1
+        }
+      },
+      "rainy": {
+        "ambient": {
+          "grassWind": {
+            "volumeMultiplier": 0.25
+          },
+          "rain": {
+            "volumeMultiplier": 1
+          }
+        },
+        "randomEmitters": {
+          "volumeMultiplier": 0,
+          "delayMultiplier": 1
+        }
+      },
+      "windy": {
+        "ambient": {
+          "grassWind": {
+            "volumeMultiplier": 1.7
+          }
+        },
+        "randomEmitters": {
+          "volumeMultiplier": 1.1,
+          "delayMultiplier": 0.9
+        }
+      },
+      "calm": {
+        "ambient": {
+          "grassWind": {
+            "volumeMultiplier": 0.25
+          }
+        },
+        "randomEmitters": {
+          "volumeMultiplier": 0.4,
+          "delayMultiplier": 2.5
+        }
+      },
+      "bowed": {
+        "ambient": {
+          "grassWind": {
+            "volumeMultiplier": 0.55
+          }
+        },
+        "randomEmitters": {
+          "volumeMultiplier": 0.8,
+          "delayMultiplier": 1.4
+        }
+      },
+      "moonlight": {
+        "ambient": {
+          "grassWind": {
+            "volumeMultiplier": 0.3
+          },
+          "nightInsects": {
+            "volumeMultiplier": 2
+          }
+        },
+        "randomEmitters": {
+          "volumeMultiplier": 0,
+          "delayMultiplier": 1
+        }
+      }
+    }
+  },
+  "sourceFileHashes": [
+    {
+      "path": "public/Assets/Audio/CATALOG.md",
+      "bytes": 5193,
+      "sha256": "63c65105301147d7f9f781753ccd4ccc88e30a8c2ecb321e809e7d87ce964ffc"
+    },
+    {
+      "path": "public/Assets/Audio/ambient/forest-01.mp3",
+      "bytes": 300810,
+      "sha256": "8efd7ef8cb07751cc4f335e1067bf4e0f96cfd32bfce072096e965da3de86584"
+    },
+    {
+      "path": "public/Assets/Audio/ambient/highfield-wind-01.mp3",
+      "bytes": 71469,
+      "sha256": "c1613bd5fafc948b306fecae8bef5c3c631322e9784f7405ed30a7a358ea2762"
+    },
+    {
+      "path": "public/Assets/Audio/ambient/highfield-wind-02.mp3",
+      "bytes": 70317,
+      "sha256": "a1b54be31e3d4e60a7b5677a4dedf99119eb7bbf271b536757e6e20c91cb0550"
+    },
+    {
+      "path": "public/Assets/Audio/ambient/lake-01.mp3",
+      "bytes": 84717,
+      "sha256": "bc7a405fa9b0283c3dd389bf48719b6d9ff3ad6744728c4e9a9f8015459b8000"
+    },
+    {
+      "path": "public/Assets/Audio/ambient/rain-heavy-01.mp3",
+      "bytes": 264717,
+      "sha256": "bdd5571d495cc6b9c54b6df3dc074d1fcf2efc142e71c4f4283b2862d5a39b74"
+    },
+    {
+      "path": "public/Assets/Audio/ambient/rain-light-01.mp3",
+      "bytes": 240813,
+      "sha256": "60d5bc1f6ef3d97744290f85071d11c123e8c0bde63e885b6ff6997ca795a342"
+    },
+    {
+      "path": "public/Assets/Audio/ambient/rain-medium-01.mp3",
+      "bytes": 240813,
+      "sha256": "f31fd348a453e775062bac6106c45c7dc7c6f2a270ba9c69d34d80c5378a3a27"
+    },
+    {
+      "path": "public/Assets/Audio/ambient/wetland-01.mp3",
+      "bytes": 300717,
+      "sha256": "d0ae4debf4cc4c933fa872a52deb80429afcc790226fdbcdadb221a8713922c3"
+    },
+    {
+      "path": "public/Assets/Audio/bird1.mp3",
+      "bytes": 120417,
+      "sha256": "40310829b1f5a295731a974f7da783be5a46e77b9859a930cce19eca13430cb6"
+    },
+    {
+      "path": "public/Assets/Audio/bird1_backup.mp3",
+      "bytes": 31078,
+      "sha256": "7cffff381d03439e5af679fceb1ef4bc5133c35eabfedb214795cf84c5001c33"
+    },
+    {
+      "path": "public/Assets/Audio/bird2.mp3",
+      "bytes": 120417,
+      "sha256": "40310829b1f5a295731a974f7da783be5a46e77b9859a930cce19eca13430cb6"
+    },
+    {
+      "path": "public/Assets/Audio/bird2_backup.mp3",
+      "bytes": 31078,
+      "sha256": "e5f5b7cfa02df9e5ede67462a579d08d77718f2018e55a9083def5b1efcdbe85"
+    },
+    {
+      "path": "public/Assets/Audio/bird3.mp3",
+      "bytes": 120417,
+      "sha256": "40310829b1f5a295731a974f7da783be5a46e77b9859a930cce19eca13430cb6"
+    },
+    {
+      "path": "public/Assets/Audio/bird3_backup.mp3",
+      "bytes": 13005,
+      "sha256": "8246d0bffe1d9da4110c789de02089ced0e21308c08db0d1640a162282259ffc"
+    },
+    {
+      "path": "public/Assets/Audio/bird4.mp3",
+      "bytes": 120417,
+      "sha256": "40310829b1f5a295731a974f7da783be5a46e77b9859a930cce19eca13430cb6"
+    },
+    {
+      "path": "public/Assets/Audio/bird4_backup.mp3",
+      "bytes": 51454,
+      "sha256": "4d2c051785cddbb7381e243c89b7cc62a26cb92af5371aa744554e2295a74fdb"
+    },
+    {
+      "path": "public/Assets/Audio/bird5.mp3",
+      "bytes": 120417,
+      "sha256": "40310829b1f5a295731a974f7da783be5a46e77b9859a930cce19eca13430cb6"
+    },
+    {
+      "path": "public/Assets/Audio/bird5_backup.mp3",
+      "bytes": 42957,
+      "sha256": "e0db8d91d74096a03bf57941caa4edba7522a0ade037e7c3f97b4ad646d0c349"
+    },
+    {
+      "path": "public/Assets/Audio/footsteps/grass-01.mp3",
+      "bytes": 3596,
+      "sha256": "21b68f447835095b614757e9da831b15155238d3407804f0ecb677f765844ed8"
+    },
+    {
+      "path": "public/Assets/Audio/footsteps/grass-02.mp3",
+      "bytes": 3387,
+      "sha256": "59553c55255709f6fb543d9a1d0dd18ed0f5220b990ab48098c4354bfc14d2d2"
+    },
+    {
+      "path": "public/Assets/Audio/footsteps/grass-03.mp3",
+      "bytes": 2760,
+      "sha256": "0977b7bc425acb62436bafc817e61e96570e2a5a6f5575b06aa5aabe3bca6618"
+    },
+    {
+      "path": "public/Assets/Audio/footsteps/grass-04.mp3",
+      "bytes": 2969,
+      "sha256": "10e6477cffdd0c855207676854c7ce012315f229131000ed8c9b213cb089fac0"
+    },
+    {
+      "path": "public/Assets/Audio/footsteps/grass-05.mp3",
+      "bytes": 2551,
+      "sha256": "ae0d0eb8b85ee7495a00169a8b9215116e32ea7648218a1c84ca711262921b8f"
+    },
+    {
+      "path": "public/Assets/Audio/footsteps/grass-06.mp3",
+      "bytes": 2760,
+      "sha256": "00ea397acfc7d53a66e8ae22d53cbd28bee9a59505ea37fc0526d225fdddd0aa"
+    },
+    {
+      "path": "public/Assets/Audio/footsteps/grass-07.mp3",
+      "bytes": 3387,
+      "sha256": "ffcd0b6cf1516ede637a9e1cfb0306e98fc3b484d6fc51775d3fea70be3984ff"
+    },
+    {
+      "path": "public/Assets/Audio/footsteps/grass-08.mp3",
+      "bytes": 3387,
+      "sha256": "ffcd0b6cf1516ede637a9e1cfb0306e98fc3b484d6fc51775d3fea70be3984ff"
+    },
+    {
+      "path": "public/Assets/Audio/footsteps/gravel-01.mp3",
+      "bytes": 3178,
+      "sha256": "a5beb1b36e77143cd70347f0d0aef0466ae25bc865aec9caace8d4dbc64caf4d"
+    },
+    {
+      "path": "public/Assets/Audio/footsteps/gravel-02.mp3",
+      "bytes": 3387,
+      "sha256": "4794ecd078ffe250baccb4f7518355fa5e11350eb575aabf08408c7fc676f53c"
+    },
+    {
+      "path": "public/Assets/Audio/footsteps/gravel-03.mp3",
+      "bytes": 3178,
+      "sha256": "ce01bc24a9b694a779ed5c662fdb998c52caf22103e620af800ee48c8d53b080"
+    },
+    {
+      "path": "public/Assets/Audio/footsteps/gravel-04.mp3",
+      "bytes": 3178,
+      "sha256": "5850ad2e97669387ee0abc4fba35baf7c309b493db4f44e5a414174cf054376f"
+    },
+    {
+      "path": "public/Assets/Audio/footsteps/leaves-01.mp3",
+      "bytes": 3387,
+      "sha256": "e96bbd815a2607fa2788665c5532415f815751f9d8ca2e8e06632c26bd15e3ea"
+    },
+    {
+      "path": "public/Assets/Audio/footsteps/leaves-02.mp3",
+      "bytes": 3596,
+      "sha256": "5bcc1abce654cdf1dd30bdeb3229e9c3de78aefcc073505130d8b0c369c120a4"
+    },
+    {
+      "path": "public/Assets/Audio/footsteps/leaves-03.mp3",
+      "bytes": 2551,
+      "sha256": "8fa747365684f6da43dabd203b7a2b1b99335408f1acb665054cbf4957591cb6"
+    },
+    {
+      "path": "public/Assets/Audio/footsteps/leaves-04.mp3",
+      "bytes": 2760,
+      "sha256": "c7568b2394aa078e37a34a23fe721c582e43a2fe59cfae7683552a0e62d437b6"
+    },
+    {
+      "path": "public/Assets/Audio/footsteps/mud-01.mp3",
+      "bytes": 2541,
+      "sha256": "a66ea5dd8f937b61bb544f59fd58f58be0b29c8587c3c5e0b3318e84402251e0"
+    },
+    {
+      "path": "public/Assets/Audio/footsteps/mud-02.mp3",
+      "bytes": 2733,
+      "sha256": "b364aa586b26760092268c541a88079a56c320f9de729d0d6e8445b1bb70389d"
+    },
+    {
+      "path": "public/Assets/Audio/footsteps/mud-03.mp3",
+      "bytes": 2541,
+      "sha256": "a45c297ad295562585fb4ce67269d301fc189ded1f6fd0ded5b2bd52aae89f5c"
+    },
+    {
+      "path": "public/Assets/Audio/footsteps/mud-04.mp3",
+      "bytes": 2349,
+      "sha256": "7c304715b10db5d7677faf18a71edef5e81d406ea633ed767f7b481903bf35ca"
+    },
+    {
+      "path": "public/Assets/Audio/footsteps/mud-05.mp3",
+      "bytes": 3309,
+      "sha256": "a5c77b98d9cf6312499204cddfe6de039b4a10c9bbf13321363de51fad6dfb51"
+    },
+    {
+      "path": "public/Assets/Audio/footsteps/mud-06.mp3",
+      "bytes": 3117,
+      "sha256": "5a897f70e6acaa7d5ddbe66f5540159a69cd7ef05261b337ca22ad3557a26321"
+    },
+    {
+      "path": "public/Assets/Audio/footsteps/mud-07.mp3",
+      "bytes": 2925,
+      "sha256": "0729989b39986956d85c9e4aa35e7f50a12a5ba00f7594f9a07d244b7c3eb645"
+    },
+    {
+      "path": "public/Assets/Audio/footsteps/mud-08.mp3",
+      "bytes": 1965,
+      "sha256": "9197ecff30f6b958b799e01251f893efc100bfbb723132a3c2322385510981ef"
+    },
+    {
+      "path": "public/Assets/Audio/footsteps/water-01.mp3",
+      "bytes": 3736,
+      "sha256": "b5d581814699ca3fad25593498e6fa83a017cc4c6a96f21b431806e6da48a453"
+    },
+    {
+      "path": "public/Assets/Audio/footsteps/water-02.mp3",
+      "bytes": 5199,
+      "sha256": "3284cbc2e93af9af50e2a5768956e8c137c374b2b2bb5e2147ebfd43d8c54638"
+    },
+    {
+      "path": "public/Assets/Audio/footsteps/water-03.mp3",
+      "bytes": 3309,
+      "sha256": "66e082f1185dbd218cd5394e295872d453c70ddaecc751723d95e45e98cadb2f"
+    },
+    {
+      "path": "public/Assets/Audio/footsteps/water-04.mp3",
+      "bytes": 4363,
+      "sha256": "973f561bc9ba30154bde1f09d3f063308d4025f7a07780a97603fde268bbfb5e"
+    },
+    {
+      "path": "public/Assets/Audio/footsteps/water-05.mp3",
+      "bytes": 4572,
+      "sha256": "0203544cd5d83f6c6ee8948a3bd0ca6a08a5f6a2c63ca7a4b64ad305453abc2a"
+    },
+    {
+      "path": "public/Assets/Audio/footsteps/water-06.mp3",
+      "bytes": 3309,
+      "sha256": "35019d34919e8285fc24b48a427b351d268437f964d0b59771cf9142a65d53ff"
+    },
+    {
+      "path": "public/Assets/Audio/footsteps/water-07.mp3",
+      "bytes": 2733,
+      "sha256": "990a2e05b2f49062c26daf969cf9d4fb0675792b51c04bdf5f80b7cc31fc5988"
+    },
+    {
+      "path": "public/Assets/Audio/footsteps/water-08.mp3",
+      "bytes": 3309,
+      "sha256": "2a74267dea34559f5d4a83dc8cf4cf70227ffcf9a04de77f29583cc448c3a3a6"
+    },
+    {
+      "path": "public/Assets/Audio/grass-footstep1.mp3",
+      "bytes": 333321,
+      "sha256": "f61ed2653df85f23485a4a4ecc57dfdd6f4bf77301fa7cc67fdd1c993a9979d6"
+    },
+    {
+      "path": "public/Assets/Audio/grass-footstep1_backup.mp3",
+      "bytes": 6314,
+      "sha256": "a69dfb7bec725b115397382382e08bdc96a24d794c899ae81a05b7ccd5d69d1b"
+    },
+    {
+      "path": "public/Assets/Audio/grass-footstep2.mp3",
+      "bytes": 333321,
+      "sha256": "f61ed2653df85f23485a4a4ecc57dfdd6f4bf77301fa7cc67fdd1c993a9979d6"
+    },
+    {
+      "path": "public/Assets/Audio/grass-footstep2_backup.mp3",
+      "bytes": 6627,
+      "sha256": "a1d08e18831c1e6018060a81f750979959f252527cc1518f505568d740ea8607"
+    },
+    {
+      "path": "public/Assets/Audio/grass-footstep3.mp3",
+      "bytes": 333321,
+      "sha256": "f61ed2653df85f23485a4a4ecc57dfdd6f4bf77301fa7cc67fdd1c993a9979d6"
+    },
+    {
+      "path": "public/Assets/Audio/grass-footstep3_backup.mp3",
+      "bytes": 8109,
+      "sha256": "24b02ed8da968b39bdc65c7e94b19095187cf354b472f327dcdb95c8e788456f"
+    },
+    {
+      "path": "public/Assets/Audio/grass-footstep4.mp3",
+      "bytes": 333321,
+      "sha256": "f61ed2653df85f23485a4a4ecc57dfdd6f4bf77301fa7cc67fdd1c993a9979d6"
+    },
+    {
+      "path": "public/Assets/Audio/grass-footstep4_backup.mp3",
+      "bytes": 7566,
+      "sha256": "36e86173874e2da36499fe314871955280c16b0ed1932335e091d8cfbdee45fb"
+    },
+    {
+      "path": "public/Assets/Audio/grass-footstep5.mp3",
+      "bytes": 333321,
+      "sha256": "f61ed2653df85f23485a4a4ecc57dfdd6f4bf77301fa7cc67fdd1c993a9979d6"
+    },
+    {
+      "path": "public/Assets/Audio/grass-footstep5_backup.mp3",
+      "bytes": 6126,
+      "sha256": "4dfa8bbdfd161662d34c11e80ed6761752f52f327127760b66b9c06e1fab5675"
+    },
+    {
+      "path": "public/Assets/Audio/grass-footstep6.mp3",
+      "bytes": 333321,
+      "sha256": "f61ed2653df85f23485a4a4ecc57dfdd6f4bf77301fa7cc67fdd1c993a9979d6"
+    },
+    {
+      "path": "public/Assets/Audio/grass-footstep6_backup.mp3",
+      "bytes": 6414,
+      "sha256": "db3a0123f2711ebc40052c259e60b4622bc30a0c7268b6cb9f3c8ddefce3ef01"
+    },
+    {
+      "path": "public/Assets/Audio/insect1_alt.mp3",
+      "bytes": 9417,
+      "sha256": "dcd9aa7dfa1ca5a30b4c33ebb303859c849b45bd39b92299a54b24ed6d2dec84"
+    },
+    {
+      "path": "public/Assets/Audio/insect2_alt.mp3",
+      "bytes": 9756,
+      "sha256": "1880a6527b30156be26ea6d65f6e10ac47087fc41f474f414b6d8d8758453fb5"
+    },
+    {
+      "path": "public/Assets/Audio/insect3_alt.mp3",
+      "bytes": 8686,
+      "sha256": "45c40752de05669af5e3f02a0de8e45bd8108edfc1d11b10461028a3c156f203"
+    },
+    {
+      "path": "public/Assets/Audio/insects.mp3",
+      "bytes": 985279,
+      "sha256": "1bbcc96ba87a8ed2edc19f02cf518b2ba133ecc97412567bfb543c72fb5c2935"
+    },
+    {
+      "path": "public/Assets/Audio/insects_alt.mp3",
+      "bytes": 184393,
+      "sha256": "5b5bd1f744087888c5623543c3ff80be9c2ce106093993e7c8a8492b0280b2c0"
+    },
+    {
+      "path": "public/Assets/Audio/lake2.mp3",
+      "bytes": 510059,
+      "sha256": "de74be7aa43084a4364ae195f4a91660d9ff834e3ac8aa60e03695d52d16ff15"
+    },
+    {
+      "path": "public/Assets/Audio/lake2_alt.mp3",
+      "bytes": 102625,
+      "sha256": "5a053719d5b06a8e5005dbe81b66e020f10312635a823d66883702568c971e92"
+    },
+    {
+      "path": "public/Assets/Audio/mud-footstep1.mp3",
+      "bytes": 6000,
+      "sha256": "d376b62f3bde4e83d9e1dff0a081a20ce5f7e16892c9768437db9160e9e5a28d"
+    },
+    {
+      "path": "public/Assets/Audio/mud-footstep1_alt.mp3",
+      "bytes": 16704,
+      "sha256": "540fcb459d1153c06929c74afcb299035291f67e1fc87fbf6d848ae5211378cd"
+    },
+    {
+      "path": "public/Assets/Audio/mud-footstep2.mp3",
+      "bytes": 5374,
+      "sha256": "af1514111c3af37d9982f5ae4efd43b266b6775d1d7c6c947adf748aece0ca45"
+    },
+    {
+      "path": "public/Assets/Audio/mud-footstep2_alt.mp3",
+      "bytes": 14784,
+      "sha256": "bdd0eeddf7cdd1805e0bc65232c6bb3fda2c21228509816b22c0847a3773ce36"
+    },
+    {
+      "path": "public/Assets/Audio/mud-footstep3.mp3",
+      "bytes": 5687,
+      "sha256": "49c3de51ede3d99407268564ab11a159ec3b74ec888805fccab550a73f62bc7a"
+    },
+    {
+      "path": "public/Assets/Audio/mud-footstep3_alt.mp3",
+      "bytes": 17664,
+      "sha256": "ce1fa4e8d3e0b0feb953f62adc8fee007db8cd9c487bf8a8d0e79ecbdcf000d4"
+    },
+    {
+      "path": "public/Assets/Audio/rain.mp3",
+      "bytes": 1017253,
+      "sha256": "2949f24818cc33286640e02c2c1d84b120c143af617ae89606871702b6178734"
+    },
+    {
+      "path": "public/Assets/Audio/rain_alt.mp3",
+      "bytes": 181576,
+      "sha256": "aa58c980504647162226466287f6b50faa8e2542a43e0f92f8c45e5d8bfe4242"
+    },
+    {
+      "path": "public/Assets/Audio/transition.mp3",
+      "bytes": 41805,
+      "sha256": "4a9d28e9f641b74f8009b0e592a3281b8030de5317dba637dca55345ac001b64"
+    },
+    {
+      "path": "public/Assets/Audio/transition_alt.mp3",
+      "bytes": 601962,
+      "sha256": "39c992a1d0ec8a9b2b42ccaf92aae4574dc48024a0cb0427b03b3d195d46b1e8"
+    },
+    {
+      "path": "public/Assets/Audio/transitions/transition-heavy-01.mp3",
+      "bytes": 2464,
+      "sha256": "df9bba8a3ad4f2fa2d58508a35239ebdc4b118a12943fb06a56e3d41ed5fe194"
+    },
+    {
+      "path": "public/Assets/Audio/transitions/transition-light-01.mp3",
+      "bytes": 1837,
+      "sha256": "9b7b4f64328d3e51eedbbec5e1fbb1a5018ee6f5eee37633a62d5de2b3ddb653"
+    },
+    {
+      "path": "public/Assets/Audio/transitions/transition-light-02.mp3",
+      "bytes": 15071,
+      "sha256": "26f3a3f80fe85e052808cd135e65c10c0b8374a60a3fd9ce05b22a8e5e4829a9"
+    },
+    {
+      "path": "public/Assets/Audio/water-footstep1.mp3",
+      "bytes": 8109,
+      "sha256": "0b392f298153f7ce0da4d15ddc9801ee18b4b7db288c43ad0ca6124702782de8"
+    },
+    {
+      "path": "public/Assets/Audio/water-footstep1_alt.mp3",
+      "bytes": 122253,
+      "sha256": "f1d9a724624c8d6fa9ed47d0eb016299648b7eeddb1ee4be9a9cf84a319d5a6c"
+    },
+    {
+      "path": "public/Assets/Audio/water-footstep2.mp3",
+      "bytes": 8397,
+      "sha256": "7c87d0feb5c429378381424b4081802ae2ff5cfe1db031115c4a2498910467f7"
+    },
+    {
+      "path": "public/Assets/Audio/water-footstep2_alt.mp3",
+      "bytes": 122253,
+      "sha256": "a870640ecc41705078b0d379061689457d79235afa1f6ea79321bc52454598ba"
+    },
+    {
+      "path": "public/Assets/Audio/water-footstep3.mp3",
+      "bytes": 10125,
+      "sha256": "ebaf42ff1b4fbda3539827dffdec9c17186e103aa2a6e61578523ce04b7526d8"
+    },
+    {
+      "path": "public/Assets/Audio/water-footstep3_alt.mp3",
+      "bytes": 1974,
+      "sha256": "f0930a0164582c94c0ab8a9abdda6618026df9fd724bb2f6c9320e5520f161b7"
+    },
+    {
+      "path": "public/Assets/Audio/water/bubble-01.mp3",
+      "bytes": 4077,
+      "sha256": "6d30859300127fce7811638f9588046f41899abf46823a1890412f2f98bbd00a"
+    },
+    {
+      "path": "public/Assets/Audio/water/shoreline-01.mp3",
+      "bytes": 36525,
+      "sha256": "85a748408e97640d1d745c1d0f4a0d6763ebed58893540e4b4c7091dba57ec5c"
+    },
+    {
+      "path": "public/Assets/Audio/water/splash-01.mp3",
+      "bytes": 5805,
+      "sha256": "e5bac378c39c42ecf5c32ad286fb2afc3e3849cbdf38e77ae7ffb947311c3641"
+    },
+    {
+      "path": "public/Assets/Audio/water/splash-02.mp3",
+      "bytes": 4845,
+      "sha256": "359bf81bb99016614b67bcd423d677991abfb80ee473839b672bcf27329efee6"
+    },
+    {
+      "path": "public/Assets/Audio/water/splash-03.mp3",
+      "bytes": 5421,
+      "sha256": "e73c58d4238664ac0cad96af8d40046f7375d3adb555a5b72597c84c7d43d5be"
+    },
+    {
+      "path": "public/Assets/Audio/water/splash-04.mp3",
+      "bytes": 5997,
+      "sha256": "14f8ab1cb04627ca9b574de70b8cd154af2e7588f0e0c868069ef4d38d78786b"
+    },
+    {
+      "path": "public/Assets/Audio/water/splash-05.mp3",
+      "bytes": 6189,
+      "sha256": "fd9fd3900a64e26a62ec6c2d3faf3437a90e8c0747b1b240d43cdf918052b765"
+    },
+    {
+      "path": "public/Assets/Audio/water/splash-06.mp3",
+      "bytes": 6573,
+      "sha256": "e189079a0da2164e5d287654b8dd775dc9bd7d1c910be3b1f013f36d9081c661"
+    },
+    {
+      "path": "public/Assets/Audio/wildlife/bird-chirp-01.mp3",
+      "bytes": 5686,
+      "sha256": "a599cf00f1df25bfe9959cebd8aa92d777adb27d0f073b55bdef1ad85053ae9d"
+    },
+    {
+      "path": "public/Assets/Audio/wildlife/bird-chirp-02.mp3",
+      "bytes": 9030,
+      "sha256": "7767a4ad516e2471fa10a59b08fee3cd1a6986766e0b99cf42e5357810a3fa79"
+    },
+    {
+      "path": "public/Assets/Audio/wildlife/bird-chirp-03.mp3",
+      "bytes": 10080,
+      "sha256": "698cf556901f576983055fa8f1cb5802b8aed30c112f39fab836ef3a77bd6b4a"
+    },
+    {
+      "path": "public/Assets/Audio/wildlife/bird-chirp-04.mp3",
+      "bytes": 11757,
+      "sha256": "24bef19a4eb5f36aabded58844df271fa31ec6970c01cb40316f8a7ffe9de5ce"
+    },
+    {
+      "path": "public/Assets/Audio/wildlife/cricket-01.mp3",
+      "bytes": 26157,
+      "sha256": "114eb949846d7e739224b2bd4548f6fce6afd21e74ca01398a78107e7f61dae5"
+    },
+    {
+      "path": "public/Assets/Audio/wildlife/cricket-02.mp3",
+      "bytes": 48429,
+      "sha256": "466d6993e06bf47b68d2118e77885fac07dc74b8685b68eff1ea017db4e8691d"
+    },
+    {
+      "path": "public/Assets/Audio/wildlife/crow-01.mp3",
+      "bytes": 4845,
+      "sha256": "89ffe6967aa24300c8858ffdafc4e028c841bc63bea6691a93b3592baa4530bb"
+    },
+    {
+      "path": "public/Assets/Audio/wildlife/crows-01.mp3",
+      "bytes": 36525,
+      "sha256": "b864a520faf9c813c9c336dd862df04d823392ef8c3e8064ae2e4c0b4e7bc1ff"
+    },
+    {
+      "path": "public/Assets/Audio/wildlife/frog-01.mp3",
+      "bytes": 2551,
+      "sha256": "e308958467008d348b665c66cfb7440d8f4263560ebeb8cb942cfb9e8d17b015"
+    },
+    {
+      "path": "public/Assets/Audio/wildlife/mosquito-01.mp3",
+      "bytes": 3178,
+      "sha256": "2d7417df7ca7c22b4a714bc02d101dbaf58315a3309b0a249af6459aad58d43a"
+    },
+    {
+      "path": "public/Assets/Audio/wind-loop2_alt.mp3",
+      "bytes": 778240,
+      "sha256": "3bdabe35e510365c38bef3c47f140c05efb2ba677350e67390298dda001058dd"
+    },
+    {
+      "path": "public/character-visual.yaml",
+      "bytes": 157,
+      "sha256": "d0ae2e60e5873a9791b0273adcb51bc1be55e791c9440e4830b9e0481990ee66"
+    },
+    {
+      "path": "public/characters.yaml",
+      "bytes": 1718,
+      "sha256": "edbe17924211313af8ad2b044df6456891923a28d5d958037fe2c3482d22bdd8"
+    },
+    {
+      "path": "public/cinematic-look.yaml",
+      "bytes": 2516,
+      "sha256": "9e4f94d929fec8cbc5c39bdd947df6688f1fec0ef28a6e9fd8b61886acad45b2"
+    },
+    {
+      "path": "public/cinematic-wind.yaml",
+      "bytes": 956,
+      "sha256": "07b074f4f9a688d4e7852d6438f3d5085cc884eaa0838ccb23a034568aa67ee1"
+    },
+    {
+      "path": "public/config.yaml",
+      "bytes": 17630,
+      "sha256": "9e3e50f31f4bb6bbb0c6cc750c3036b3fb735167f534fe653d6e0408bd55c96a"
+    },
+    {
+      "path": "public/ground-material.yaml",
+      "bytes": 157,
+      "sha256": "dc980d75ffc3ca3af3140637a5454553cda1939c9c9b79f1752f7179cc3420cf"
+    },
+    {
+      "path": "public/painter-cursor.yaml",
+      "bytes": 403,
+      "sha256": "c55e45775c1ccce521dfbc62d65feafacc96c040d765032cca6df5dba767a56e"
+    },
+    {
+      "path": "public/player-controls.yaml",
+      "bytes": 866,
+      "sha256": "8b5568cf3f8ce017c7af21639119b2cbff93a923cd9a3873a4d036e2124dccd4"
+    },
+    {
+      "path": "public/visual-parity.yaml",
+      "bytes": 8943,
+      "sha256": "de407dc18d32b9b66c21f2466e7e2eb8b562ca777c770b125427b44cc2d8ae21"
+    },
+    {
+      "path": "src/app/GrassDemo.js",
+      "bytes": 13635,
+      "sha256": "0a2a76b96709817ddde16c4ef6f1abe91f013fc80735b351cb655b0be192772e"
+    },
+    {
+      "path": "src/app/NatureApp.js",
+      "bytes": 5974,
+      "sha256": "35ab1aa2d115275070126314410d7b064d389b8977657cf6f1f541d094ff2ccc"
+    },
+    {
+      "path": "src/assets/assetUrl.js",
+      "bytes": 138,
+      "sha256": "c12ead132b93cfa6c295445e71c2d3e30252fe4b0e206d132dd9b79626257c60"
+    },
+    {
+      "path": "src/audio/AmbientAudioSystem.js",
+      "bytes": 7424,
+      "sha256": "b57a11d317ede69c0bd96540d2c54c6ed8b843dcea2f5e55bad1f76c20c8e1d9"
+    },
+    {
+      "path": "src/audio/AudioSystem.js",
+      "bytes": 6582,
+      "sha256": "0616480233260dec965fab40c1663b1fa5217c9ed648459a46f5bdd9de9f9efd"
+    },
+    {
+      "path": "src/audio/FootstepAudioSystem.js",
+      "bytes": 9747,
+      "sha256": "2dcddef6097b5155fcb5f7957a6771441ec70f9607123453d0e30ed87596ac55"
+    },
+    {
+      "path": "src/audio/RandomAudioEmitters.js",
+      "bytes": 7553,
+      "sha256": "d9be7013521f216a72399e31b0b6750cf9bd361978b2c4939d59d153c8744b50"
+    },
+    {
+      "path": "src/audio/audioUtils.js",
+      "bytes": 2063,
+      "sha256": "2ec8b504dedbe69bdf6d343a688f9c15106675a4c840402a2741185fa9bce97d"
+    },
+    {
+      "path": "src/config/characterRoster.js",
+      "bytes": 1711,
+      "sha256": "a99f5daff3d037ef859a8941bad19235bc49fe7449f7f5f4fe52a1feef708159"
+    },
+    {
+      "path": "src/config/loadConfig.js",
+      "bytes": 1366,
+      "sha256": "5ac9894eb2f363001cdfa7cb5fb8e968975c47b8152c70ad2c7e69580d6d3bf8"
+    },
+    {
+      "path": "src/config/validateConfig.js",
+      "bytes": 3970,
+      "sha256": "c4f4ad9763226885d90c6a7c82be5028f949959c018ece851ccee57345b72eca"
+    },
+    {
+      "path": "src/core/math.js",
+      "bytes": 623,
+      "sha256": "b19490929c831fc354fe95d67a80b87f3080aa8e0c24ad37496e54c30cc4ede0"
+    },
+    {
+      "path": "src/environment/CloudSystem.js",
+      "bytes": 5230,
+      "sha256": "5fa2ccab464bc5009563aea78d9dd9ade9dc9ee62826604e7c1296ae0b4a6d42"
+    },
+    {
+      "path": "src/environment/SkySystem.js",
+      "bytes": 4399,
+      "sha256": "a07feeee1047e5ba05cc1257cfc28c5552530e4fad5078c1a9645f540ee30027"
+    },
+    {
+      "path": "src/foliage/BirdSystem.js",
+      "bytes": 4152,
+      "sha256": "0fd50d3b1135492db9e42ff8c4e80b2d181c0b787fd11be9e77250265e630d1a"
+    },
+    {
+      "path": "src/foliage/LeafSystem.js",
+      "bytes": 12299,
+      "sha256": "325d111a57861d03797c586c6d4ed1b7e8d218f297f8bbca8966a53a70ab8cd1"
+    },
+    {
+      "path": "src/foliage/MeadowDetails.js",
+      "bytes": 7009,
+      "sha256": "7106f0e47bf16a0e6215f5e93d394982cbdd1b58534a016fc0e63e15027d4ffb"
+    },
+    {
+      "path": "src/foliage/MeadowGeometry.js",
+      "bytes": 9880,
+      "sha256": "ee4a48554780308cc12744f2b2ff3ff33a0adc440b01d4d65c67e1b38fe67c14"
+    },
+    {
+      "path": "src/generated/leafVariants.js",
+      "bytes": 336,
+      "sha256": "a9f07a79eebc159f02cb92c3ffd78e76010874343578d6d5e8e4285504530e70"
+    },
+    {
+      "path": "src/grass/GrassAtlas.js",
+      "bytes": 2458,
+      "sha256": "49ebbc907e7e704cbedc8228a1d88a5a2dd0215221cd7324a51851ba80f95209"
+    },
+    {
+      "path": "src/grass/GrassField.js",
+      "bytes": 13413,
+      "sha256": "da3f35543ee4d639fd195e07b0130be99275c2ae33fd58d8c34b77004d0e709a"
+    },
+    {
+      "path": "src/grass/GrassFieldLayout.js",
+      "bytes": 1818,
+      "sha256": "2a5cadcebb05cdda926b8601e40dbef94fe8760ad1c4bf452cb2457fd896e690"
+    },
+    {
+      "path": "src/grass/GrassGeometry.js",
+      "bytes": 7201,
+      "sha256": "e7f76201f5c63e4ffecae95ec0f2b29d2b84351872b384d49c2b51d929da1c50"
+    },
+    {
+      "path": "src/grass/GrassGeometryFactory.js",
+      "bytes": 470,
+      "sha256": "9b19695da0f2a58040a77c2dfc7d240b31f033e2b5a58d74e3b570f486bbb382"
+    },
+    {
+      "path": "src/grass/GrassMask.js",
+      "bytes": 8239,
+      "sha256": "885d670cb822c8f70c7b231eb12cd71d6ec6836b02e6f60988324f589cd694ed"
+    },
+    {
+      "path": "src/grass/GrassMaterial.js",
+      "bytes": 8546,
+      "sha256": "be407afe8972988c362c2318c6bcf0dc24dfdc12025f9ad645d47746ee5fe0b1"
+    },
+    {
+      "path": "src/grass/GrassPainter.js",
+      "bytes": 11332,
+      "sha256": "9c927a438f6982d25a3fc83c184e80ddde4c525c788c51db1055885b74c4d25c"
+    },
+    {
+      "path": "src/grass/GrassTerrainData.js",
+      "bytes": 2645,
+      "sha256": "010b2b05b74cb67d5d2d1f07934d8c63f6e2f2a092f94299d7a19e9b0074b2d0"
+    },
+    {
+      "path": "src/grass/GrassTile.js",
+      "bytes": 1807,
+      "sha256": "212784e420c47cf71a7bd7892b54f4dc273800144e6d87a7bb9f86c5b41a5b7b"
+    },
+    {
+      "path": "src/grass/InteractionMap.js",
+      "bytes": 6873,
+      "sha256": "0c6bd4e7a8eb0fa692237ffb6876be1926d7f98b8df557d9421649cc899b49a0"
+    },
+    {
+      "path": "src/grass/RecoveredGrassMaterial.js",
+      "bytes": 33985,
+      "sha256": "753465c0b6b53706a9ecc2acbbdf5c38287b1ecd361d5bc08fd12628ec6ef744"
+    },
+    {
+      "path": "src/grass/VegetationMask.js",
+      "bytes": 2947,
+      "sha256": "36b8b4ed0eec454d529b06fe43768a55afcfcb8bff6742a7ab0f76034f8cbbed"
+    },
+    {
+      "path": "src/grass/compactGrassGeometry.js",
+      "bytes": 1135,
+      "sha256": "eb35d46f6036b2461ccb275a06ab97cc76909bbe0097eafa5d32e1de74bf9346"
+    },
+    {
+      "path": "src/grass/grassShapes.js",
+      "bytes": 2320,
+      "sha256": "e49d681a45425afc034a28964bd6902b511dbe421cc58ae2b2d204e547092dd0"
+    },
+    {
+      "path": "src/grass/painterMath.js",
+      "bytes": 563,
+      "sha256": "5c2882cb172512ddd192a2d8cb61f7c5a5e912a2f3bc37aedc86e60dc7885de5"
+    },
+    {
+      "path": "src/grass/sampleGrassMask.js",
+      "bytes": 675,
+      "sha256": "28c741cb4353e3100e0cb6f28058e787352c7821ca591028af7c88ff3277c03b"
+    },
+    {
+      "path": "src/grass/vegetationPolicy.js",
+      "bytes": 5448,
+      "sha256": "6664c3fcf4faec5efcc2476d019b567d17e9489d590c0f608cd06152329e933a"
+    },
+    {
+      "path": "src/main.js",
+      "bytes": 640,
+      "sha256": "b2dcb237e3a9e4835fcad6e93096c97bb69c802957d5556fefec2649e6ba4560"
+    },
+    {
+      "path": "src/physics/WorldCollisionSystem.js",
+      "bytes": 7190,
+      "sha256": "27733e6f4452d293cf21726f8b53be4545307dc8faeec9aa62527a98db0fb403"
+    },
+    {
+      "path": "src/player/CharacterMotion.js",
+      "bytes": 4049,
+      "sha256": "e175e7246e8941f409276ed907315cd6fc04aa0705b35d8c0e61cd4e47ffe827"
+    },
+    {
+      "path": "src/player/MobileControls.js",
+      "bytes": 6673,
+      "sha256": "67dca55bbec50525a8c9155ec3c0255fb41592267b25eea06c27a11c3ee08b40"
+    },
+    {
+      "path": "src/player/PlayerController.js",
+      "bytes": 26287,
+      "sha256": "6191152bef1188e4be48cba478b419bb3356862c9b7dbbd37ac39a9fa70d6795"
+    },
+    {
+      "path": "src/player/PlayerPhysics.js",
+      "bytes": 4603,
+      "sha256": "4b44832c96a37cc796731cd168c87c45283fd573434b638ce2617b9ffee29028"
+    },
+    {
+      "path": "src/player/cameraTerrain.js",
+      "bytes": 847,
+      "sha256": "c0e4f084d5633312be63662baa60ce5cf2aab249349eec6faf9a20c117c40b8b"
+    },
+    {
+      "path": "src/rendering/AdventurePalette.js",
+      "bytes": 651,
+      "sha256": "c9787b1bf907509b9f8604a795df25a383b7a5e7f0880aa1a3d7a07410ae215c"
+    },
+    {
+      "path": "src/rendering/CinematicLighting.js",
+      "bytes": 5062,
+      "sha256": "057342ec3e6dc2d763a35c4b5c68e7f48cacf94c332eba3184646d568d164579"
+    },
+    {
+      "path": "src/rendering/CinematicPipeline.js",
+      "bytes": 3690,
+      "sha256": "1508d3e13702c202ac6021bb2811d4eb49aedd0125240423a2bcbd155cb25889"
+    },
+    {
+      "path": "src/rendering/GpuOcclusion.js",
+      "bytes": 15592,
+      "sha256": "6d9fb7f747574a9f7a1f9a4191296b4d600f062a5951a942ae1f3053742b6c88"
+    },
+    {
+      "path": "src/rendering/GroundTurf.js",
+      "bytes": 1269,
+      "sha256": "f169129ef8a9bedd8b7ada425d29c73d5d9ef2391c1845915e9280906c7d0178"
+    },
+    {
+      "path": "src/rendering/MeadowPalette.js",
+      "bytes": 1890,
+      "sha256": "7c3a867bf8927d7c81b58b504c88956e7469d16b4b213c8fef583a97f02205f6"
+    },
+    {
+      "path": "src/rendering/ScenicTour.js",
+      "bytes": 2905,
+      "sha256": "6b6a06b685843dd6143d9b9048c82b5e27412387f175eea5e819e406390434bf"
+    },
+    {
+      "path": "src/rendering/atmosphereMaterials.js",
+      "bytes": 1363,
+      "sha256": "343a93dbef7b43452c45fec523ac57336b575cbe93d2e51c83a32439ed98f2a5"
+    },
+    {
+      "path": "src/rendering/occlusionBounds.js",
+      "bytes": 2965,
+      "sha256": "5419b535aeffe474251fb4c38bc77c9da7f559e5091008ef4c9c35ac576b4ad3"
+    },
+    {
+      "path": "src/rendering/occlusionShaders.js",
+      "bytes": 2895,
+      "sha256": "55958ac0cffe4075b995802bc92e29bf10eac8d959b22550c51b50e5b033cd3f"
+    },
+    {
+      "path": "src/ui/DemoUi.js",
+      "bytes": 13540,
+      "sha256": "5978c457e5bc9caa48931cb4b4cec92ff9aa345268106d0d10da41353415a9da"
+    },
+    {
+      "path": "src/ui/GrassPainterUi.js",
+      "bytes": 4201,
+      "sha256": "75dadbd7175898180e9bf309df4f947dc2b1f026110a6732c90fe47e2d9fc083"
+    },
+    {
+      "path": "src/ui/Hud.js",
+      "bytes": 1084,
+      "sha256": "8b5cfc3a29013ed3380574ff96ec8a315069fc77be2a4f6a8628ec26b5a5775d"
+    },
+    {
+      "path": "src/ui/IrisTransition.js",
+      "bytes": 3534,
+      "sha256": "b815506335255c338c79e407a9914dcbbbfdf90c62fb78c8f3c8b5a5800f0224"
+    },
+    {
+      "path": "src/ui/LoadingUi.js",
+      "bytes": 7774,
+      "sha256": "c9520fe17879f95e35bad4e9b13bab0a36bf036394a93e70e7524d708dda24b0"
+    },
+    {
+      "path": "src/ui/loadingStages.js",
+      "bytes": 1510,
+      "sha256": "8aebd979f68390f79fc8dd2e98f94e739c87ec1118f3eee79982addd987765e4"
+    },
+    {
+      "path": "src/utils/logger.js",
+      "bytes": 507,
+      "sha256": "ba30312949dd16806a354196901d58cd2a23742bde15abadebeab9fa7498c09b"
+    },
+    {
+      "path": "src/utils/random.js",
+      "bytes": 343,
+      "sha256": "85576f5b806b7121935cd828b96625713f57f15865240294d86a718938b21ae4"
+    },
+    {
+      "path": "src/water/WaterSurface.js",
+      "bytes": 17974,
+      "sha256": "088e445a3ab407c3776637540005d939a0acfac49f9f8ae25767d3968058528b"
+    },
+    {
+      "path": "src/weather/RainSystem.js",
+      "bytes": 7636,
+      "sha256": "73f14b050a05431a352cf7043f1c40622958ab54065a5357fae001289f125309"
+    },
+    {
+      "path": "src/weather/WindField.js",
+      "bytes": 14050,
+      "sha256": "8796f4bd097cfefb26ec4fe5144fbfb0591f1cdf009138f3109a4075cb6e04df"
+    },
+    {
+      "path": "src/world/EnvironmentController.js",
+      "bytes": 7053,
+      "sha256": "a80f29d9d6de7fd79493bd937eeef99883fbb44dc145f0c8f408c382373c5d8f"
+    },
+    {
+      "path": "src/world/GrassField.js",
+      "bytes": 2780,
+      "sha256": "97c717a491b0a0f67b8ef12892bb770d482c848b46cae10b13d96a7cf8e0e9dd"
+    },
+    {
+      "path": "src/world/GroundMaterial.js",
+      "bytes": 10213,
+      "sha256": "eb2e547689981e3a7ee325f76bf3075db9b127a62f50f5ef92a73ad87ccd2116"
+    },
+    {
+      "path": "src/world/RainSystem.js",
+      "bytes": 2040,
+      "sha256": "6e658ac1300446ae73b69d1faa47765f5891eff981153190251225b6678439d0"
+    },
+    {
+      "path": "src/world/TerrainAnimationSystem.js",
+      "bytes": 822,
+      "sha256": "e1c310041bd637561f38efcf5b6b5843d0d955582090d798c7d4095a25338cd6"
+    },
+    {
+      "path": "src/world/TerrainSampler.js",
+      "bytes": 7143,
+      "sha256": "a947faf84c240d0e913fa2913c797a202eea4c90b3985b2e8da292fe2fa21887"
+    },
+    {
+      "path": "src/world/TreeLeafMaterial.js",
+      "bytes": 5423,
+      "sha256": "ba365b4ee27de3577dab92e8d34c0571f9e3d769d8d96cc4baa297313c5f5185"
+    },
+    {
+      "path": "src/world/TreeSystem.js",
+      "bytes": 15929,
+      "sha256": "2e56f8703b5ac97d2b993f03352ed76f9f9ae3963ee94772234cf8e09b2d7127"
+    },
+    {
+      "path": "src/world/WorldPropSystem.js",
+      "bytes": 3588,
+      "sha256": "c98d0ee70fda1b32c19a7ba203e7d582f1c31aa41c3188106d7439b39aa7fde6"
+    },
+    {
+      "path": "src/world/ZoneIndex.js",
+      "bytes": 1109,
+      "sha256": "d9a48b3507920c59ea5476141dd62ca422bd02bf93d38bd265bdb5b2d7be1dfd"
+    },
+    {
+      "path": "src/world/createTrees.js",
+      "bytes": 1440,
+      "sha256": "936434274bad3eef2a314303c52a93d53e5939b6635bff6a7e789a19d8209c49"
+    },
+    {
+      "path": "src/world/createWorld.js",
+      "bytes": 5616,
+      "sha256": "abe0127285a2bada6bab87b35c190173e46ea67cf362f48a0f1acd6f5d8a6ee6"
+    },
+    {
+      "path": "src/world/getRendererPixelRatio.js",
+      "bytes": 236,
+      "sha256": "5d2124fde4809eed95647ead8857968ee167998b4d0c94aa4513e36ddf365d73"
+    },
+    {
+      "path": "src/world/loadEnvironment.js",
+      "bytes": 771,
+      "sha256": "4d66a4e6997559cb3e34713517a324e25010c9e347141c4eb9e2b2182a2a9b63"
+    },
+    {
+      "path": "src/world/loadTerrain.js",
+      "bytes": 5121,
+      "sha256": "574de614688cc719c3536b496ec3e3f7e23a3cf339268a7d4c8be4a272b45152"
+    },
+    {
+      "path": "src/world/loadTreeWorldData.js",
+      "bytes": 687,
+      "sha256": "7d142369dc8cb69fd1d1370be3fdcd0860ebc65fc43745441d02c6d39258b022"
+    },
+    {
+      "path": "src/world/loadWorldPropData.js",
+      "bytes": 827,
+      "sha256": "78843b6b045247c49a40c74a45ee5f444be50094076362097f0ae766f8478b7b"
+    },
+    {
+      "path": "src/world/rasterizeTerrain.js",
+      "bytes": 3544,
+      "sha256": "01830e2df2395179f4fdfbca3d0c99144a1b9086296b5b4f04ccced3d15136f6"
+    }
+  ]
+}

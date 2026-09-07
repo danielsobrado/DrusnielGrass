@@ -1,4 +1,3 @@
-import type * as THREE from "three";
 import type { RuntimeProfile } from "../../runtime/RuntimeConfig";
 
 const MEDIUM_MAX_HARDWARE_CONCURRENCY = 6;
@@ -17,7 +16,7 @@ export interface WorldCloudVolumeQuality {
 
 export function resolveWorldCloudVolumeQuality(
   profile: RuntimeProfile,
-  renderer: THREE.WebGLRenderer,
+  renderer: { readonly capabilities: { readonly maxTextureSize: number } },
 ): WorldCloudVolumeQuality {
   const cloud = profile.cloud;
   if (profile.compact || !cloud.enabled || !cloud.volumetricEnabled) {

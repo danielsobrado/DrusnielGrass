@@ -9,9 +9,12 @@ import type {
   GrassQaPose,
   GrassQaReport,
 } from "./GrassQaTypes";
+import type {
+  RendererWithCanvas, RendererWithFrameInfo, SceneRenderer,
+} from "../render/RendererDiagnosticsTypes";
 
 interface GrassQaDependencies {
-  renderer: THREE.WebGLRenderer;
+  renderer: SceneRenderer & RendererWithFrameInfo & RendererWithCanvas;
   scene: THREE.Scene;
   camera: THREE.PerspectiveCamera;
   controls: OrbitControls;

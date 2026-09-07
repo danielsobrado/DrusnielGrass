@@ -49,6 +49,11 @@ export class WaterRefractionPass {
     return this.target?.depthTexture ?? undefined;
   }
 
+  /** The capture itself, for checks that read it back rather than sample it. */
+  get renderTarget(): THREE.WebGLRenderTarget | undefined {
+    return this.target;
+  }
+
   render(
     renderer: THREE.WebGLRenderer,
     scene: THREE.Scene,

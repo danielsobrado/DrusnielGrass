@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import type { RendererFrameInfo } from "../RendererDiagnosticsTypes";
 
 /**
  * One sample of the world's submission funnel.
@@ -74,7 +75,7 @@ export class WorldVisibilityProbe {
   sample(
     scene: THREE.Scene,
     camera: THREE.Camera,
-    info: THREE.WebGLRenderer["info"],
+    info: RendererFrameInfo,
   ): WorldVisibilitySnapshot {
     const started = performance.now();
     this.viewProjection.multiplyMatrices(

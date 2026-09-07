@@ -56,6 +56,15 @@ async function bootstrap(): Promise<void> {
   window.addEventListener("pagehide", handlePageHide);
 
   try {
+    if (import.meta.env.DEV && params.get("rendererHarness") === "1") {
+      const { RendererMigrationHarness } = await import("./dev/RendererMigrationHarness");
+      if (disposed) return;
+      const candidate = await RendererMigrationHarness.create(canvas);
+      if (disposed) { candidate.dispose(); return; }
+      app = candidate;
+      app.start();
+      return;
+    }
     const runtimeConfig = await new RuntimeConfigLoader().load(
       `./config/runtime.yaml?v=${encodeURIComponent(APP_VERSION)}`,
     );

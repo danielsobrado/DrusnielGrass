@@ -1,5 +1,5 @@
-import type * as THREE from "three";
 import type { GrassFrameStats, GrassRendererStats } from "./GrassQaTypes";
+import type { RendererWithFrameInfo } from "../render/RendererDiagnosticsTypes";
 
 const MILLISECONDS_PER_SECOND = 1_000;
 
@@ -112,7 +112,7 @@ export class GrassQaMetrics {
     };
   }
 
-  readRendererStats(renderer: THREE.WebGLRenderer): GrassRendererStats {
+  readRendererStats(renderer: RendererWithFrameInfo): GrassRendererStats {
     const render = renderer.info.render;
     return {
       calls: render.calls,

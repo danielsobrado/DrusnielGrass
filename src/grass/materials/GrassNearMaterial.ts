@@ -1162,6 +1162,19 @@ export class GrassNearMaterial {
     uGrassGroundShadowStrength: { value: 0 },
   };
   private readonly interactive: boolean;
+  /**
+   * The uniform table, for the node material built over the same state.
+   *
+   * The renderer migration keeps one owner for grass configuration: the node
+   * material reads these very objects rather than a second copy, so a preset,
+   * an art direction or a quality change cannot reach one implementation and
+   * not the other while both are alive.
+   */
+  get shaderUniforms(): Record<string, THREE.IUniform> {
+    return this.uniforms;
+  }
+  /** Node materials over this table refresh their samplers from here. */
+  readonly uniformObservers = new Set<() => void>();
   private baseWindStrength = 0.14;
   private baseFlutterStrength = 0.035;
   /** Biome row 0's shade controls; every art preset writes them. */
@@ -1286,7 +1299,34 @@ export class GrassNearMaterial {
         );
     };
     this.material.customProgramCacheKey = () => options.cacheKey;
+    // The same compile-time selection the chunks above make, in the form the
+    // node material consumes. Resolved here so the defaults have exactly one
+    // owner rather than being restated per implementation.
+    this.nodeFeatures = {
+      worldLod,
+      vertexPalette,
+      interactive: this.interactive,
+      subPixelWidth,
+      sheen,
+      noiseWind,
+      microWind,
+      instanceFreeDither,
+      shapeVariation,
+    };
   }
+
+  /** Compile-time feature selection shared with the node material. */
+  readonly nodeFeatures: {
+    worldLod: boolean;
+    vertexPalette: boolean;
+    interactive: boolean;
+    subPixelWidth: boolean;
+    sheen: boolean;
+    noiseWind: boolean;
+    microWind: boolean;
+    instanceFreeDither: boolean;
+    shapeVariation: boolean;
+  };
 
   configure(material: GrassMaterialConfig, wind: GrassWindConfig): void {
     this.colorControls.baseColor = material.baseColor;
@@ -1436,6 +1476,7 @@ export class GrassNearMaterial {
   update(elapsedSeconds: number): void {
     this.uniforms.uGrassTime.value = elapsedSeconds;
     if (!this.interactive) {
+      this.notifyUniformObservers();
       return;
     }
     if (grassGroundShadow.isEnabled()) {
@@ -1449,6 +1490,7 @@ export class GrassNearMaterial {
     }
     if (!grassTrailField.isEnabled()) {
       this.uniforms.uGrassTrailStrength.value = 0;
+      this.notifyUniformObservers();
       return;
     }
     this.uniforms.uGrassTrailMap.value = grassTrailField.getTexture();
@@ -1456,6 +1498,20 @@ export class GrassNearMaterial {
     this.uniforms.uGrassTrailInverseCoverage.value =
       grassTrailField.getInverseCoverage();
     this.uniforms.uGrassTrailStrength.value = 1;
+    this.notifyUniformObservers();
+  }
+
+  /**
+   * Runs after the frame's uniforms are written, never before.
+   *
+   * A node material's samplers follow `uGrassTrailMap`, and the trail field
+   * ping-pongs that texture every frame, so an observer that ran first would
+   * bind the previous frame's target.
+   */
+  private notifyUniformObservers(): void {
+    for (const observe of this.uniformObservers) {
+      observe();
+    }
   }
 
   /** Bend shape for the character trail; supplied from the world config. */

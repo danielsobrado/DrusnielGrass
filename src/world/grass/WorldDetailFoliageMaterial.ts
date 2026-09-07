@@ -474,6 +474,18 @@ export class WorldDetailFoliageMaterial {
   readonly material: THREE.ShaderMaterial;
 
   private readonly uniforms: ShaderUniforms;
+  /**
+   * The uniform table, for the node material built over the same state.
+   *
+   * One owner for accent configuration: the node material reads these very
+   * objects rather than a second copy, so art direction, density and fade
+   * changes cannot reach one implementation and not the other.
+   */
+  get shaderUniforms(): ShaderUniforms {
+    return this.uniforms;
+  }
+  /** Compile-time feature selection shared with the node material. */
+  readonly nodeFeatures: { noiseWind: boolean };
   private readonly baseWindStrength: number;
   private artRootDarkening: number;
   private artTipColorStrength = 0.5;
@@ -486,6 +498,7 @@ export class WorldDetailFoliageMaterial {
   ) {
     this.baseWindStrength = windConfig.strength;
     this.artRootDarkening = materialConfig.rootDarkening;
+    this.nodeFeatures = { noiseWind: options.noiseWind };
 
     const speciesWind = new Float32Array(GRASS_MAX_ACCENT_SPECIES);
     for (const species of GRASS_ACCENT_SPECIES) {

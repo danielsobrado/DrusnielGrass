@@ -624,6 +624,19 @@ export class WorldGrassImpostorMaterial {
   readonly material: THREE.ShaderMaterial;
 
   private readonly uniforms: ShaderUniforms;
+  /**
+   * The uniform table, for the node material built over the same state.
+   *
+   * The renderer migration keeps one owner for card configuration: the node
+   * material reads these very objects rather than a second copy, so an art
+   * direction, an LOD change or a wind field cannot reach one implementation
+   * and not the other while both are alive.
+   */
+  get shaderUniforms(): ShaderUniforms {
+    return this.uniforms;
+  }
+  /** Compile-time feature selection shared with the node material. */
+  readonly nodeFeatures: { noiseWind: boolean };
   private readonly baseWindStrength: number;
   private readonly allowViewBlending: boolean;
   private artRootDarkening: number;
@@ -642,6 +655,7 @@ export class WorldGrassImpostorMaterial {
   ) {
     this.baseWindStrength = windConfig.strength;
     this.allowViewBlending = blendViews;
+    this.nodeFeatures = { noiseWind };
     this.artRootDarkening = materialConfig.rootDarkening;
     let createdMaterial: THREE.ShaderMaterial | undefined;
 
