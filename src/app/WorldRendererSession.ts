@@ -12,9 +12,9 @@ import {
  * exists — a renderer built without it answers every timestamp resolve with
  * nothing, for the life of the session.
  */
-export function createWorldRendererSession(canvas: HTMLCanvasElement,
+export async function createWorldRendererSession(canvas: HTMLCanvasElement,
   request: RendererRequest, search: string, signal?: AbortSignal): Promise<RendererSession> {
-  return createRendererSession({
+  const session = await createRendererSession({
     request,
     signal,
     options: {
@@ -25,4 +25,12 @@ export function createWorldRendererSession(canvas: HTMLCanvasElement,
       trackTimestamp: new URLSearchParams(search).get("gpuTiming") === "1",
     },
   });
+  // Three's `init` starts an animation loop of its own whether or not one was
+  // asked for, and that loop resets the frame counters on its own schedule.
+  // This world drives its own loop and draws several passes per frame, so that
+  // reset lands somewhere inside a frame rather than between two; the counters
+  // read correctly only because the two loops happened to interleave kindly.
+  // The world takes ownership instead — see `WorldApp.renderFrame`.
+  session.renderer.info.autoReset = false;
+  return session;
 }

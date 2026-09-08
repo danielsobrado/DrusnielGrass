@@ -160,7 +160,6 @@ export class WorldApp {
         environment.materialContext,
       );
       this.stones = stones;
-      // Opt in with `?windModel=cinematic`; on legacy nothing is constructed.
       const wind = attachSharedWind(this.experience, this.renderer, params,
         () => this.controls.getStreamingPosition());
       grass = new WorldGrassSystem(this.scene, this.field, config, profile,
@@ -480,6 +479,7 @@ export class WorldApp {
       ? WORLD_COMPACT_STREAMING_BUILD_BUDGET_MS
       : WORLD_DESKTOP_STREAMING_BUILD_BUDGET_MS;
     this.streamingBuildDeadline = performance.now() + streamingBudgetMs;
+    this.renderer.info.reset(); // Once per displayed frame; three's own is off.
     this.frameMetrics.beginFrame(deltaSeconds);
 
     // Phase order and failure policy live in the subsystem runner; the frame

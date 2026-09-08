@@ -21,8 +21,12 @@ import { chromium } from "playwright";
  *    drawing twice as much, and made it useless as a settling signal because it
  *    rises forever. The per-frame counter is `drawCalls`.
  *
- * Cases are interleaved inside one browser process, each in a fresh context, so
- * a browser launch is not a variable in the comparison.
+ * Cases run inside one browser process in fresh contexts, so a browser launch is
+ * not a variable. Two further controls exist because the first context measured
+ * after a launch has been seen to run more than twice as fast as its neighbours
+ * at identical draw calls and triangles: a sacrificial warm-up page per backend
+ * is measured and discarded first, and the model order alternates each round so
+ * that no position in the sequence belongs permanently to one model.
  */
 const BASE = "http://127.0.0.1:5192/";
 
@@ -47,6 +51,13 @@ function parseHud(text) {
     passes: number(/in (\d+) passes/),
     triangles: grouped(/Triangles ([\d,]+)/),
     buildMs: number(/Build ([\d.]+) \//),
+    terrainActive: number(/Terrain (\d+) \+/),
+    terrainQueued: number(/Terrain \d+ \+(\d+)/),
+    stoneActive: number(/· (\d+) \+\d+ batches/),
+    stoneQueued: number(/· \d+ \+(\d+) batches/),
+    patches: grouped(/Grass ([\d,]+) patches/),
+    blades: grouped(/· ([\d,]+) blades/),
+    impostors: grouped(/· ([\d,]+) impostors/),
     gpuMedian: number(/GPU scene ([\d.]+) med/),
     grass: number(/grass ([\d.]+)/),
     draw: number(/draw ([\d.]+) ms/),
@@ -90,7 +101,11 @@ async function waitForConvergence(page) {
     const stable = previous !== null
       && Math.abs(hud.drawCalls - previous.drawCalls) <= previous.drawCalls * 0.02
       && Math.abs(hud.triangles - previous.triangles) <= previous.triangles * 0.02;
-    settled = stable && (hud.buildMs ?? 1) <= 0.05 ? settled + 1 : 0;
+    // Queues empty as well as counts stable: a queue still draining is a world
+    // still changing, whatever this frame's draw count happens to be.
+    const quiet = (hud.terrainQueued ?? 1) === 0 && (hud.stoneQueued ?? 1) === 0
+      && (hud.buildMs ?? 1) <= 0.05;
+    settled = stable && quiet ? settled + 1 : 0;
     previous = hud;
     if (settled >= CONVERGENCE_SAMPLES) {
       return { converged: true, seconds: (Date.now() - started) / 1000 };
@@ -134,6 +149,8 @@ async function measure(browser, query) {
       draw: median("draw"), grass: median("grass"),
       drawCalls: median("drawCalls"), passes: median("passes"),
       triangles: median("triangles"), buildMs: median("buildMs"),
+      terrain: median("terrainActive"), stones: median("stoneActive"),
+      patches: median("patches"), blades: median("blades"),
       errors: errors.length,
     };
   } finally {
@@ -161,10 +178,16 @@ try {
     + "gpu".padStart(7) + "draw".padStart(8) + "grass".padStart(7)
     + "calls".padStart(8) + "passes".padStart(8) + "tris".padStart(11) + "err".padStart(5),
   );
-  // Interleaved: every model is measured once before any is measured twice, so
-  // a drift in machine state cannot land entirely on one of them.
+  // Discarded: whatever is special about the first context after a launch is
+  // spent here rather than on a recorded case.
+  for (const backend of ["webgpu", "webgl"]) {
+    await measure(browser, `renderer=${backend}&tier=0&gpuTiming=1&diagnostics=1`);
+  }
+  // Interleaved, and reversed on alternate rounds, so no model permanently owns
+  // a position in the sequence.
   for (let round = 0; round < REPEATS; round++) {
-    for (const [label, query] of MODELS) {
+    const order = round % 2 === 0 ? MODELS : [...MODELS].reverse();
+    for (const [label, query] of order) {
       const result = await measure(browser, query);
       if (!result.converged) {
         failures.push(`${label} did not converge within ${MAX_CONVERGENCE_MS / 1000}s`);

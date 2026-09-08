@@ -17,22 +17,33 @@ import { WIND_LATTICE_PERIOD, getWindGradientTexture } from "./WorldWindLattice"
  * only coherent if the near blades, the mid layer and the far cards are reading
  * one field rather than three that happen to look similar.
  *
- * **Cost: there is no regression, on either backend.**
+ * **Cost: no regression of the size once claimed, and a small residual.**
  *
  * Measured by `check-wind-cost.mjs` with the world converged, the tier pinned,
- * vsync unlocked and cases interleaved in one browser process:
+ * vsync unlocked, a discarded warm-up context per backend and the model order
+ * alternating between rounds. Two rounds:
  *
  * | model | fps | GPU scene | draw (CPU) | draw calls | triangles |
  * | ----- | --- | --------- | ---------- | ---------- | --------- |
- * | legacy, WebGPU | 62.3 | 0.20 ms | 10.85 ms | 622 | 1.71M |
- * | cinematic, WebGPU | 61.8 | 0.33 ms | 10.66 ms | 623 | 1.70M |
- * | legacy, WebGL 2 | 50.3 | 0.79 ms | 13.95 ms | 621 | 1.70M |
- * | cinematic, WebGL 2 | 54.5 | 0.53 ms | 13.87 ms | 665 | 1.78M |
+ * | legacy, WebGPU | 64.9 / 63.3 | 0.26 / 0.20 ms | 11.60 / 11.15 ms | 667 / 666 | 1.78M |
+ * | cinematic, WebGPU | 60.5 / 60.6 | 0.39 / 0.33 ms | 10.83 / 10.75 ms | 622 / 622 | 1.70M |
+ * | legacy, WebGL 2 | 52.9 / 51.2 | 0.56 / 0.67 ms | 14.18 / 14.78 ms | 662 | 1.75M |
+ * | cinematic, WebGL 2 | 50.8 / 50.7 | 0.68 / 0.71 ms | 14.39 / 13.98 ms | 622 / 621 | 1.70M |
  *
- * Matched draw calls and triangle counts, so this is the same world drawn the
- * same way, and the wind model is not distinguishable in it.
+ * The claimed doubling was a benchmark artifact and does not exist. What is
+ * left is about 0.13 ms of GPU, which is the field, and four to six per cent of
+ * frame rate.
  *
- * Five ways an aggregate frame time lied on the way to that, each worth knowing
+ * That last figure is not clean, and saying so matters more than a tidy claim:
+ * legacy reproducibly submits about seven per cent more draw calls and
+ * triangles than cinematic in every round, so the two are not drawing the same
+ * world. Cinematic is doing less work and running slightly slower, which means
+ * the per-unit difference is larger than the frame rate suggests. Why the
+ * submitted workload differs at all is not understood — a wind model should not
+ * change what is visible — and it is the next thing to look at if this cost
+ * ever matters. It is recorded here rather than averaged away.
+ *
+ * Six ways an aggregate frame time lied on the way here, each worth knowing
  * before trusting one again:
  *
  * 1. Headless Chrome quantises frame time to vsync multiples — 7.6 and 15.1 ms
@@ -44,17 +55,13 @@ import { WIND_LATTICE_PERIOD, getWindGradientTexture } from "./WorldWindLattice"
  *    reported 2.43 ms of "wind" was 2.43 ms of streaming against that budget.
  * 4. Giving both models the same wall-clock delay to settle gave one enough
  *    time and the other not, so a settled world was compared against a loading
- *    one. That alone was the whole of the reported regression.
+ *    one. That alone was the whole of the reported doubling.
  * 5. `renderer.info.render.calls` counts render calls since startup, not per
  *    frame. Read as a draw count it made a faster run appear to draw twice as
- *    much — 125,000 against 58,000, when both were drawing about 640. The
- *    per-frame counter is `drawCalls`, and the diagnostics now use it.
- *
- * One effect is still unexplained and belongs to the machine rather than the
- * world: a run occasionally reaches roughly 156 fps where its neighbours reach
- * 62, at identical draw calls and triangles. It has only been seen in the first
- * case measured after a browser launch, which is why cases are interleaved and
- * repeated — a single run of each is not evidence.
+ *    much — 125,000 against 58,000, when both drew about 640.
+ * 6. The first context measured after a browser launch ran more than twice as
+ *    fast as its neighbours at identical workload. A discarded warm-up page per
+ *    backend removes it; without one, whichever case is measured first wins.
  */
 
 const DEG_TO_RAD = Math.PI / 180;
