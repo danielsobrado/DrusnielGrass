@@ -9,9 +9,7 @@ import { WorldDevelopmentHooks } from "./WorldDevelopmentHooks";
 import { WorldExperience } from "./WorldExperience";
 import { WorldFrameSubsystems } from "./WorldFrameSubsystems";
 import { WorldExperienceConfigLoader } from "../world/experience/WorldExperienceConfigLoader";
-import {
-  DEFAULT_WEATHER_PRESET,
-} from "../world/experience/WorldExperienceCatalog";
+import { DEFAULT_WEATHER_PRESET } from "../world/experience/WorldExperienceCatalog";
 import {
   attachWorldWeather,
   type WorldWeatherState,
@@ -178,6 +176,7 @@ export class WorldApp {
           }
         },
       });
+      environment.materialContext.setWorldWindUniforms(this.weather?.windUniforms);
 
       terrain = new TerrainStreamer(
         this.scene,
@@ -320,7 +319,6 @@ export class WorldApp {
     }
   }
 
-  /** The session is created by the bootstrap, which owns backend recovery. */
   static async create(
     session: RendererSession,
     profile: RuntimeProfile,
@@ -393,12 +391,10 @@ export class WorldApp {
     return this.development.attachActorProof(observer);
   }
 
-  /** Development-only hook for `?qa=visual-matrix`. */
   attachVisualMatrix(): WorldVisualMatrixContext {
     return this.development.attachVisualMatrix();
   }
 
-  /** Development-only hook for `?riverTuning=1`. */
   attachRiverArtMenu(): Promise<void> {
     return this.development.attachRiverArtMenu();
   }
