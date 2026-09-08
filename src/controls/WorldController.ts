@@ -5,7 +5,38 @@ export type ControllerRecoveryState =
   | { mode: "fly"; position: [number, number, number]; yaw: number; pitch: number; speed: number }
   | { mode: "third-person"; x: number; z: number; facing: number; yaw: number; elevation: number; distance: number };
 
+/**
+ * What a temporary view mode borrows and must give back.
+ *
+ * Opaque to the caller: only the controller that produced it can interpret it,
+ * which is what stops a tour from constructing a pose the controller cannot
+ * settle into.
+ */
+export interface WorldControllerViewState {
+  readonly mode: WorldControlMode;
+}
+
 export interface WorldController {
+  /**
+   * Enables or disables the player's control.
+   *
+   * Implementations must clear held input, not merely stop reading it: a key
+   * held when control is taken away is released where nobody is listening.
+   */
+  setEnabled(enabled: boolean): void;
+  isEnabled(): boolean;
+  /** Saves framing and actor visibility for a temporary mode to restore. */
+  saveViewState(): WorldControllerViewState;
+  restoreViewState(state: WorldControllerViewState): void;
+  /**
+   * The controlled character's feet, for footsteps, interaction and collision.
+   *
+   * Fly controls have no character; they report the camera's ground point, so
+   * a caller gets a meaningful position rather than having to branch on mode.
+   */
+  getGameplayPose(target: THREE.Vector3): { position: THREE.Vector3; facing: number };
+  /** Hides the actor for a mode that frames the world without them in it. */
+  setCharacterVisible(visible: boolean): void;
   captureRecoveryState(): ControllerRecoveryState;
   restoreRecoveryState(state: ControllerRecoveryState): void;
   update(deltaSeconds: number): void;

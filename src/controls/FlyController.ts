@@ -53,6 +53,7 @@ export class FlyController {
   private lastInputType = "idle";
   private previousTouchAction = "";
   private disposed = false;
+  private inputEnabled = true;
   private captureLocked = false;
 
   constructor(
@@ -84,6 +85,30 @@ export class FlyController {
     }
   }
 
+  /**
+   * Enables or disables flight input, clearing anything being held.
+   *
+   * A key held when control is taken away is released where this object is not
+   * listening, so ignoring input without clearing it would leave the camera
+   * drifting when control comes back.
+   */
+  setInputEnabled(enabled: boolean): void {
+    if (this.disposed || this.inputEnabled === enabled) {
+      return;
+    }
+    this.inputEnabled = enabled;
+    this.keys.clear();
+    this.touchMovement.set(0, 0);
+    this.verticalTouch = 0;
+    this.movePointer = undefined;
+    this.lookPointer = undefined;
+    this.lastInputType = "idle";
+  }
+
+  isInputEnabled(): boolean {
+    return this.inputEnabled;
+  }
+
   update(deltaSeconds: number): void {
     if (this.disposed) {
       return;
@@ -97,6 +122,9 @@ export class FlyController {
       0,
       MAX_FRAME_DELTA_SECONDS,
     );
+    if (!this.inputEnabled) {
+      return;
+    }
     const keyboardForward =
       (this.keys.has("KeyW") || this.keys.has("ArrowUp") ? 1 : 0) -
       (this.keys.has("KeyS") || this.keys.has("ArrowDown") ? 1 : 0);

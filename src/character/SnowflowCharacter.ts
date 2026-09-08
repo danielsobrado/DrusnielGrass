@@ -140,6 +140,18 @@ export class SnowflowCharacter {
     disposeSnowflowRig(this.rig);
   }
 
+  /**
+   * Shows or hides the whole actor.
+   *
+   * Applied to the rig root so every part goes together; a mode that frames the
+   * world without the player in it must not leave a floating cloak behind.
+   */
+  setVisible(visible: boolean): void {
+    if (!this.disposed) {
+      this.rig.root.visible = visible;
+    }
+  }
+
   getState(): string {
     return this.runtime.getStateName();
   }

@@ -2,7 +2,9 @@ import * as THREE from "three";
 import type { RuntimeProfile } from "../runtime/RuntimeConfig";
 import type { FlySpawn } from "./FlyController";
 import { FlyController } from "./FlyController";
-import type { WorldController, WorldControlMode } from "./WorldController";
+import type {
+  ControllerRecoveryState, WorldController, WorldControlMode, WorldControllerViewState,
+} from "./WorldController";
 import type { TerrainField } from "../world/TerrainField";
 import type { WorldConfig } from "../world/WorldConfig";
 
@@ -27,6 +29,43 @@ export class FlyWorldController
     super(worldCamera, canvas, worldConfig, profile, spawn);
     this.streamingPosition = worldCamera.position;
   }
+
+  setEnabled(enabled: boolean): void {
+    this.setInputEnabled(enabled);
+  }
+
+  isEnabled(): boolean {
+    return this.isInputEnabled();
+  }
+
+  /**
+   * Flight has no actor and no orbit framing, so its saved view is its
+   * recovery state: position, yaw, pitch and speed put the camera back exactly.
+   */
+  saveViewState(): WorldControllerViewState {
+    return this.captureRecoveryState();
+  }
+
+  restoreViewState(state: WorldControllerViewState): void {
+    if (state.mode !== "fly") {
+      return;
+    }
+    this.restoreRecoveryState(state as ControllerRecoveryState);
+  }
+
+  /**
+   * Flight has no character, so the gameplay pose is the ground beneath the
+   * camera. A caller placing a footstep or an interaction gets a real point on
+   * the terrain rather than having to branch on the control mode.
+   */
+  getGameplayPose(target: THREE.Vector3): { position: THREE.Vector3; facing: number } {
+    const camera = this.worldCamera.position;
+    target.set(camera.x, this.field.sampleHeight(camera.x, camera.z), camera.z);
+    return { position: target, facing: this.worldCamera.rotation.y };
+  }
+
+  /** No character to hide; accepted so callers need no mode branch. */
+  setCharacterVisible(): void {}
 
   /**
    * Free flight has no collision, so the world edge and the ground are enforced
