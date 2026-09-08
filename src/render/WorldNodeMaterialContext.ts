@@ -1,6 +1,7 @@
-import { DirectionalLightNode, type AmbientLight, type DirectionalLight, type HemisphereLight, type Light, type Node, type NodeBuilder, type NodeMaterial } from "three/webgpu";
+import { DirectionalLightNode, type AmbientLight, type DirectionalLight, type HemisphereLight, type Light, type Node, type NodeBuilder, type NodeMaterial, type Vector3 } from "three/webgpu";
 import { lights, positionWorld, cameraPosition, cameraViewMatrix, vec3, mix, uniform, reference, lightPosition, lightTargetDirection } from "three/tsl";
 import type { WorldCloudShadowNodes } from "../world/sky/WorldCloudShadowNodes";
+import type { WorldLightingState } from "./WorldLightingState";
 
 class CloudDirectionalLightNode extends DirectionalLightNode {
   constructor(light: DirectionalLight, private readonly scale: Node<"float">) { super(light); }
@@ -20,7 +21,13 @@ const composeLights = lights as (sources: (Light | DirectionalLightNode)[]) => R
 /** A streamed material receives the same light and cloud field at creation. */
 export class WorldNodeMaterialContext {
   constructor(private readonly sun: DirectionalLight,
-    private readonly otherLights: readonly Light[], private readonly clouds?: WorldCloudShadowNodes) {}
+    private readonly otherLights: readonly Light[], private readonly clouds?: WorldCloudShadowNodes,
+    private readonly lighting?: WorldLightingState) {}
+
+  /** Mutable world-space render sun; ecology intentionally never receives it. */
+  worldSunDirection(): Vector3 | undefined {
+    return this.lighting?.sunDirection;
+  }
 
   directionalSurfaceLight(cloudResponseStrength = 1) {
     const color = uniform(this.sun.color).rgb.mul(reference("intensity", "float", this.sun));
@@ -34,7 +41,6 @@ export class WorldNodeMaterialContext {
 
   /**
    * Ambient, hemisphere and directional irradiance for a view-space normal.
-   *
    * Materials that light themselves rather than through a lighting model — the
    * grass impostor cards sum this once per card in their vertex stage — need
    * the same three terms the built-in uniform blocks carry, in the same order
