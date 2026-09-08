@@ -25,9 +25,7 @@ export interface WorldWeatherSnapshot {
   readonly restBendGain: number;
 }
 
-export type WorldWeatherPresetApplied = (
-  preset: ResolvedWorldEnvironmentPreset,
-) => void;
+export type WorldWeatherPresetApplied = (preset: ResolvedWorldEnvironmentPreset) => void;
 
 /** One authoritative presentation-weather owner. Ecology never reads it. */
 export class WorldWeatherState {
@@ -44,38 +42,28 @@ export class WorldWeatherState {
     this.applyResolved(this.active);
   }
 
-  get windUniforms() {
-    return this.wind?.uniforms;
-  }
-
-  getPresetId(): WeatherPresetId {
-    return this.active.id;
-  }
+  get windUniforms() { return this.wind?.uniforms; }
+  getPresetId(): WeatherPresetId { return this.active.id; }
 
   getSnapshot(): Readonly<WorldWeatherSnapshot> {
+    const field = this.wind?.getField();
     return {
       presetId: this.active.id,
       label: this.active.label,
       rainIntensity: this.active.rainIntensity,
-      windIntensity: this.active.windIntensity,
-      windDirectionDegrees: this.active.windDirectionDegrees,
-      windSimulationSpeed: this.active.windSimulationSpeed,
-      restBendGain: this.active.restBendGain,
+      windIntensity: field?.getIntensity() ?? this.active.windIntensity,
+      windDirectionDegrees: field?.getDirectionDegrees() ?? this.active.windDirectionDegrees,
+      windSimulationSpeed: field?.getSimulationSpeed() ?? this.active.windSimulationSpeed,
+      restBendGain: this.wind?.uniforms.restBendGain.value ?? this.active.restBendGain,
     };
   }
 
   /** Returns false for an invalid or unavailable command; current state remains. */
   setPreset(value: string): boolean {
-    if (this.disposed) {
-      return false;
-    }
+    if (this.disposed) return false;
     const id = resolveCatalogId(WEATHER_PRESET_IDS, value);
-    if (!id) {
-      return false;
-    }
-    if (id === this.active.id) {
-      return true;
-    }
+    if (!id) return false;
+    if (id === this.active.id) return true;
 
     const previous = this.active;
     const next = resolveWorldEnvironmentPreset(id);
@@ -94,16 +82,28 @@ export class WorldWeatherState {
     }
   }
 
+  /** Manual T04 gain is session-local; selecting another preset restores its authored gain. */
+  setWindIntensity(value: number): boolean {
+    if (this.disposed || !this.wind || !Number.isFinite(value) || value < 0 || value > 2) return false;
+    this.wind.getField().setIntensity(value);
+    this.wind.refresh();
+    return true;
+  }
+
+  /** Manual T04 speed is session-local; selecting another preset restores its authored speed. */
+  setSimulationSpeed(value: number): boolean {
+    if (this.disposed || !this.wind || !Number.isFinite(value) || value < 0 || value > 2) return false;
+    this.wind.getField().setSimulationSpeed(value);
+    this.wind.uniforms.syncFrom(this.wind.getField());
+    return true;
+  }
+
   update(deltaSeconds: number): void {
-    if (!this.disposed) {
-      this.wind?.update(deltaSeconds);
-    }
+    if (!this.disposed) this.wind?.update(deltaSeconds);
   }
 
   dispose(): void {
-    if (this.disposed) {
-      return;
-    }
+    if (this.disposed) return;
     this.disposed = true;
     this.wind?.dispose();
   }
@@ -117,8 +117,6 @@ export class WorldWeatherState {
       field.setNoiseScale(preset.windNoiseScale);
       field.setSimulationSpeed(preset.windSimulationSpeed);
       this.wind.uniforms.restBendGain.value = preset.restBendGain;
-      // Preset cuts must update the reduced-cadence bake before any grass can
-      // render the next frame; refresh does not advance the integrated phase.
       this.wind.refresh();
     }
     this.onPresetApplied(preset);
@@ -131,6 +129,7 @@ export interface AttachWorldWeatherOptions {
   readonly lighting: WorldLightingState;
   readonly focus: () => Vector3;
   readonly onPresetApplied: WorldWeatherPresetApplied;
+  readonly storedPreset?: WeatherPresetId;
 }
 
 /** Fills the single weather slot with weather + wind together. */
@@ -139,28 +138,19 @@ export function attachWorldWeather(
   options: AttachWorldWeatherOptions,
 ): WorldWeatherState | undefined {
   const requestedPreset = options.params.get("weather");
-  const initialPreset = resolveCatalogId(WEATHER_PRESET_IDS, requestedPreset)
-    ?? DEFAULT_WEATHER_PRESET;
-  if (requestedPreset !== null && requestedPreset !== initialPreset) {
-    console.warn(
-      `[Drusniel World] Unknown weather preset "${requestedPreset}"; using ${initialPreset}.`,
-    );
+  const urlPreset = resolveCatalogId(WEATHER_PRESET_IDS, requestedPreset);
+  const initialPreset = urlPreset ?? options.storedPreset ?? DEFAULT_WEATHER_PRESET;
+  if (requestedPreset !== null && !urlPreset) {
+    console.warn(`[Drusniel World] Unknown weather preset "${requestedPreset}"; using ${initialPreset}.`);
   }
   const windModel = resolveCatalogId(WIND_MODEL_IDS, options.params.get("windModel"))
     ?? DEFAULT_WIND_MODEL;
 
   let weather: WorldWeatherState | undefined;
   experience.attach("weather", () => {
-    const wind = windModel === "cinematic"
-      ? new WorldWindSystem(options.renderer, options.focus)
-      : undefined;
+    const wind = windModel === "cinematic" ? new WorldWindSystem(options.renderer, options.focus) : undefined;
     try {
-      weather = new WorldWeatherState(
-        options.lighting,
-        wind,
-        initialPreset,
-        options.onPresetApplied,
-      );
+      weather = new WorldWeatherState(options.lighting, wind, initialPreset, options.onPresetApplied);
       return weather;
     } catch (error) {
       wind?.dispose();
