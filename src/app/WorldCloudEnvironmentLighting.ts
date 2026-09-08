@@ -92,10 +92,23 @@ export class WorldCloudEnvironmentLighting {
     focus: THREE.Vector3,
     elapsedSeconds: number,
   ): void {
+    const hadFocus = this.hasFocus;
     this.lastFocus.copy(focus);
     this.lastElapsedSeconds = elapsedSeconds;
     this.hasFocus = true;
     const target = this.sampleTargets(focus, elapsedSeconds);
+
+    // Preserve Drusniel's original eased startup. A source-style preset is a
+    // deliberate visual cut, so its first valid sample must not render one
+    // clear-sky frame before the normal cloud response easing begins.
+    if (!hadFocus && !this.lighting.baseline) {
+      this.directTransmittance = target.directTransmittance;
+      this.weatherAmount = target.weatherAmount;
+      this.publishWeatherState();
+      this.apply();
+      return;
+    }
+
     const blend = 1 - Math.exp(-this.cloud.lightResponseRate * deltaSeconds);
     this.directTransmittance = THREE.MathUtils.lerp(
       this.directTransmittance,
