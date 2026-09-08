@@ -2,6 +2,7 @@ import * as THREE from "three";
 import type { RuntimeProfile } from "../runtime/RuntimeConfig";
 import { WorldCloudShadowNodeMap } from "../world/sky/WorldCloudShadowNodeMap";
 import type { RendererCapabilities } from "../render/RendererCapabilities";
+import type { WorldLightingState } from "../render/WorldLightingState";
 import type { WebGPURenderer } from "three/webgpu";
 import { WorldCloudShadowDebugPanel } from "./WorldCloudShadowDebugPanel";
 import type { WorldCloudEnvironmentLighting } from "./WorldCloudEnvironmentLighting";
@@ -36,9 +37,10 @@ export class WorldCloudShadowController {
     private readonly lighting: WorldCloudEnvironmentLighting,
     sunShadowsAvailable: boolean,
     capabilities: RendererCapabilities,
+    worldLighting?: WorldLightingState,
   ) {
     this.sunShadowsAvailable = sunShadowsAvailable;
-    this.map = new WorldCloudShadowNodeMap(renderer, profile, capabilities);
+    this.map = new WorldCloudShadowNodeMap(renderer, profile, capabilities, worldLighting);
     try {
       this.debug = WorldCloudShadowDebugPanel.createIfRequested(scene, {
         getDiagnostics: () => this.getDiagnostics(),
@@ -54,6 +56,10 @@ export class WorldCloudShadowController {
         error,
       );
     }
+  }
+
+  applyLightingState(lighting: WorldLightingState): void {
+    if (!this.disposed) this.map.applyLightingState(lighting);
   }
 
   update(
