@@ -16,6 +16,19 @@ import { WIND_LATTICE_PERIOD, getWindGradientTexture } from "./WorldWindLattice"
  * Every LOD calls into these. That is the point of the ticket: a gust front is
  * only coherent if the near blades, the mid layer and the far cards are reading
  * one field rather than three that happen to look similar.
+ *
+ * **Cost, measured.** A full evaluation is seven gradient-noise lookups — one
+ * for the direction wobble, two for the warp, and one each for the large layer,
+ * its inertia probe, the medium layer and the flutter — and each lookup reads
+ * four lattice texels, so twenty-eight fetches per evaluation. Evaluated per
+ * blade vertex on the desktop world that costs 15.6 ms median against 7.6 ms
+ * for the per-material gust model it replaces.
+ *
+ * That is a failed budget, and the integration plan's answer to a failed budget
+ * is to bake the composite field into a texture at reduced cadence and sample
+ * that from every representation, preserving one mapping and one CPU-query
+ * contract. Until that exists, `?windModel=legacy` is the way back to the old
+ * cost, and the shared field is correct but expensive.
  */
 
 const DEG_TO_RAD = Math.PI / 180;

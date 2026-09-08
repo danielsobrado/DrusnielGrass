@@ -31,9 +31,16 @@ export const QUALITY_IDS = Object.freeze([
 ] as const);
 export type QualityId = (typeof QUALITY_IDS)[number];
 
-/** The wind model T02 shares between LOD bands. */
-export const WIND_MODEL_IDS = Object.freeze(["noise", "sine"] as const);
+/**
+ * Which wind model drives the world.
+ *
+ * `cinematic` is the shared field every representation reads. `legacy` leaves
+ * each material on its own gust model, and exists so the shared field can be
+ * compared against what the world looked like before it.
+ */
+export const WIND_MODEL_IDS = Object.freeze(["cinematic", "legacy"] as const);
 export type WindModelId = (typeof WIND_MODEL_IDS)[number];
+export const DEFAULT_WIND_MODEL: WindModelId = "cinematic";
 
 export const DEFAULT_WEATHER_PRESET: WeatherPresetId = "drusniel";
 export const DEFAULT_GRASS_SILHOUETTE: GrassSilhouetteId = "blade";

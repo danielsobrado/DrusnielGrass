@@ -25,6 +25,7 @@ import {
 } from "./WorldDetailFoliageAtlasFactory";
 import { WorldDetailFoliageMaterial } from "./WorldDetailFoliageMaterial";
 import type { WorldNodeMaterialContext } from "../../render/WorldNodeMaterialContext";
+import type { WorldWindUniforms } from "../weather/WorldWindUniforms";
 import {
   createDetailFoliageTuning,
   detailFoliageTuningEquals,
@@ -113,8 +114,10 @@ export class WorldNearGrassField {
     private readonly worldConfig: WorldConfig,
     private readonly profile: RuntimeProfile,
     private readonly materialContext: WorldNodeMaterialContext,
+    windUniforms?: WorldWindUniforms,
   ) {
-    const resources = createNearGrassResources(profile, worldConfig, materialContext);
+    const resources = createNearGrassResources(profile, worldConfig, materialContext,
+      windUniforms);
     this.baseMaterial = resources.baseMaterial;
     this.bridgeMaterial = resources.bridgeMaterial;
     this.baseDetailMaterial = resources.baseDetailMaterial;
@@ -874,12 +877,15 @@ function createNearGrassResources(
   profile: RuntimeProfile,
   worldConfig: WorldConfig,
   context: WorldNodeMaterialContext,
+  windUniforms?: WorldWindUniforms,
 ): NearGrassResources {
   const created: GrassNearMaterial[] = [];
   try {
     const windMode = profile.compact ? "sine" : "noise";
     const baseMaterial = new GrassNearMaterial({
       context,
+      cinematicWind: windUniforms !== undefined,
+      windUniforms,
       name: "world-grass-single-blade-material",
       cacheKey: `grass-near-material-v28-shape-base-vertex-palette-${windMode}`,
       detailMode: 1,
@@ -894,6 +900,8 @@ function createNearGrassResources(
     created.push(baseMaterial);
     const bridgeMaterial = new GrassNearMaterial({
       context,
+      cinematicWind: windUniforms !== undefined,
+      windUniforms,
       name: "world-grass-near-bridge-material",
       cacheKey: `grass-near-material-v28-shape-bridge-vertex-palette-${windMode}`,
       detailMode: 1,
@@ -909,6 +917,8 @@ function createNearGrassResources(
     created.push(bridgeMaterial);
     const baseDetailMaterial = new GrassNearMaterial({
       context,
+      cinematicWind: windUniforms !== undefined,
+      windUniforms,
       name: "world-grass-base-detail-material",
       cacheKey: `grass-near-material-v28-shape-detail-${windMode}`,
       detailMode: 2,
@@ -921,6 +931,8 @@ function createNearGrassResources(
     created.push(baseDetailMaterial);
     const ultraNearMaterial = new GrassNearMaterial({
       context,
+      cinematicWind: windUniforms !== undefined,
+      windUniforms,
       name: "world-grass-ultra-near-single-blade-material",
       cacheKey: `grass-near-material-v28-shape-ultra-${windMode}`,
       detailMode: 0,
@@ -937,6 +949,8 @@ function createNearGrassResources(
     // the placement salt its field is built from.
     const densityBoostMaterial = new GrassNearMaterial({
       context,
+      cinematicWind: windUniforms !== undefined,
+      windUniforms,
       name: "world-grass-near-density-boost-material",
       cacheKey: `grass-near-material-v28-shape-density-boost-${windMode}`,
       detailMode: 1,

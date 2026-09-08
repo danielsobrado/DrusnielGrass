@@ -16,6 +16,9 @@ import {
 import { GRASS_VERTEX_PALETTE_ROOT_PROGRESS } from "./GrassPaletteShader";
 import { grassResolvePaletteNode } from "./GrassPaletteNodes";
 import type { GrassNodeUniforms } from "./GrassNearNodeInputs";
+import { createWorldWindFieldNodes } from "../../world/weather/WorldWindNodes";
+import { WORLD_WIND_RESPONSE } from "../../world/weather/WorldWindMath";
+import type { WorldWindUniforms } from "../../world/weather/WorldWindUniforms";
 
 const TAU = 6.28318530718;
 const WORLD_UP = vec3(0, 1, 0);
@@ -41,6 +44,8 @@ export interface GrassNearNodeFeatures {
   interactive: boolean;
   subPixelWidth: boolean;
   sheen: boolean;
+  /** Drives the blade from the world's shared wind field instead of its own. */
+  cinematicWind: boolean;
   noiseWind: boolean;
   microWind: boolean;
   instanceFreeDither: boolean;
@@ -56,8 +61,12 @@ const rotateAroundAxis = Fn(([value, axis, sine, cosine]:
 /** The bounded palette row, clamped exactly as `grassResolveBiomeRow` clamps it. */
 const biomeRow = (biome: Node<"float">) => int(biome.clamp(0, GRASS_MAX_BIOMES - 1).add(0.5));
 
-export function createGrassNearNodes(u: GrassNodeUniforms, features: GrassNearNodeFeatures) {
+export function createGrassNearNodes(u: GrassNodeUniforms, features: GrassNearNodeFeatures,
+  wind?: WorldWindUniforms) {
   const time = u.number("uGrassTime");
+  // The shared field replaces this material's own gust model when it is
+  // available. `uGrassWindDirection` remains the legacy baseline's direction.
+  const cinematic = features.cinematicWind && wind ? wind : undefined;
   const windDirection = u.vector2("uGrassWindDirection");
   const progress = attribute<"float">("grassProgress", "float");
   const phase = attribute<"float">("grassPhase", "float");
@@ -239,21 +248,43 @@ export function createGrassNearNodes(u: GrassNodeUniforms, features: GrassNearNo
       const tuftPhase = fract(floor(worldRoot.xz.mul(GRASS_TUFT_WIND_CELL_SCALE))
         .dot(vec2(0.1731, 0.4197))).toVar();
       const gustEnvelope = mix(u.number("uGrassGustFrontDepth").oneMinus(), 1, gustNoise).mul(weather).toVar();
-      const gust = sin(worldRoot.xz.dot(windDirection).div(u.number("uGrassGustScale"))
-        .add(time.mul(u.number("uGrassGustSpeed"))).add(tuftPhase.mul(1.15))
-        .add(variation.x.mul(0.42))).toVar();
+      // Evaluated at the stationary root, never a deformed vertex: a blade that
+      // sampled the wind where its bent tip currently is would drive itself.
+      const field = cinematic
+        ? createWorldWindFieldNodes({
+          positionXZ: worldRoot.xz,
+          time: cinematic.time,
+          directionDegrees: cinematic.directionDegrees,
+          intensity: cinematic.intensity,
+          noiseScale: cinematic.noiseScale,
+        })
+        : undefined;
+      // One broad gust for every layer. The per-blade offsets that follow are a
+      // response to it, not a second field: near, bridge and mid must lean
+      // together or the LOD boundary shows as a seam in the gust front.
+      const gust = (field
+        ? field.gust.mul(2).sub(1).mul(WORLD_WIND_RESPONSE.blade.bendScale * 4)
+          .add(sin(tuftPhase.mul(TAU).add(variation.x.mul(0.42))).mul(0.12))
+        : sin(worldRoot.xz.dot(windDirection).div(u.number("uGrassGustScale"))
+          .add(time.mul(u.number("uGrassGustSpeed"))).add(tuftPhase.mul(1.15))
+          .add(variation.x.mul(0.42)))).toVar();
       const flutter = (features.microWind
-        ? sin(worldRoot.xz.dot(vec2(windDirection.y.negate(), windDirection.x))
-          .div(u.number("uGrassGustScale").mul(0.37)).add(time.mul(u.number("uGrassFlutterSpeed")))
-          .add(motionPhase.mul(TAU))).mul(mix(0.72, 1.18, variation.w))
+        ? (field
+          ? field.flutter.mul(mix(0.72, 1.18, variation.w))
+          : sin(worldRoot.xz.dot(vec2(windDirection.y.negate(), windDirection.x))
+            .div(u.number("uGrassGustScale").mul(0.37)).add(time.mul(u.number("uGrassFlutterSpeed")))
+            .add(motionPhase.mul(TAU))).mul(mix(0.72, 1.18, variation.w)))
         : float(0)).toVar();
       const stiffness = mix(0.76, 1.12, fract(tuftPhase.mul(1.61803398875).add(variation.x.mul(0.31))))
         .mul(mix(float(1), float(0.72), variation.w)).toVar();
-      const bendAngle = gust.mul(u.number("uGrassWindStrength"))
+      // The field's own envelope drives the bend when it is present, so a gust
+      // front arriving is what makes the grass lean rather than a clock.
+      const bendAngle = gust.mul(field ? field.strength : u.number("uGrassWindStrength"))
         .add(flutter.mul(u.number("uGrassFlutterStrength")).mul(microFade))
         .mul(variation.y).mul(stiffness).mul(pow(progress, 1.65))
         .mul(u.number("uGrassWindLodScale")).mul(gustEnvelope).toVar();
-      const worldWind = vec3(windDirection.x, 0, windDirection.y);
+      const localDirection = field ? field.direction : windDirection;
+      const worldWind = vec3(localDirection.x, 0, localDirection.y);
       // Rotate about the root instead of translating: translation makes a bent
       // blade longer than a straight one.
       const windLocal = vec2(worldWind.dot(column0.div(horizontalScale)),

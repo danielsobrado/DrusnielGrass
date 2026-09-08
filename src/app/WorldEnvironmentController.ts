@@ -6,6 +6,7 @@ import { WorldSkyNode } from "../world/sky/WorldSkyNode";
 import type { RendererCapabilities } from "../render/RendererCapabilities";
 import type { WebGPURenderer } from "three/webgpu";
 import { WorldNodeMaterialContext } from "../render/WorldNodeMaterialContext";
+import { WorldWindSystem } from "../world/weather/WorldWindSystem";
 import { WorldCloudEnvironmentLighting } from "./WorldCloudEnvironmentLighting";
 import { WorldCloudShadowController } from "./WorldCloudShadowController";
 import {
@@ -24,12 +25,8 @@ import {
 
 const SUN_DIRECTION = new THREE.Vector3(...WORLD_SUN_DIRECTION).normalize();
 const UP_AXIS = new THREE.Vector3(0, 1, 0);
-const SHADOW_AXIS_X = new THREE.Vector3()
-  .crossVectors(UP_AXIS, SUN_DIRECTION)
-  .normalize();
-const SHADOW_AXIS_Y = new THREE.Vector3()
-  .crossVectors(SUN_DIRECTION, SHADOW_AXIS_X)
-  .normalize();
+const SHADOW_AXIS_X = new THREE.Vector3().crossVectors(UP_AXIS, SUN_DIRECTION).normalize();
+const SHADOW_AXIS_Y = new THREE.Vector3().crossVectors(SUN_DIRECTION, SHADOW_AXIS_X).normalize();
 const MAX_ENVIRONMENT_DELTA_SECONDS = 0.25;
 
 export class WorldEnvironmentController {
@@ -45,6 +42,8 @@ export class WorldEnvironmentController {
   private shadowFocusZ = Number.NaN;
   private elapsedSeconds = 0;
   private context?: WorldNodeMaterialContext;
+  /** Advanced with the rest of the weather; see `WorldWindSystem`. */
+  private readonly wind = new WorldWindSystem();
   private disposed = false;
 
   constructor(
@@ -106,7 +105,8 @@ export class WorldEnvironmentController {
       disposeSafely(sky, "Sky");
       disposeSafely(this.cloudShadow, "Cloud shadow system");
       disposeSafely(this.cloudLighting, "Cloud lighting");
-      disposeSafely(this.sun.shadow, "Sun shadow");
+      disposeSafely(this.wind, "Wind system");
+    disposeSafely(this.sun.shadow, "Sun shadow");
       this.scene.remove(this.hemisphere, this.sun, this.sun.target);
       throw error;
     }
@@ -136,6 +136,7 @@ export class WorldEnvironmentController {
     );
     this.elapsedSeconds =
       (this.elapsedSeconds + safeDelta) % WORLD_CLOUD_TIME_WRAP_SECONDS;
+    this.wind.update(safeDelta);
     this.cloudLighting.update(safeDelta, focus, this.elapsedSeconds);
     this.cloudShadow.update(safeDelta, focus, this.elapsedSeconds);
     this.sky.update(this.elapsedSeconds, focus);
@@ -183,15 +184,16 @@ export class WorldEnvironmentController {
     this.sun.updateMatrixWorld();
   }
 
+  /** The uniforms every wind-driven material reads. */
+  get windUniforms() { return this.wind.uniforms; }
+
   /**
    * The lighting and cloud-shadow field every world material is built against.
    *
-   * This replaces the scene-walking integrator the GLSL route used. That
-   * integrator had to find materials after the fact and patch them; a node
-   * material takes the field when it is constructed, so a material that is
-   * built later cannot miss the injection and none of them can be patched
-   * twice. It is created once here because the lights and the shadow map it
-   * closes over live for the session.
+   * This replaces the scene-walking integrator the GLSL route used: a node
+   * material takes the field when it is constructed, so one built later cannot
+   * miss the injection and none can be patched twice. Created once, because the
+   * lights and shadow map it closes over live for the session.
    */
   get materialContext(): WorldNodeMaterialContext {
     this.context ??= new WorldNodeMaterialContext(
@@ -201,11 +203,10 @@ export class WorldEnvironmentController {
   }
 
   /**
-   * Advances the sky's own history before the beauty pass.
+   * Advances the sky's temporal history, exactly once per displayed frame.
    *
-   * The node sky keeps a temporal cloud buffer that must be stepped exactly
-   * once per displayed frame; offscreen water and atlas cameras must not
-   * advance it, so the frame owner calls this rather than a render callback.
+   * Offscreen water and atlas cameras must not advance it, so the frame owner
+   * calls this rather than a render callback.
    */
   prepareFrame(camera: THREE.PerspectiveCamera): void {
     if (!this.disposed) this.sky.prepareFrame(camera);

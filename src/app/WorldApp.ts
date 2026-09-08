@@ -6,6 +6,7 @@ import {
 } from "../grass/GrassArtDirection";
 import { grassTrailField } from "../grass/interaction/GrassTrailField";
 import { WorldDevelopmentHooks } from "./WorldDevelopmentHooks";
+import { WIND_MODEL_IDS, resolveCatalogId } from "../world/experience/WorldExperienceCatalog";
 import { WorldExperience } from "./WorldExperience";
 import { WorldFrameSubsystems } from "./WorldFrameSubsystems";
 import { WorldExperienceConfigLoader } from "../world/experience/WorldExperienceConfigLoader";
@@ -159,8 +160,11 @@ export class WorldApp {
         environment.materialContext,
       );
       this.stones = stones;
+      // `?windModel=legacy` leaves every material on its own gust model, the
+      // baseline the shared field is measured against.
+      const legacyWind = resolveCatalogId(WIND_MODEL_IDS, params.get("windModel")) === "legacy";
       grass = new WorldGrassSystem(this.scene, this.field, config, profile,
-        environment.materialContext);
+        environment.materialContext, legacyWind ? undefined : environment.windUniforms);
       this.grass = grass;
 
       const tierOverride = params.get("tier");

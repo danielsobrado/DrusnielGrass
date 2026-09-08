@@ -21,6 +21,7 @@ import { SeededRandom } from "../grass/internal/SeededRandom";
 import { GRASS_MID_DENSITY_FALLOFF } from "../grass/GrassLodTuning";
 import { GrassNearMaterial } from "../grass/materials/GrassNearMaterial";
 import type { WorldNodeMaterialContext } from "../render/WorldNodeMaterialContext";
+import type { WorldWindUniforms } from "./weather/WorldWindUniforms";
 import { WindField } from "../grass/wind/WindField";
 import {
   GRASS_WIND_NOISE_SCALE,
@@ -299,9 +300,12 @@ export class WorldGrassSystem {
     private readonly worldConfig: WorldConfig,
     private readonly profile: RuntimeProfile,
     private readonly materialContext: WorldNodeMaterialContext,
+    windUniforms?: WorldWindUniforms,
   ) {
     this.material = new GrassNearMaterial({
       context: materialContext,
+      cinematicWind: windUniforms !== undefined,
+      windUniforms,
       name: "world-grass-mid-material",
       cacheKey: `grass-near-material-v27-mid-vertex-palette-no-sheen-${
         profile.compact ? "sine" : "noise"
@@ -337,6 +341,7 @@ export class WorldGrassSystem {
       worldConfig,
       profile,
       materialContext,
+      windUniforms,
     );
   }
 
