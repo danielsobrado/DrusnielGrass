@@ -21,7 +21,8 @@ export class WorldLoadingPresentation {
     private readonly reveal: WorldRevealController,
     private readonly options: WorldLoadingPresentationOptions,
   ) {
-    if (!options.bypassStartGate) {
+    const startGateAvailable = this.element !== null && !options.bypassStartGate;
+    if (startGateAvailable) {
       reveal.holdForStart();
       this.blockedInput = true;
       options.setModalOverlay(true);
@@ -77,9 +78,10 @@ export class WorldLoadingPresentation {
     this.status.textContent = state.message;
     if (!state.ready) return;
     this.progress.value = 1;
-    if (this.options.bypassStartGate) {
-      // Automated captures remain silent and never wait on a user gesture.
-      hudSettingsStore.setSoundEnabled(false);
+    if (this.options.bypassStartGate || !this.element) {
+      // Automated captures stay silent; missing presentation DOM must fail open.
+      if (this.options.bypassStartGate) hudSettingsStore.setSoundEnabled(false);
+      this.releaseInput();
       this.reveal.reveal();
       return;
     }
