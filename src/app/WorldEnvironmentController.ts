@@ -117,15 +117,11 @@ export class WorldEnvironmentController {
     }
   }
 
-  /**
-   * Weather owns lighting; art direction is allowed to re-apply it but never
-   * reset fog or sun to hard-coded baseline values.
-   */
   applyArtDirection(_direction?: GrassArtDirection): void {
     if (!this.disposed) this.cloudLighting.apply();
   }
 
-  /** Apply one already-resolved preset atomically to every environment consumer. */
+  /** Apply the already-resolved lighting state to every environment consumer. */
   applyWeatherPreset(): void {
     if (this.disposed) return;
     if (!(this.scene.fog instanceof THREE.FogExp2)) {
@@ -141,6 +137,11 @@ export class WorldEnvironmentController {
     this.sky.applyLightingState();
     grassGroundShadow.setSunDirection(this.lighting.sunDirection);
     this.sun.shadow.needsUpdate = true;
+  }
+
+  /** Context/device recovery rebuilds the selected preset, including its IBL. */
+  handleContextRestore(): void {
+    if (!this.disposed) this.applyWeatherPreset();
   }
 
   update(deltaSeconds: number, focus: THREE.Vector3): void {
