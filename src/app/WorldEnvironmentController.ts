@@ -14,9 +14,14 @@ import {
   WORLD_SUN_SHADOW_DISTANCE,
   WORLD_SUN_SHADOW_HALF_EXTENT,
 } from "./WorldEnvironmentTuning";
+import {
+  configureWorldSunShadow,
+  createWorldEnvironmentLights,
+  disposeSafely,
+  isFiniteVector,
+  rebuildWorldShadowBasis,
+} from "./WorldEnvironmentLights";
 
-const UP_AXIS = new THREE.Vector3(0, 1, 0);
-const FALLBACK_SHADOW_AXIS = new THREE.Vector3(1, 0, 0);
 const MAX_ENVIRONMENT_DELTA_SECONDS = 0.25;
 
 export class WorldEnvironmentController {
@@ -45,19 +50,10 @@ export class WorldEnvironmentController {
     private readonly capabilities: RendererCapabilities,
     private readonly lighting: WorldLightingState,
   ) {
-    this.hemisphere = new THREE.HemisphereLight(
-      lighting.hemisphereSkyColor,
-      lighting.hemisphereGroundColor,
-      lighting.hemisphereIntensity,
-    );
-    this.ambient = new THREE.AmbientLight(
-      lighting.ambientColor,
-      lighting.ambientIntensity,
-    );
-    this.sun = new THREE.DirectionalLight(
-      lighting.sunColor,
-      lighting.sunIntensity,
-    );
+    const lights = createWorldEnvironmentLights(lighting);
+    this.hemisphere = lights.hemisphere;
+    this.ambient = lights.ambient;
+    this.sun = lights.sun;
     this.cloudLighting = new WorldCloudEnvironmentLighting(
       this.scene,
       this.renderer,
@@ -230,15 +226,11 @@ export class WorldEnvironmentController {
   }
 
   private rebuildShadowBasis(): void {
-    this.shadowAxisX.crossVectors(UP_AXIS, this.lighting.sunDirection);
-    if (this.shadowAxisX.lengthSq() < 1e-8) {
-      this.shadowAxisX.copy(FALLBACK_SHADOW_AXIS);
-    } else {
-      this.shadowAxisX.normalize();
-    }
-    this.shadowAxisY
-      .crossVectors(this.lighting.sunDirection, this.shadowAxisX)
-      .normalize();
+    rebuildWorldShadowBasis(
+      this.lighting.sunDirection,
+      this.shadowAxisX,
+      this.shadowAxisY,
+    );
   }
 
   private invalidateShadowFocus(): void {
@@ -248,35 +240,7 @@ export class WorldEnvironmentController {
   }
 
   private configureShadow(): void {
-    this.sun.shadow.camera.left = -WORLD_SUN_SHADOW_HALF_EXTENT;
-    this.sun.shadow.camera.right = WORLD_SUN_SHADOW_HALF_EXTENT;
-    this.sun.shadow.camera.top = WORLD_SUN_SHADOW_HALF_EXTENT;
-    this.sun.shadow.camera.bottom = -WORLD_SUN_SHADOW_HALF_EXTENT;
-    this.sun.shadow.camera.near = 1;
-    this.sun.shadow.camera.far = WORLD_SUN_SHADOW_DISTANCE * 2;
-    this.sun.shadow.camera.updateProjectionMatrix();
-    this.sun.shadow.normalBias = 0.02;
-    this.sun.shadow.radius = 3;
-    this.sun.shadow.bias = -0.0008;
+    configureWorldSunShadow(this.sun.shadow);
     this.sun.shadow.mapSize.set(this.shadowMapSize, this.shadowMapSize);
-  }
-}
-
-function isFiniteVector(value: THREE.Vector3): boolean {
-  return (
-    Number.isFinite(value.x) &&
-    Number.isFinite(value.y) &&
-    Number.isFinite(value.z)
-  );
-}
-
-function disposeSafely(resource: { dispose(): void } | undefined, label: string): void {
-  if (!resource) {
-    return;
-  }
-  try {
-    resource.dispose();
-  } catch (error) {
-    console.warn(`[Drusniel World] ${label} cleanup failed.`, error);
   }
 }

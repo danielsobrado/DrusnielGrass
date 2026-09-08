@@ -9,6 +9,7 @@ import type { WorldActorProofContext } from "./WorldActorProofContext";
 import type { WorldVisualMatrixContext } from "./WorldVisualMatrixContext";
 import type { GrassArtDirection, GrassArtDirectionKey } from "../grass/GrassArtDirection";
 import type { DetailFoliageTuning } from "../world/grass/DetailFoliageTuning";
+import type { WorldDetailFoliageAtlas } from "../world/grass/WorldDetailFoliageAtlasFactory";
 import type { RiverArtMenuHost } from "./RiverArtMenu";
 import { GrassArtMenu } from "./GrassArtMenu";
 import { DetailFoliageTuningMenu } from "./DetailFoliageTuningMenu";
@@ -52,6 +53,7 @@ export class WorldDevelopmentHooks {
   private riverArtMenu?: { dispose(): void };
   private weatherHook?: WorldWeatherDevelopmentHook;
   private stats?: Stats;
+  private accentAtlasCanvas?: HTMLCanvasElement;
   private disposed = false;
 
   constructor(private readonly host: WorldDevelopmentHost) {}
@@ -122,6 +124,28 @@ export class WorldDevelopmentHooks {
     };
   }
 
+  /** Development-only hook for `?accentAtlas=1`. */
+  async attachAccentAtlasDebug(
+    atlas: WorldDetailFoliageAtlas | undefined,
+  ): Promise<void> {
+    if (
+      this.disposed ||
+      !atlas ||
+      this.accentAtlasCanvas ||
+      new URLSearchParams(window.location.search).get("accentAtlas") !== "1"
+    ) {
+      return;
+    }
+    const { appendDetailFoliageAtlasDebugCanvas } = await import(
+      "../world/grass/WorldDetailFoliageAtlasDebug"
+    );
+    if (this.disposed || this.accentAtlasCanvas) {
+      return;
+    }
+    appendDetailFoliageAtlasDebugCanvas(atlas);
+    this.accentAtlasCanvas = atlas.canvas;
+  }
+
   /** Development-only hook for `?riverTuning=1`. */
   async attachRiverArtMenu(): Promise<void> {
     if (this.disposed || this.riverArtMenu || !this.host.profile.showGui) {
@@ -153,11 +177,13 @@ export class WorldDevelopmentHooks {
     disposeSafely("Grass art menu", () => this.artMenu?.dispose());
     disposeSafely("Detail foliage menu", () => this.detailFoliageMenu?.dispose());
     disposeSafely("River art menu", () => this.riverArtMenu?.dispose());
+    disposeSafely("Accent atlas debug", () => this.accentAtlasCanvas?.remove());
     this.stats = undefined;
     this.artMenu = undefined;
     this.detailFoliageMenu = undefined;
     this.riverArtMenu = undefined;
     this.weatherHook = undefined;
+    this.accentAtlasCanvas = undefined;
   }
 }
 

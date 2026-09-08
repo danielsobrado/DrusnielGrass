@@ -111,8 +111,11 @@ assert(
   world.includes("private disposed = false") &&
     world.includes("Number.isFinite(rawDeltaSeconds)") &&
     statsPanel.includes("Optional stats panel unavailable") &&
-    /await import\(\s*"\.\.\/world\/grass\/WorldDetailFoliageAtlasDebug"\s*\)/.test(world) &&
-    !world.includes('import { appendDetailFoliageAtlasDebugCanvas }'),
+    /await import\(\s*"\.\.\/world\/grass\/WorldDetailFoliageAtlasDebug"\s*\)/.test(
+      world + developmentHooks,
+    ) &&
+    !world.includes('import { appendDetailFoliageAtlasDebugCanvas }') &&
+    !developmentHooks.includes('import { appendDetailFoliageAtlasDebugCanvas }'),
   "World runtime must be idempotent, frame-safe, and keep optional diagnostics off the default path.",
 );
 assert(
@@ -258,10 +261,10 @@ assert(
     /private releaseTargets\(\): void \{[\s\S]*?const quad = this\.quad;[\s\S]*?this\.quad = undefined;[\s\S]*?this\.material = undefined;[\s\S]*?this\.targets = undefined;[\s\S]*?disposeResources\(\[/.test(
       trailField,
     ) &&
-    /new WorldRuntimeGuard\([\s\S]*?\(enabled\) => \{[\s\S]*?this\.rendererPaused = !enabled;[\s\S]*?if \(enabled && !useFlyControls\) \{[\s\S]*?this\.disposeSafely\("Grass trail context restore"[\s\S]*?grassTrailField\.configure\(\{\}\)/.test(
+    /new WorldRuntimeGuard\([\s\S]*?\(enabled\) => \{[\s\S]*?this\.rendererPaused = !enabled;[\s\S]*?if \(enabled\) \{[\s\S]*?this\.disposeSafely\("Environment context restore"[\s\S]*?if \(!useFlyControls\) \{[\s\S]*?this\.disposeSafely\("Grass trail context restore"[\s\S]*?grassTrailField\.configure\(\{\}\)/.test(
       world,
     ),
-  "Grass trail feedback must reject invalid inputs, restore renderer state, roll back partial attachment, clear singleton ownership before complete resource disposal, and rebuild neutral feedback targets after WebGL restoration.",
+  "Grass trail feedback must reject invalid inputs, restore renderer state, roll back partial attachment, clear singleton ownership before complete resource disposal, rebuild selected weather on context restore, and rebuild neutral trail targets after WebGL restoration.",
 );
 const windOwnershipClear = windNoise.indexOf("sharedTexture = undefined;");
 const windDispose = windNoise.indexOf("texture?.dispose();", windOwnershipClear);

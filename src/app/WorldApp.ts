@@ -445,17 +445,7 @@ export class WorldApp {
       if (this.disposed) {
         return;
       }
-      if (new URLSearchParams(window.location.search).get("accentAtlas") === "1") {
-        const atlas = this.grass.getDetailFoliageAtlas();
-        if (atlas) {
-          const { appendDetailFoliageAtlasDebugCanvas } = await import(
-            "../world/grass/WorldDetailFoliageAtlasDebug"
-          );
-          if (!this.disposed) {
-            appendDetailFoliageAtlasDebugCanvas(atlas);
-          }
-        }
-      }
+      await this.development.attachAccentAtlasDebug(this.grass.getDetailFoliageAtlas());
     } catch (error) {
       if (this.disposed) {
         return;
