@@ -15,21 +15,15 @@ interface RunnableApp {
   restoreRecoveryState?(state: RuntimeRecoveryState): void;
 }
 
-interface Disposable {
-  dispose(): void;
-}
+interface Disposable { dispose(): void; }
 
 const WORLD_NAME = "Drusniel World";
-const THIRD_PERSON_HELP =
-  "Click to look · WASD move · Shift run · Space jump · F reset · M map";
-const FLY_HELP =
-  "Click to look · WASD move · Q/E altitude · Shift boost · F reset";
+const THIRD_PERSON_HELP = "Click to look · WASD move · Shift run · Space jump · F reset · M map";
+const FLY_HELP = "Click to look · WASD move · Q/E altitude · Shift boost · F reset";
 
 async function bootstrap(): Promise<void> {
   let canvas = document.querySelector<HTMLCanvasElement>("#canvas");
-  if (!canvas) {
-    throw new Error("Canvas element #canvas was not found.");
-  }
+  if (!canvas) throw new Error("Canvas element #canvas was not found.");
 
   const params = new URLSearchParams(window.location.search);
   const uiController = new UiVisibilityController();
@@ -45,6 +39,7 @@ async function bootstrap(): Promise<void> {
   let recovery: RendererRecovery<RuntimeRecoveryState | undefined> | undefined;
 
   const releaseApp = (): void => {
+    uiController.detachWorld();
     disposeSafely("Animation HUD", () => animationHud?.dispose());
     disposeSafely("Actor proof", () => actorProof?.dispose());
     disposeSafely("Visual matrix", () => visualMatrix?.dispose());
@@ -54,7 +49,6 @@ async function bootstrap(): Promise<void> {
     app = undefined;
     session = undefined;
     disposeSafely("Application", () => previousApp?.dispose());
-    // Covers sessions initialized before an app has accepted ownership.
     disposeSafely("Renderer session", () => previousSession?.dispose());
   };
 
@@ -62,20 +56,11 @@ async function bootstrap(): Promise<void> {
     lifetime.abort();
     recovery?.dispose();
     releaseApp();
-    disposeRuntimeSafely(
-      app,
-      uiController,
-      diagnostics,
-      actorProof,
-      animationHud,
-      visualMatrix,
-      isolationHarness,
-    );
+    disposeRuntimeSafely(app, uiController, diagnostics, actorProof, animationHud,
+      visualMatrix, isolationHarness);
   };
   const handlePageHide = (event: PageTransitionEvent): void => {
-    if (event.persisted || disposed) {
-      return;
-    }
+    if (event.persisted || disposed) return;
     disposed = true;
     disposeRuntime();
   };
@@ -91,41 +76,27 @@ async function bootstrap(): Promise<void> {
       app.start();
       return;
     }
+
     const runtimeConfig = await new RuntimeConfigLoader().load(
       `./config/runtime.yaml?v=${encodeURIComponent(APP_VERSION)}`,
     );
-    if (disposed) {
-      return;
-    }
+    if (disposed) return;
     const profileParam = params.get("profile");
     const profile = resolveRuntimeProfile(runtimeConfig, {
-      compact:
-        profileParam === "compact"
-          ? true
-          : profileParam === "desktop"
-            ? false
-            : undefined,
+      compact: profileParam === "compact" ? true : profileParam === "desktop" ? false : undefined,
     });
-    document.documentElement.dataset.viewport = profile.compact
-      ? "compact"
-      : "desktop";
+    document.documentElement.dataset.viewport = profile.compact ? "compact" : "desktop";
     installMobileGpuCompatibility(profile.compact);
 
     const sceneMode = params.get("scene") === "island" ? "island" : "world";
-    const isolationEnabled =
-      sceneMode === "world" && params.get("debug") === "1";
+    const isolationEnabled = sceneMode === "world" && params.get("debug") === "1";
     if (isolationEnabled) {
-      const { installWorldIsolationHarness } = await import(
-        "./runtime/WorldIsolationHarness"
-      );
-      if (disposed) {
-        return;
-      }
+      const { installWorldIsolationHarness } = await import("./runtime/WorldIsolationHarness");
+      if (disposed) return;
       isolationHarness = installWorldIsolationHarness(params);
     }
-    const flyMode =
-      sceneMode === "world" &&
-      (params.get("control") === "fly" || params.get("view") === "aerial");
+    const flyMode = sceneMode === "world"
+      && (params.get("control") === "fly" || params.get("view") === "aerial");
     const animationHudEnabled = params.get("diagnostics") === "1";
     document.body.dataset.scene = sceneMode;
     document.body.dataset.control = flyMode ? "fly" : "third-person";
@@ -134,137 +105,86 @@ async function bootstrap(): Promise<void> {
     const titleElement = document.querySelector<HTMLElement>(".app-title strong");
     const sceneElement = document.querySelector<HTMLElement>("#scene-mode");
     const helpElement = document.querySelector<HTMLElement>("#control-help");
-    if (versionElement) {
-      versionElement.textContent = `${APP_VERSION} · ${BUILD_LABEL}`;
-    }
-    if (titleElement) {
-      titleElement.textContent = `${WORLD_NAME} · ${APP_VERSION}`;
-    }
-    if (sceneElement) {
-      sceneElement.textContent = resolveSceneLabel(sceneMode, flyMode);
-    }
-    if (helpElement && sceneMode === "world") {
-      helpElement.textContent = flyMode ? FLY_HELP : THIRD_PERSON_HELP;
-    }
-    document.title =
-      sceneMode === "world"
-        ? `${WORLD_NAME} · ${APP_VERSION}`
-        : `${WORLD_NAME} · Island Regression`;
+    if (versionElement) versionElement.textContent = `${APP_VERSION} · ${BUILD_LABEL}`;
+    if (titleElement) titleElement.textContent = `${WORLD_NAME} · ${APP_VERSION}`;
+    if (sceneElement) sceneElement.textContent = resolveSceneLabel(sceneMode, flyMode);
+    if (helpElement && sceneMode === "world") helpElement.textContent = flyMode ? FLY_HELP : THIRD_PERSON_HELP;
+    document.title = sceneMode === "world" ? `${WORLD_NAME} · ${APP_VERSION}` : `${WORLD_NAME} · Island Regression`;
 
     uiController.initialize();
-    // The bootstrap owns the renderer session because it owns recovery: a lost
-    // device is repaired by building a fresh session on a forced backend and
-    // reconstructing the scene over it, which the app itself cannot do while it
-    // is the thing being replaced.
     const rendererRequest = resolveRendererRequest(window.location.search);
     session = await createWorldRendererSession(canvas, rendererRequest,
       window.location.search, lifetime.signal);
     if (disposed) { session.dispose(); session = undefined; return; }
     publishRendererDiagnostics(canvas, session);
-    // Reuse the entire application setup on recovery, including diagnostics
-    // and frame observers, so none retain the disposed world.
-    const initializeApp = async (session: RendererSession): Promise<void> => {
-    if (sceneMode === "island") {
-      const { IslandApp } = await import("./app/IslandApp");
-      if (disposed) {
+
+    const initializeApp = async (nextSession: RendererSession): Promise<void> => {
+      if (sceneMode === "island") {
+        const { IslandApp } = await import("./app/IslandApp");
+        if (disposed) return;
+        const island = IslandApp.create(nextSession, profile);
+        app = island;
+        await island.initialize();
         return;
       }
-      const island = IslandApp.create(session, profile);
-      app = island;
-      await island.initialize();
-      if (disposed) {
-        return;
-      }
-    } else {
+
       const { WorldApp } = await import("./app/WorldApp");
-      if (disposed) {
-        return;
-      }
-      const world = await WorldApp.create(session, profile, lifetime.signal);
+      if (disposed) return;
+      const world = await WorldApp.create(nextSession, profile, lifetime.signal);
       app = world;
-      if (disposed) {
-        disposeRuntime();
-        return;
-      }
+      if (disposed) { disposeRuntime(); return; }
+
+      uiController.attachWorld(
+        world.getExperiencePanelHost(),
+        world.getRevealController(),
+        shouldBypassStartGate(params),
+      );
+
       const character = world.getThirdPersonCharacter();
       if (character && animationHudEnabled) {
-        const { AnimationBlendingHud } = await import(
-          "./runtime/AnimationBlendingHud"
-        );
-        if (disposed) {
-          return;
-        }
+        const { AnimationBlendingHud } = await import("./runtime/AnimationBlendingHud");
+        if (disposed) return;
         const hud = new AnimationBlendingHud();
         let detachObserver: (() => void) | undefined;
-        animationHud = {
-          dispose: () => {
-            detachObserver?.();
-            hud.dispose();
-          },
-        };
+        animationHud = { dispose: () => { detachObserver?.(); hud.dispose(); } };
         hud.attachCharacter(character);
-        detachObserver = world.addFrameObserver((delta) => {
-          hud.update(delta);
-        });
+        detachObserver = world.addFrameObserver((delta) => hud.update(delta));
       }
-      const diagnosticsEnabled =
-        params.get("diagnostics") === "1" ||
-        params.get("gpuTiming") === "1" ||
-        params.get("stats") === "1";
+
+      const diagnosticsEnabled = params.get("diagnostics") === "1"
+        || params.get("gpuTiming") === "1" || params.get("stats") === "1";
       if (diagnosticsEnabled) {
-        const { WorldDiagnosticsController } = await import(
-          "./runtime/WorldDiagnosticsController"
-        );
-        if (disposed) {
-          return;
-        }
+        const { WorldDiagnosticsController } = await import("./runtime/WorldDiagnosticsController");
+        if (disposed) return;
         diagnostics = WorldDiagnosticsController.attach(world, {
           gpuTiming: params.get("gpuTiming") === "1",
           statsPanelEnabled: params.get("stats") === "1",
         });
       }
       if (params.get("qa") === "visual-matrix") {
-        const { WorldVisualMatrixRunner } = await import(
-          "./qa/WorldVisualMatrixRunner"
-        );
-        if (disposed) {
-          return;
-        }
+        const { WorldVisualMatrixRunner } = await import("./qa/WorldVisualMatrixRunner");
+        if (disposed) return;
         const runner = new WorldVisualMatrixRunner(world.attachVisualMatrix());
         visualMatrix = runner;
         void runner.start();
       }
       if (params.get("actorProof") === "1") {
-        const { ActorExtensibilityProof } = await import(
-          "./dev/ActorExtensibilityProof"
-        );
-        if (disposed) {
-          return;
-        }
+        const { ActorExtensibilityProof } = await import("./dev/ActorExtensibilityProof");
+        if (disposed) return;
         actorProof = ActorExtensibilityProof.attach(world);
       }
-    }
     };
-    await initializeApp(session);
 
-    if (disposed) {
-      disposeRuntime();
-      return;
-    }
+    await initializeApp(session);
+    if (disposed) { disposeRuntime(); return; }
     if (!app) throw new Error("Application initialization did not produce a runtime.");
     app.start();
 
-    // A lost device is not a crash the page has to survive as-is: the session
-    // reports it, the scene is released, and a fresh session on a forced
-    // backend rebuilds a playable world. `RendererRecovery` bounds this to two
-    // attempts and reports both failures rather than looping.
     recovery = new RendererRecovery<RuntimeRecoveryState | undefined>({
       capture: () => app?.captureRecoveryState?.(),
       release: releaseApp,
       restart: async (backend, state) => {
         if (disposed) return;
-        // A canvas retains its context type after disposal. A WebGPU canvas
-        // cannot become a WebGL canvas; each retry must get a fresh element.
         const replacement = canvas!.cloneNode(false) as HTMLCanvasElement;
         canvas!.replaceWith(replacement);
         canvas = replacement;
@@ -305,6 +225,10 @@ async function bootstrap(): Promise<void> {
   }
 }
 
+function shouldBypassStartGate(params: URLSearchParams): boolean {
+  return params.has("qa") || params.get("capture") === "1";
+}
+
 function disposeRuntimeSafely(
   app: RunnableApp | undefined,
   uiController: UiVisibilityController,
@@ -324,35 +248,17 @@ function disposeRuntimeSafely(
 }
 
 function disposeSafely(label: string, dispose: () => void): void {
-  try {
-    dispose();
-  } catch (error) {
-    console.warn(`[${WORLD_NAME}] ${label} cleanup failed.`, error);
-  }
+  try { dispose(); }
+  catch (error) { console.warn(`[${WORLD_NAME}] ${label} cleanup failed.`, error); }
 }
 
-function resolveSceneLabel(
-  sceneMode: "island" | "world",
-  flyMode: boolean,
-): string {
-  if (sceneMode === "island") {
-    return `${WORLD_NAME} · Island Regression`;
-  }
-  return flyMode
-    ? `${WORLD_NAME} · Continuous Grass LOD · Flight`
+function resolveSceneLabel(sceneMode: "island" | "world", flyMode: boolean): string {
+  if (sceneMode === "island") return `${WORLD_NAME} · Island Regression`;
+  return flyMode ? `${WORLD_NAME} · Continuous Grass LOD · Flight`
     : `${WORLD_NAME} · 2× Ultra-Near Grass · Drow Jump Rig`;
 }
 
-/**
- * Publishes which backend actually initialized, and why.
- *
- * Selection is allowed to fall back, so "what did we ask for" and "what are we
- * running on" are different questions and a bug report that only answers the
- * first is not actionable. Written onto the canvas so a person reading the
- * page, and the browser matrix, read the same source.
- */
-function publishRendererDiagnostics(canvas: HTMLCanvasElement,
-  session: RendererSession): void {
+function publishRendererDiagnostics(canvas: HTMLCanvasElement, session: RendererSession): void {
   const { requested, actual, fallbackReason } = session.diagnostics;
   canvas.dataset.rendererRequested = requested;
   canvas.dataset.renderer = actual;
@@ -361,7 +267,6 @@ function publishRendererDiagnostics(canvas: HTMLCanvasElement,
   else delete canvas.dataset.rendererFallback;
 }
 
-/** The one place a fatal renderer condition becomes visible to the player. */
 function presentFatalError(error: unknown): void {
   const output = document.createElement("pre");
   output.className = "startup-error";
