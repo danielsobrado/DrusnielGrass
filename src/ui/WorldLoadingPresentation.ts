@@ -3,6 +3,7 @@ import type { WorldRevealController, WorldRevealState } from "../runtime/WorldRe
 
 export interface WorldLoadingPresentationOptions {
   readonly bypassStartGate: boolean;
+  readonly setModalOverlay: (open: boolean) => void;
 }
 
 /** Decorates the existing reveal owner; it never creates a second startup veil. */
@@ -14,12 +15,17 @@ export class WorldLoadingPresentation {
   private readonly sound = document.createElement("input");
   private readonly detach: () => void;
   private disposed = false;
+  private blockedInput = false;
 
   constructor(
     private readonly reveal: WorldRevealController,
     private readonly options: WorldLoadingPresentationOptions,
   ) {
-    if (!options.bypassStartGate) reveal.holdForStart();
+    if (!options.bypassStartGate) {
+      reveal.holdForStart();
+      this.blockedInput = true;
+      options.setModalOverlay(true);
+    }
     if (this.element) this.build();
     this.detach = reveal.subscribe(this.handleState);
   }
@@ -27,6 +33,7 @@ export class WorldLoadingPresentation {
   dispose(): void {
     if (this.disposed) return;
     this.disposed = true;
+    this.releaseInput();
     this.detach();
     this.startButton.removeEventListener("click", this.handleStart);
   }
@@ -84,6 +91,13 @@ export class WorldLoadingPresentation {
     if (!this.reveal.getState().ready) return;
     hudSettingsStore.setSoundEnabled(this.sound.checked);
     this.startButton.disabled = true;
+    this.releaseInput();
     this.reveal.reveal();
   };
+
+  private releaseInput(): void {
+    if (!this.blockedInput) return;
+    this.blockedInput = false;
+    this.options.setModalOverlay(false);
+  }
 }
