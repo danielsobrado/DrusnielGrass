@@ -41,15 +41,14 @@ export type QualityId = (typeof QUALITY_IDS)[number];
 export const WIND_MODEL_IDS = Object.freeze(["cinematic", "legacy"] as const);
 export type WindModelId = (typeof WIND_MODEL_IDS)[number];
 /**
- * `legacy` until the shared field's cost is understood.
+ * The shared field, which measures the same as the model it replaces.
  *
- * The shared field is correct — bit-identical to the model it was ported from,
- * and agreeing between CPU and GPU — but measures 15.5 ms median against 7.6 ms
- * for the per-material model, and three attempts to find that cost in texture
- * fetches each failed to move it. Shipping a default nobody measured as
- * affordable would be the wrong way round.
+ * It was briefly defaulted to `legacy` on the strength of a reported 2x cost
+ * that turned out to be four compounding benchmark errors; see
+ * `WorldWindNodes` for what they were. `legacy` remains selectable as the
+ * comparison baseline.
  */
-export const DEFAULT_WIND_MODEL: WindModelId = "legacy";
+export const DEFAULT_WIND_MODEL: WindModelId = "cinematic";
 
 export const DEFAULT_WEATHER_PRESET: WeatherPresetId = "drusniel";
 export const DEFAULT_GRASS_SILHOUETTE: GrassSilhouetteId = "blade";

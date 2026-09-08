@@ -17,37 +17,43 @@ import { WIND_LATTICE_PERIOD, getWindGradientTexture } from "./WorldWindLattice"
  * only coherent if the near blades, the mid layer and the far cards are reading
  * one field rather than three that happen to look similar.
  *
- * **Cost, measured — and the shader is not where it is.**
+ * **Cost: there is no regression. Four measurements said otherwise and all four
+ * were wrong.**
  *
- * A full evaluation is seven gradient-noise lookups reading four lattice texels
- * each: twenty-eight fetches per vertex. That looks like the expensive thing,
- * and it is not. With the frame timer unlocked from vsync and the quality tier
- * pinned so the governor cannot equalise the comparison away:
+ * The field was reported as costing 14 ms against 5 ms for the per-material
+ * gust model it replaces. It does not. Measured with `check-wind-cost.mjs`,
+ * three interleaved runs of each on a settled world:
  *
- * | path | frame | GPU scene | draw (CPU) | grass update (CPU) |
- * | ---- | ----- | --------- | ---------- | ------------------ |
- * | per-material gust model | 5.3 ms | 0.13 ms | 5.05 ms | 0.09 ms |
- * | shared field, baked, 1 fetch | 14.0 ms | 0.20 ms | 11.07 ms | 2.43 ms |
- * | shared field, full, 28 fetches | 15.0 ms | — | — | — |
+ * | run | fps | GPU scene | draw (CPU) | draws |
+ * | --- | --- | --------- | ---------- | ----- |
+ * | legacy | 78.3 | 0.20 ms | 11.29 ms | 58,397 |
+ * | cinematic | 78.6 | 0.20 ms | 11.42 ms | 58,394 |
+ * | legacy | 78.3 | 0.20 ms | 11.33 ms | 58,457 |
+ * | cinematic | 79.8 | 0.20 ms | 11.07 ms | 59,461 |
  *
- * The GPU cost of the field is 0.07 ms. Twenty-eight fetches against one is
- * worth a millisecond of frame time, which is why baking looked like it did
- * nothing when the measurement was still vsync-quantised. The regression is
- * CPU: draw submission doubles and the grass update phase goes up
- * twenty-sevenfold, neither of which is shader work.
+ * Indistinguishable. The GPU cost of the field is around 0.07 ms and its CPU
+ * cost is not measurable above run-to-run noise.
  *
- * Two earlier measurements were wrong and are recorded so nobody repeats them.
- * Frame times of 7.6 and 15.1 ms are consecutive multiples of a 131 Hz refresh,
- * so unlocked timing is required to see anything between them. And the grass
- * quality governor targets 60 FPS by adapting density, so it equalises any two
- * configurations that both miss the target — three different shader workloads
- * measured identically because the governor made them identical, not because
- * the work was the same. Pin the tier.
+ * Four ways an aggregate frame time lied, each worth knowing before trusting
+ * one again:
  *
- * So the shared field is opt-in behind `?windModel=cinematic` rather than the
- * default, and the remaining work is on the CPU side rather than in this file.
- * The field itself is correct: bit-identical to the model it was ported from,
- * and agreeing between CPU and GPU to the readback's quantisation floor.
+ * 1. Headless Chrome quantises frame time to vsync multiples — 7.6 and 15.1 ms
+ *    at 131 Hz. Anything between them is invisible. Launch unlocked.
+ * 2. The grass quality governor targets 60 FPS by adapting density, so it
+ *    equalises any two configurations that both miss it. Pin the tier.
+ * 3. Near-grass streaming has a 2.5 ms per-frame build budget, and a run
+ *    sampled before its tiles settle reports that budget as grass CPU. The
+ *    reported 2.43 ms "wind" cost was 2.43 ms of streaming against a 2.5 ms
+ *    budget.
+ * 4. Both models were given the same twenty seconds to settle, which was long
+ *    enough for one and not the other. The comparison was a settled world
+ *    against a loading one, and that is the whole of the reported regression.
+ *
+ * One real difference survives and is not understood: the world occasionally
+ * settles into a second state at roughly 176 fps and 125,000 draws instead of
+ * 78 fps and 58,000. It appeared once in six runs, in a legacy run, and affects
+ * the benchmark rather than the wind — both models measure the same within
+ * whichever state they land in.
  */
 
 const DEG_TO_RAD = Math.PI / 180;

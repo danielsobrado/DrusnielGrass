@@ -19,6 +19,7 @@
     "test:gpu-timer-lifecycle": "node scripts/verify-gpu-timer-lifecycle.mjs",
     "test:gpu-timing-parity": "node scripts/verify-gpu-timing-parity.mjs",
     "test:renderer-matrix": "node scripts/check-renderer-matrix.mjs",
+    "test:wind-cost": "node scripts/check-wind-cost.mjs",
     "test:production-node-wiring": "node scripts/verify-production-node-wiring.mjs",
     "test:production-renderers": "node scripts/check-production-renderers.mjs",
     "test:bootstrap-recovery": "node scripts/check-bootstrap-recovery.mjs",

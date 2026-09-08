@@ -4,7 +4,9 @@ import { disposeWindGradientTexture } from "./WorldWindLattice";
 import { WorldWindBake, WIND_BAKE_WORLD_SIZE } from "./WorldWindBake";
 import type { Vector3, WebGPURenderer } from "three/webgpu";
 import type { WorldExperience } from "../../app/WorldExperience";
-import { WIND_MODEL_IDS, resolveCatalogId } from "../experience/WorldExperienceCatalog";
+import {
+  DEFAULT_WIND_MODEL, WIND_MODEL_IDS, resolveCatalogId,
+} from "../experience/WorldExperienceCatalog";
 
 /**
  * The world's wind: one field, advanced once, published once.
@@ -85,7 +87,9 @@ export class WorldWindSystem {
 export function attachSharedWind(experience: WorldExperience | undefined,
   renderer: WebGPURenderer, params: URLSearchParams,
   focus: () => Vector3): WorldWindSystem | undefined {
-  if (resolveCatalogId(WIND_MODEL_IDS, params.get("windModel")) !== "cinematic") {
+  const model = resolveCatalogId(WIND_MODEL_IDS, params.get("windModel"))
+    ?? DEFAULT_WIND_MODEL;
+  if (model !== "cinematic") {
     return undefined;
   }
   let wind: WorldWindSystem | undefined;
