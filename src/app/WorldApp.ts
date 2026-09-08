@@ -4,9 +4,11 @@ import {
   resolveGrassArtDirectionKey,
   type GrassArtDirection,
 } from "../grass/GrassArtDirection";
+import { grassInteractionField } from "../grass/interaction/GrassInteractionField";
 import { grassTrailField } from "../grass/interaction/GrassTrailField";
 import { WorldDevelopmentHooks } from "./WorldDevelopmentHooks";
 import { WorldExperience } from "./WorldExperience";
+import { WorldExperiencePanelHostAdapter } from "./WorldExperiencePanelHost";
 import { WorldFrameSubsystems } from "./WorldFrameSubsystems";
 import { WorldExperienceConfigLoader } from "../world/experience/WorldExperienceConfigLoader";
 import { DEFAULT_WEATHER_PRESET } from "../world/experience/WorldExperienceCatalog";
@@ -15,7 +17,9 @@ import {
   type WorldWeatherState,
 } from "../world/weather/WorldWeatherState";
 import { WorldLightingState } from "../render/WorldLightingState";
+import { hudSettingsStore } from "../runtime/HudSettingsStore";
 import { WorldViewState } from "../runtime/WorldViewState";
+import type { WorldExperiencePanelHost } from "../ui/WorldExperiencePanel";
 import type { WorldExperienceConfig } from "../world/experience/WorldExperienceConfig";
 import { FlyWorldController } from "../controls/FlyWorldController";
 import { ThirdPersonController } from "../controls/ThirdPersonController";
@@ -82,6 +86,7 @@ export class WorldApp {
   private readonly statusHud = new WorldStatusHud(document.querySelector<HTMLElement>("#world-stats"));
   private readonly drawingBufferSize = new THREE.Vector2();
   private pixelRatio = 1;
+  private renderScale = 1;
   private readonly flyMode: boolean;
   private frameHandle = 0;
   private watchdogHandle = 0;
@@ -99,6 +104,7 @@ export class WorldApp {
   private rendererPaused = false;
   private subsystems!: WorldFrameSubsystems;
   private viewState?: WorldViewState;
+  private experiencePanelHost?: WorldExperiencePanelHostAdapter;
   private grassInitializing = true;
   private grassInitializationError?: string;
 
@@ -118,6 +124,7 @@ export class WorldApp {
 
     this.renderer = session.renderer;
     this.lighting = new WorldLightingState(profile);
+    this.renderScale = hudSettingsStore.getRenderScale();
     setGrassWeatherPaletteMultiplier([1, 1, 1]);
     const canvas = this.renderer.domElement;
 
@@ -165,6 +172,7 @@ export class WorldApp {
         renderer: this.renderer,
         params,
         lighting: this.lighting,
+        storedPreset: hudSettingsStore.getWeather(),
         focus: () => controls?.getStreamingPosition() ?? spawn.position,
         onPresetApplied: (preset) => {
           setGrassWeatherPaletteMultiplier(preset.paletteMultiplier);
@@ -245,6 +253,16 @@ export class WorldApp {
           );
       this.controls = controls;
       this.viewState = new WorldViewState(controls, useFlyControls ? "fly" : "play");
+      grassInteractionField.setInteractionEnabled(hudSettingsStore.getInteractionEnabled());
+      if (hudSettingsStore.getInteractionEnabled()) {
+        grassInteractionField.reset(controls.getStreamingPosition());
+      }
+      this.experiencePanelHost = new WorldExperiencePanelHostAdapter({
+        weather: this.weather,
+        viewState: this.viewState,
+        getRenderScale: () => this.renderScale,
+        setRenderScale: this.setRenderScale,
+      });
       this.development = new WorldDevelopmentHooks({
         scene: this.scene, camera: this.camera, renderer: this.renderer,
         field: this.field, profile, worldConfig: config, controls,
@@ -356,9 +374,7 @@ export class WorldApp {
   }
 
   start(): void {
-    if (this.running || this.disposed) {
-      return;
-    }
+    if (this.running || this.disposed) return;
     this.running = true;
     this.clock.start();
     this.lastFrameTimestamp = performance.now();
@@ -370,9 +386,16 @@ export class WorldApp {
   }
 
   getThirdPersonCharacter(): SnowflowCharacter | undefined {
-    return this.controls instanceof ThirdPersonController
-      ? this.controls.getCharacter()
-      : undefined;
+    return this.controls instanceof ThirdPersonController ? this.controls.getCharacter() : undefined;
+  }
+
+  getExperiencePanelHost(): WorldExperiencePanelHost {
+    if (!this.experiencePanelHost) throw new Error("World experience panel host is unavailable.");
+    return this.experiencePanelHost;
+  }
+
+  getRevealController(): WorldRevealController {
+    return this.reveal;
   }
 
   captureRecoveryState = () => this.controls.captureRecoveryState();
@@ -380,14 +403,10 @@ export class WorldApp {
 
   addFrameObserver(observer: (deltaSeconds: number) => void): () => void {
     this.frameObservers.add(observer);
-    return () => {
-      this.frameObservers.delete(observer);
-    };
+    return () => { this.frameObservers.delete(observer); };
   }
 
-  attachActorProof(
-    observer: (deltaSeconds: number) => void,
-  ): WorldActorProofContext {
+  attachActorProof(observer: (deltaSeconds: number) => void): WorldActorProofContext {
     return this.development.attachActorProof(observer);
   }
 
@@ -400,9 +419,7 @@ export class WorldApp {
   }
 
   dispose(): void {
-    if (this.disposed) {
-      return;
-    }
+    if (this.disposed) return;
     this.disposed = true;
     this.running = false;
     this.frameObservers.clear();
@@ -420,6 +437,7 @@ export class WorldApp {
     this.disposeSafely("Experience", () => this.experience?.dispose());
     this.weather = undefined;
     this.experience = undefined;
+    this.experiencePanelHost = undefined;
     this.disposeSafely("View state", () => this.viewState?.dispose());
     this.disposeSafely("Development hooks", () => this.development.dispose());
     this.disposeSafely("Environment", () => this.environment.dispose());
@@ -427,12 +445,8 @@ export class WorldApp {
     setGrassWeatherPaletteMultiplier([1, 1, 1]);
   }
 
-  private readonly applyGrassArtDirection = (
-    direction: GrassArtDirection,
-  ): void => {
-    if (this.disposed) {
-      return;
-    }
+  private readonly applyGrassArtDirection = (direction: GrassArtDirection): void => {
+    if (this.disposed) return;
     this.grassArtDirection = direction;
     this.terrain.setGrassArtDirection(direction);
     this.grass.setArtDirection(direction);
@@ -442,14 +456,10 @@ export class WorldApp {
   private async initializeGrass(): Promise<void> {
     try {
       await this.grass.initialize();
-      if (this.disposed) {
-        return;
-      }
+      if (this.disposed) return;
       await this.development.attachAccentAtlasDebug(this.grass.getDetailFoliageAtlas());
     } catch (error) {
-      if (this.disposed) {
-        return;
-      }
+      if (this.disposed) return;
       console.error("[Drusniel World] Grass initialization failed.", error);
       this.grassInitializationError = this.runtimeGuard.formatError(error);
       this.grassEnabled = false;
@@ -463,10 +473,7 @@ export class WorldApp {
   }
 
   private render = (): void => {
-    if (!this.running || this.disposed) {
-      return;
-    }
-
+    if (!this.running || this.disposed) return;
     try {
       this.renderFrame();
     } catch (error) {
@@ -476,10 +483,7 @@ export class WorldApp {
       this.runtimeGuard.recordSubsystemFailure("frame", error);
       return;
     }
-
-    if (this.running && !this.disposed) {
-      this.frameHandle = requestAnimationFrame(this.render);
-    }
+    if (this.running && !this.disposed) this.frameHandle = requestAnimationFrame(this.render);
   };
 
   private renderFrame(): void {
@@ -496,11 +500,8 @@ export class WorldApp {
     this.streamingBuildDeadline = performance.now() + streamingBudgetMs;
     this.renderer.info.reset();
     this.frameMetrics.beginFrame(deltaSeconds);
-
     this.subsystems.run(deltaSeconds, (name) => {
-      if (name === "controls") {
-        this.notifyFrameObservers(deltaSeconds);
-      }
+      if (name === "controls") this.notifyFrameObservers(deltaSeconds);
     });
   }
 
@@ -516,9 +517,7 @@ export class WorldApp {
   }
 
   private readonly updateControls = (deltaSeconds: number): void => {
-    if (!this.minimap.isOpen()) {
-      this.controls.update(deltaSeconds);
-    }
+    if (!this.minimap.isOpen()) this.controls.update(deltaSeconds);
   };
 
   private readonly updateEnvironment = (deltaSeconds: number): void => {
@@ -537,35 +536,25 @@ export class WorldApp {
 
   private readonly updateTerrain = (): void => {
     const grassBuildReserveMs = this.profile.compact
-      ? WORLD_COMPACT_GRASS_BUILD_RESERVE_MS
-      : WORLD_DESKTOP_GRASS_BUILD_RESERVE_MS;
+      ? WORLD_COMPACT_GRASS_BUILD_RESERVE_MS : WORLD_DESKTOP_GRASS_BUILD_RESERVE_MS;
     const stoneBuildReserveMs = this.profile.compact
-      ? WORLD_COMPACT_STONE_BUILD_RESERVE_MS
-      : WORLD_DESKTOP_STONE_BUILD_RESERVE_MS;
-    const terrainBuildDeadline = this.streamingBuildDeadline - grassBuildReserveMs - stoneBuildReserveMs;
+      ? WORLD_COMPACT_STONE_BUILD_RESERVE_MS : WORLD_DESKTOP_STONE_BUILD_RESERVE_MS;
     this.terrain.update(
       this.controls.getStreamingPosition(),
-      terrainBuildDeadline,
+      this.streamingBuildDeadline - grassBuildReserveMs - stoneBuildReserveMs,
     );
   };
 
   private readonly updateStones = (): void => {
     const grassBuildReserveMs = this.profile.compact
-      ? WORLD_COMPACT_GRASS_BUILD_RESERVE_MS
-      : WORLD_DESKTOP_GRASS_BUILD_RESERVE_MS;
-    const stoneBuildDeadline = this.streamingBuildDeadline - grassBuildReserveMs;
-    this.stones.update(this.controls.getStreamingPosition(), stoneBuildDeadline);
+      ? WORLD_COMPACT_GRASS_BUILD_RESERVE_MS : WORLD_DESKTOP_GRASS_BUILD_RESERVE_MS;
+    this.stones.update(this.controls.getStreamingPosition(), this.streamingBuildDeadline - grassBuildReserveMs);
   };
 
   private readonly updateGrass = (deltaSeconds: number): void => {
     grassTrailField.render(deltaSeconds);
     const cameraGroundHeight = this.flyMode ? this.sampleGroundHeight(this.camera.position) : undefined;
-    this.grass.update(
-      deltaSeconds,
-      this.camera,
-      cameraGroundHeight,
-      this.streamingBuildDeadline,
-    );
+    this.grass.update(deltaSeconds, this.camera, cameraGroundHeight, this.streamingBuildDeadline);
   };
 
   private readonly renderScene = (): void => {
@@ -576,18 +565,13 @@ export class WorldApp {
   };
 
   private readonly checkFrameHeartbeat = (): void => {
-    if (!this.running || this.disposed || document.hidden) {
-      return;
-    }
+    if (!this.running || this.disposed || document.hidden) return;
     if (this.grassInitializing) {
       this.lastFrameTimestamp = performance.now();
       return;
     }
     const stalledForMs = performance.now() - this.lastFrameTimestamp;
-    if (stalledForMs < WORLD_FRAME_STALL_THRESHOLD_MS) {
-      return;
-    }
-
+    if (stalledForMs < WORLD_FRAME_STALL_THRESHOLD_MS) return;
     this.runtimeGuard.recordWatchdogRestart(stalledForMs);
     this.lastFrameTimestamp = performance.now();
     this.clock.stop();
@@ -615,18 +599,10 @@ export class WorldApp {
       run: this.updateStones,
       onFailure: () => this.disposeSafely("Stone system", () => this.stones.dispose()),
     });
-    runner.register({
-      name: "grass",
-      run: this.updateGrass,
-      onFailure: () => this.disposeGrassResources(),
-    });
+    runner.register({ name: "grass", run: this.updateGrass, onFailure: () => this.disposeGrassResources() });
     runner.register({
       name: "renderer",
-      run: () => {
-        if (!this.rendererPaused) {
-          this.renderScene();
-        }
-      },
+      run: () => { if (!this.rendererPaused) this.renderScene(); },
       onFailure: () => {},
     });
     runner.register({ name: "hud", run: this.updateHud, onFailure: () => {} });
@@ -638,38 +614,36 @@ export class WorldApp {
   }
 
   private disposeSafely(label: string, dispose: () => void): void {
-    try {
-      dispose();
-    } catch (error) {
-      console.warn(`[Drusniel World] ${label} cleanup failed.`, error);
-    }
+    try { dispose(); }
+    catch (error) { console.warn(`[Drusniel World] ${label} cleanup failed.`, error); }
   }
+
+  private readonly setRenderScale = (value: number): void => {
+    if (this.disposed || !Number.isFinite(value)) return;
+    const next = THREE.MathUtils.clamp(value, 0.5, 1);
+    if (next === this.renderScale) return;
+    this.renderScale = next;
+    this.applyRendererSize();
+    this.applyGrassViewportScale();
+  };
 
   private applyRendererSize(): void {
     const viewport = resolveViewportSize();
-    this.pixelRatio = resolvePixelRatio(this.profile.maxPixelRatio);
+    this.pixelRatio = resolvePixelRatio(this.profile.maxPixelRatio * this.renderScale);
     this.renderer.setPixelRatio(this.pixelRatio);
     this.renderer.setSize(viewport.width, viewport.height);
   }
 
   private applyGrassViewportScale(): void {
-    const bufferHeight = this.renderer.getDrawingBufferSize(
-      this.drawingBufferSize,
-    ).y;
-    if (bufferHeight <= 0) {
-      return;
-    }
-    const halfFovTangent = Math.tan(
-      THREE.MathUtils.degToRad(this.camera.fov) * 0.5,
-    );
+    const bufferHeight = this.renderer.getDrawingBufferSize(this.drawingBufferSize).y;
+    if (bufferHeight <= 0) return;
+    const halfFovTangent = Math.tan(THREE.MathUtils.degToRad(this.camera.fov) * 0.5);
     this.grass.setViewportPixelScale((2 * halfFovTangent) / bufferHeight);
   }
 
   private readonly updateHud = (deltaSeconds: number): void => {
     this.minimap.update();
-    if (!this.statusHud.shouldUpdate(deltaSeconds)) {
-      return;
-    }
+    if (!this.statusHud.shouldUpdate(deltaSeconds)) return;
     const terrain = this.terrain.getDiagnostics();
     const stones = this.stones.getDiagnostics();
     const grass = this.grass.getDiagnostics();
@@ -705,9 +679,7 @@ export class WorldApp {
   }
 
   private readonly handleResize = (): void => {
-    if (this.disposed) {
-      return;
-    }
+    if (this.disposed) return;
     this.camera.aspect = resolveViewportSize().aspect;
     this.camera.updateProjectionMatrix();
     this.applyRendererSize();
@@ -716,9 +688,6 @@ export class WorldApp {
 }
 
 function disposeConstructionSafely(label: string, dispose: () => void): void {
-  try {
-    dispose();
-  } catch (error) {
-    console.warn(`[Drusniel World] ${label} construction rollback failed.`, error);
-  }
+  try { dispose(); }
+  catch (error) { console.warn(`[Drusniel World] ${label} construction rollback failed.`, error); }
 }
