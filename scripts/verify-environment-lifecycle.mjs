@@ -252,20 +252,19 @@ assert(
     environment.includes("new WorldCloudShadowController(") &&
     environment.includes("this.cloudLighting.update(safeDelta, focus, this.elapsedSeconds)") &&
     environment.includes("this.cloudShadow.update(safeDelta, focus, this.elapsedSeconds)") &&
-    cloudShadowController.includes("new WorldCloudShadowNodeMap(renderer, profile, capabilities)") &&
+    cloudShadowController.includes(
+      "new WorldCloudShadowNodeMap(renderer, profile, capabilities, worldLighting)",
+    ) &&
     cloudShadowController.includes("this.map.update(focus, elapsedSeconds)") &&
-    // The scene-walking integrator is gone by design: a node material receives
-    // the shadow field when it is constructed, so the contract that replaced it
-    // is that the controller publishes the field and the environment hands it
-    // to every world material through one context.
     cloudShadowController.includes("get nodes()") &&
     environment.includes("new WorldNodeMaterialContext(") &&
     environment.includes("this.cloudShadow.nodes") &&
+    environment.includes("this.lighting") &&
     cloudShadowController.includes("WorldCloudShadowDebugPanel.createIfRequested") &&
     cloudLighting.includes("getAppliedDirectTransmittance(): number") &&
     cloudLighting.includes("this.hemisphere.intensity = WORLD_DEFAULT_HEMISPHERE_INTENSITY") &&
     worldApp.includes("this.environment.update(deltaSeconds, focus);"),
-  "Environment ownership must keep global weather, spatial correction, diagnostics, and ambient fill coherent.",
+  "Environment ownership must keep global weather, dynamic render lighting, spatial correction, diagnostics, and ambient fill coherent.",
 );
 assert(
   cloudShadowDebug.includes("Spatial cloud shadow") &&
@@ -282,9 +281,6 @@ assert(
 
 assert(
   environment.includes("private readonly shadowMapSize: number") &&
-    // Still clamped to what the device can allocate; the limit is read from the
-    // session's capability probe rather than a WebGL capabilities object,
-    // because the node renderer reports its limits through the backend.
     /this\.shadowMapSize = Math\.max\([\s\S]*?Math\.min\([\s\S]*?this\.profile\.shadowMapSize,[\s\S]*?this\.capabilities\.maxTextureSize/.test(
       environment,
     ) &&
@@ -294,25 +290,24 @@ assert(
 );
 assert(
   environment.includes("private disposed = false") &&
-    /sky = new WorldSkyNode\([\s\S]*?this\.sky = sky;[\s\S]*?this\.scene\.add\(this\.hemisphere, this\.sun, this\.sun\.target\)/.test(
+    /sky = new WorldSkyNode\([\s\S]*?this\.sky = sky;[\s\S]*?this\.scene\.add\(this\.hemisphere, this\.ambient, this\.sun, this\.sun\.target\)/.test(
       environment,
     ) &&
-    /catch \(error\) \{[\s\S]*?disposeSafely\(sky, "Sky"\);[\s\S]*?disposeSafely\(this\.cloudShadow, "Cloud shadow system"\);[\s\S]*?disposeSafely\(this\.cloudLighting, "Cloud lighting"\);[\s\S]*?disposeSafely\(this\.sun\.shadow, "Sun shadow"\);[\s\S]*?this\.scene\.remove\(this\.hemisphere, this\.sun, this\.sun\.target\);[\s\S]*?throw error;/.test(
+    /catch \(error\) \{[\s\S]*?disposeSafely\(sky, "Sky"\);[\s\S]*?disposeSafely\(this\.cloudShadow, "Cloud shadow system"\);[\s\S]*?disposeSafely\(this\.cloudLighting, "Cloud lighting"\);[\s\S]*?disposeSafely\(this\.sun\.shadow, "Sun shadow"\);[\s\S]*?this\.scene\.remove\(this\.hemisphere, this\.ambient, this\.sun, this\.sun\.target\);[\s\S]*?throw error;/.test(
       environment,
     ),
-  "Environment construction must roll back the cloud wrapper, lighting, sky, and local shadow resources.",
+  "Environment construction must roll back ambient, hemisphere, cloud, sky, and local shadow resources.",
 );
 assert(
   /dispose\(\): void \{[\s\S]*?if \(this\.disposed\)[\s\S]*?this\.disposed = true;[\s\S]*?disposeSafely\(this\.sky, "Sky"\);[\s\S]*?disposeSafely\(this\.cloudShadow, "Cloud shadow system"\);[\s\S]*?disposeSafely\(this\.cloudLighting, "Cloud lighting"\);[\s\S]*?disposeSafely\(this\.sun\.shadow, "Sun shadow"\)/.test(
     environment,
   ) &&
+    environment.includes("this.scene.remove(this.hemisphere, this.ambient, this.sun, this.sun.target)") &&
     cloudShadowController.includes('disposeSafely(this.debug, "Cloud shadow diagnostics")') &&
-    // No integrator to release: the node route injects the field at material
-    // construction, so the map is the controller's only render owner.
     cloudShadowController.includes('disposeSafely(this.map, "Cloud shadow map")'),
-  "Environment teardown must release every cloud/debug/shadow owner and remain idempotent.",
+  "Environment teardown must release every light, cloud/debug/shadow owner and remain idempotent.",
 );
 
 console.log(
-  "[environment-lifecycle] Camera-relative sky, wind-coherent anti-banded temporal clouds, altitude-aware bounded spatial direct-light shadows, context-safe diagnostics, coherent weather grade, GPU-safe local shadows, restored PMREM, and fail-soft ownership verified.",
+  "[environment-lifecycle] Camera-relative sky, wind-coherent anti-banded temporal clouds, altitude-aware bounded spatial direct-light shadows, dynamic render lighting, context-safe diagnostics, coherent weather grade, GPU-safe local shadows, restored PMREM, and fail-soft ownership verified.",
 );
