@@ -1,4 +1,11 @@
 import * as THREE from "three";
+import { createStoneNodeMaterial } from "./StoneNodeMaterialFactory";
+import { createStoneSurfaceAttributes } from "./StoneSurfaceNodes";
+import { prepareStoneNodeGeometry } from "./StoneNodeGeometry";
+import type {
+  StoneCoarseNodeMaterial, StoneSurfaceNodeMaterial,
+} from "./StoneSurfaceNodeMaterial";
+import type { WorldNodeMaterialContext } from "../../render/WorldNodeMaterialContext";
 import { disposeResources } from "../../render/ResourceDisposal";
 import type { WorldConfig } from "../WorldConfig";
 import {
@@ -6,10 +13,6 @@ import {
   type StoneClearanceRegistration,
 } from "./StoneClearance";
 import type { StoneField } from "./StoneField";
-import {
-  applyStoneCoarseSurfaceShader,
-  applyStoneSurfaceShader,
-} from "./StoneGrowthShader";
 import {
   StoneRenderBatchBuilder,
   type StoneRenderBatchBuildJob,
@@ -37,8 +40,8 @@ interface ActiveStoneBuild {
 }
 
 interface StoneRuntimeResources {
-  readonly detailMaterial: THREE.MeshLambertMaterial;
-  readonly coarseMaterial: THREE.MeshLambertMaterial;
+  readonly detailMaterial: StoneSurfaceNodeMaterial | StoneCoarseNodeMaterial;
+  readonly coarseMaterial: StoneSurfaceNodeMaterial | StoneCoarseNodeMaterial;
   readonly builder: StoneRenderBatchBuilder;
   readonly clearanceRegistration: StoneClearanceRegistration;
   readonly grainTexture?: THREE.Texture;
@@ -68,8 +71,8 @@ export class WorldStoneSystem {
   private readonly desired = new Map<string, StoneBatchRequest>();
   /** Negative cache prevents deterministic empty batches rebuilding on every move. */
   private readonly emptySignatures = new Map<string, string>();
-  private readonly detailMaterial: THREE.MeshLambertMaterial;
-  private readonly coarseMaterial: THREE.MeshLambertMaterial;
+  private readonly detailMaterial: StoneRuntimeResources["detailMaterial"];
+  private readonly coarseMaterial: StoneRuntimeResources["coarseMaterial"];
   private readonly mossExposureDirection = new THREE.Vector3();
   private readonly builder: StoneRenderBatchBuilder;
   private readonly clearanceRegistration: StoneClearanceRegistration;
@@ -89,6 +92,7 @@ export class WorldStoneSystem {
     private readonly config: WorldConfig,
     private readonly compact: boolean,
     private readonly receiveShadows: boolean,
+    materialContext: WorldNodeMaterialContext,
   ) {
     this.enabled = config.stonesEnabled >= 1;
     this.coarseShaderMinimumDistance = Math.max(
@@ -118,6 +122,7 @@ export class WorldStoneSystem {
       config,
       this.mossExposureDirection,
       this.enabled,
+      materialContext,
     );
     this.detailMaterial = resources.detailMaterial;
     this.coarseMaterial = resources.coarseMaterial;
@@ -349,6 +354,7 @@ export class WorldStoneSystem {
 
     let batch: StoneBatch | undefined;
     try {
+      prepareStoneNodeGeometry(result.geometry);
       const useDetailMaterial =
         result.hasDetailedGeometry || !this.isCoarseShaderSafe(request);
       const mesh = new THREE.Mesh(
@@ -427,18 +433,13 @@ function createStoneRuntimeResources(
   config: WorldConfig,
   mossExposureDirection: THREE.Vector3,
   enabled: boolean,
+  materialContext: WorldNodeMaterialContext,
 ): StoneRuntimeResources {
-  let detailMaterial: THREE.MeshLambertMaterial | undefined;
-  let coarseMaterial: THREE.MeshLambertMaterial | undefined;
+  let detailMaterial: StoneRuntimeResources["detailMaterial"] | undefined;
+  let coarseMaterial: StoneRuntimeResources["coarseMaterial"] | undefined;
   let grainTexture: THREE.Texture | undefined;
   let clearanceRegistration: StoneClearanceRegistration | undefined;
   try {
-    detailMaterial = new THREE.MeshLambertMaterial({ vertexColors: true });
-    detailMaterial.name = "world-stone-detail-material";
-    detailMaterial.dithering = true;
-    coarseMaterial = new THREE.MeshLambertMaterial({ vertexColors: true });
-    coarseMaterial.name = "world-stone-coarse-material";
-    coarseMaterial.dithering = false;
     const builder = new StoneRenderBatchBuilder(
       stoneField,
       config,
@@ -448,10 +449,18 @@ function createStoneRuntimeResources(
     if (enabled && stoneGrainEnabled(config)) {
       grainTexture = createGrainTexture();
     }
-    if (enabled) {
-      applyStoneSurfaceShader(detailMaterial, config, grainTexture);
-      applyStoneCoarseSurfaceShader(coarseMaterial);
-    }
+    // Both variants come from the factory the stone comparison measures, so the
+    // world cannot draw a material the gate never checked. If grain is disabled
+    // or unavailable, omit that optional graph instead of loading unowned textures.
+    const attributes = createStoneSurfaceAttributes();
+    detailMaterial = createStoneNodeMaterial(config, "detail", attributes,
+      grainTexture, materialContext);
+    detailMaterial.name = "world-stone-detail-material";
+    detailMaterial.dithering = true;
+    coarseMaterial = createStoneNodeMaterial(config, "coarse", attributes,
+      grainTexture, materialContext);
+    coarseMaterial.name = "world-stone-coarse-material";
+    coarseMaterial.dithering = false;
 
     clearanceRegistration = registerStoneClearanceField(
       enabled ? stoneField : undefined,

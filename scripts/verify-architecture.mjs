@@ -119,6 +119,10 @@ const cascadeSystem = read("src/world/hydrology/WorldCascadeSystem.ts");
 const waterBedShader = read("src/world/hydrology/WaterBedShader.ts");
 const waterBedTexture = read("src/world/hydrology/WaterBedTexture.ts");
 const waterBedMaterial = read("src/world/hydrology/WaterBedMaterialController.ts");
+// The bed's opaque, depth-writing character moved into the node material with
+// the migration; the controller still owns the texture and the disposal.
+const waterBedNodeMaterial = read("src/world/hydrology/WaterBedNodeMaterial.ts");
+const waterSurfaceNodeMaterial = read("src/world/hydrology/WaterSurfaceNodeMaterial.ts");
 const waterBedMaterialShader = read(
   "src/world/hydrology/WaterBedMaterialShader.ts",
 );
@@ -236,7 +240,9 @@ assert(
 
 assert(
   lineCount(terrainStreamer) <= TERRAIN_STREAMER_MAX_LINES &&
-    terrainStreamer.includes("TerrainMaterialController") &&
+    // The streamer must still delegate the surface material to a controller
+    // rather than construct shaders; the controller is the node one now.
+    terrainStreamer.includes("TerrainNodeMaterialController") &&
     terrainStreamer.includes("WaterMaterialController") &&
     terrainStreamer.includes("WaterBedMaterialController") &&
     terrainStreamer.includes("WaterInteractionField") &&
@@ -368,7 +374,10 @@ assert(
     cascadeGeometry.includes("BufferGeometry") &&
     cascadeGeometry.includes("boundingSphere") &&
     !cascadeShader.includes("THREE.") &&
-    cascadeMaterial.includes("onBeforeCompile") &&
+    // The controller still owns the curtain's shading and its noise texture;
+    // it builds a node material over its own uniform table now rather than
+    // patching a stock one, so the node construction is what is pinned here.
+    cascadeMaterial.includes("new WaterCascadeNodeMaterial(this.uniforms)") &&
     cascadeMaterial.includes("noiseTexture.dispose()") &&
     cascadeSystem.includes("this.scene.remove") &&
     cascadeSystem.includes("geometry.dispose()"),
@@ -400,9 +409,9 @@ assert(
     !waterBedShader.includes("waterResolveBedPosition") &&
     !waterBedShader.includes("THREE.") &&
     waterBedMaterial.includes("class WaterBedMaterialController") &&
-    waterBedMaterial.includes("MeshLambertMaterial") &&
-    waterBedMaterial.includes("depthWrite: true") &&
-    waterBedMaterial.includes("transparent: false") &&
+    waterBedNodeMaterial.includes("MeshLambertNodeMaterial") &&
+    waterBedNodeMaterial.includes("this.depthWrite = true") &&
+    waterBedNodeMaterial.includes("this.transparent = false") &&
     waterBedMaterial.includes("createWaterBedTexture") &&
     waterBedMaterial.includes(
       "disposeResources([this.bedTexture, this.material])",
@@ -419,17 +428,20 @@ assert(
   lineCount(waterMaterial) <= WATER_MATERIAL_MAX_LINES &&
     lineCount(waterShader) <= WATER_SHADER_MAX_LINES &&
     waterMaterial.includes("class WaterMaterialController") &&
-    waterMaterial.includes("MeshPhysicalMaterial") &&
-    waterMaterial.includes("THREE.DoubleSide") &&
+    waterSurfaceNodeMaterial.includes("MeshPhysicalNodeMaterial") &&
+    waterSurfaceNodeMaterial.includes("this.side = DoubleSide") &&
     waterMaterial.includes("createWaterFlowNoiseTexture") &&
     waterMaterial.includes(
       "disposeResources([this.flowNoiseTexture, this.material])",
     ) &&
     !waterMaterial.includes("createWaterBedTexture") &&
     !waterMaterial.includes("bedTexture") &&
-    waterMaterial.includes('from "./WaterShader"') &&
-    waterMaterial.includes("onBeforeCompile") &&
-    waterMaterial.includes("depthWrite: false") &&
+    // The surface is still a transparent, non-depth-writing sheet whose shading
+    // lives outside the controller; that shading is a node material now, so the
+    // controller delegates to it instead of patching a stock one.
+    waterMaterial.includes("new WaterSurfaceNodeMaterial(this.uniforms, context)") &&
+    waterSurfaceNodeMaterial.includes("this.depthWrite = false") &&
+    waterSurfaceNodeMaterial.includes("this.transparent = true") &&
     waterShader.includes('from "./WaterFlowShader"') &&
     waterShader.includes('from "./WaterRegimeShader"') &&
     waterShader.includes('from "./WaterWaveShader"') &&
@@ -454,7 +466,7 @@ assert(
     lineCount(horizonShader) <= HORIZON_SHADER_MAX_LINES &&
     horizonShell.includes("private disposed = false") &&
     horizonShell.includes("createWorldHorizonAxis") &&
-    horizonShell.includes("WorldHorizonMaterial") &&
+    horizonShell.includes("WorldHorizonNodeMaterial") &&
     horizonShell.includes("WorldHorizonCoverage") &&
     !horizonShell.includes("onBeforeCompile") &&
     !horizonShell.includes("MeshLambertMaterial") &&

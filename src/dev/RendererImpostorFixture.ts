@@ -25,7 +25,7 @@ export function createRendererImpostorFixture(scene: Scene, variant: GrassImpost
       || object instanceof HemisphereLight));
   const context = new WorldNodeMaterialContext(sun, otherLights);
   const atlas = createImpostorAtlas();
-  const state = createImpostorState(atlas, variant);
+  const state = createImpostorState(atlas, variant, context);
   try {
     const material = new WorldGrassImpostorNodeMaterial(`grass-impostor-node-${variant}`,
       state.shaderUniforms, state.nodeFeatures, context);

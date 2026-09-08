@@ -5,6 +5,7 @@ import type { WorldHorizonCoverage } from "./WorldHorizonCoverage";
 import { WORLD_HORIZON_SINK_DEPTH } from "./WorldHorizonTuning";
 import { WORLD_HORIZON_APRON_HAZE_DISTANCE } from "./WorldHorizonShader";
 import { WORLD_SKY_HAZE, WORLD_SUN_DIRECTION } from "../../app/WorldEnvironmentTuning";
+import type { WorldNodeMaterialContext } from "../../render/WorldNodeMaterialContext";
 
 /** TSL equivalent of WorldHorizonMaterial; coverage remains CPU-owned. */
 export class WorldHorizonNodeMaterial {
@@ -12,7 +13,7 @@ export class WorldHorizonNodeMaterial {
   private readonly sinkFocus = uniform(new Vector2());
 
   constructor(ringGuaranteedRadius: number, ringOuterRadius: number,
-    worldHalfExtent: number, coverage: WorldHorizonCoverage) {
+    worldHalfExtent: number, coverage: WorldHorizonCoverage, context?: WorldNodeMaterialContext) {
     const position = attribute<"vec3">("position", "vec3");
     const toFocus = position.xz.sub(this.sinkFocus).abs();
     const ringDistance = max(toFocus.x, toFocus.y);
@@ -36,6 +37,7 @@ export class WorldHorizonNodeMaterial {
     this.material.alphaTest = 0.5;
     this.material.name = "world-horizon-material";
     this.material.dithering = true;
+    context?.applyTo(this.material, 0.35);
   }
 
   update(focus: Vector3): void { this.sinkFocus.value.set(focus.x, focus.z); }

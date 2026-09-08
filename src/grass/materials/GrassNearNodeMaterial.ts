@@ -1,5 +1,5 @@
 import { DoubleSide, MeshLambertNodeMaterial, type Node, type NodeBuilder } from "three/webgpu";
-import { Fn, If, abs, diffuseColor, float, mix, normalView, positionViewDirection, smoothstep, vec3 } from "three/tsl";
+import { Fn, If, abs, diffuseColor, faceDirection, float, mix, normalView, positionViewDirection, smoothstep, vec3 } from "three/tsl";
 import type { IUniform } from "three";
 import type { WorldNodeMaterialContext } from "../../render/WorldNodeMaterialContext";
 import { GRASS_LIGHT_MIX } from "./GrassPaletteShader";
@@ -30,7 +30,12 @@ export class GrassNearNodeMaterial extends MeshLambertNodeMaterial {
     this.inputs = createGrassNodeUniforms(values);
     this.graph = createGrassNearNodes(this.inputs, features);
     this.positionNode = this.graph.position;
-    this.normalNode = this.graph.normal;
+    // The GLSL writes the blade's view normal into `vNormal`, so
+    // `normal_fragment_begin` flips it by `faceDirection` on this double-sided
+    // material. `NodeMaterial.setupNormal` returns an assigned `normalNode`
+    // verbatim and applies no such flip, so without this every back-facing
+    // blade fragment would light from the opposite hemisphere.
+    this.normalNode = this.graph.normal.mul(faceDirection);
     this.colorNode = this.graph.color;
     if (context) {
       context.applyTo(this);

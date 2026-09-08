@@ -6,7 +6,8 @@ import {
   createWorldHorizonAxis,
   type WorldHorizonAxis,
 } from "./WorldHorizonGrid";
-import { WorldHorizonMaterial } from "./WorldHorizonMaterial";
+import { WorldHorizonNodeMaterial } from "./WorldHorizonNodeMaterial";
+import type { WorldNodeMaterialContext } from "../../render/WorldNodeMaterialContext";
 import {
   WORLD_HORIZON_BUILD_BATCH,
   WORLD_HORIZON_BUILD_BUDGET_MS,
@@ -49,7 +50,7 @@ export class WorldHorizonShell {
   private readonly axis: WorldHorizonAxis;
   private readonly apronRings: number;
   private readonly coverage: WorldHorizonCoverage;
-  private readonly materialController: WorldHorizonMaterial;
+  private readonly materialController: WorldHorizonNodeMaterial;
   private readonly heights: Float32Array;
   private readonly positions: Float32Array;
   private readonly normals: Float32Array;
@@ -70,6 +71,8 @@ export class WorldHorizonShell {
     private readonly field: TerrainField,
     config: WorldConfig,
     compact: boolean,
+    // Carries the cloud shadow field at the reduced strength the integrator used.
+    private readonly materialContext?: WorldNodeMaterialContext,
   ) {
     this.axis = createWorldHorizonAxis(
       config.worldSize,
@@ -82,16 +85,17 @@ export class WorldHorizonShell {
       ? config.terrainRadiusCompact
       : config.terrainRadiusDesktop;
     let coverage: WorldHorizonCoverage | undefined;
-    let materialController: WorldHorizonMaterial | undefined;
+    let materialController: WorldHorizonNodeMaterial | undefined;
 
     try {
       coverage = new WorldHorizonCoverage(config.worldSize, config.chunkSize);
       this.coverage = coverage;
-      materialController = new WorldHorizonMaterial(
+      materialController = new WorldHorizonNodeMaterial(
         radius * config.chunkSize,
         (radius + 1) * config.chunkSize,
         config.worldSize * 0.5,
         this.coverage,
+        this.materialContext,
       );
       this.materialController = materialController;
 

@@ -24,9 +24,11 @@ import {
 } from "./GrassPatchGrid";
 import { GrassNearMaterial } from "./materials/GrassNearMaterial";
 import { WindField } from "./wind/WindField";
+import type { WorldNodeMaterialContext } from "../render/WorldNodeMaterialContext";
 
 interface GrassSystemDependencies {
   scene: THREE.Scene;
+  materialContext?: WorldNodeMaterialContext;
 }
 
 interface PatchBucket {
@@ -61,20 +63,15 @@ export class GrassSystem {
   private readonly configLoader = new GrassConfigLoader();
   private readonly distribution = new GrassDistribution();
   private readonly geometryFactory = new GrassGeometryFactory();
-  private readonly nearMaterial = new GrassNearMaterial({
-    name: "grass-near-material",
-    cacheKey: "grass-near-material-v17-legacy-near",
-    ditherSeed: LEGACY_DITHER_SEED,
-    worldLod: false,
-  });
-  private readonly midMaterial = new GrassNearMaterial({
-    name: "grass-mid-material",
-    cacheKey: "grass-near-material-v17-legacy-mid",
-    invertLodCoverage: true,
-    windLodScale: MID_WIND_SCALE,
-    ditherSeed: LEGACY_DITHER_SEED,
-    worldLod: false,
-  });
+  /**
+   * Built in the constructor, not as field initializers.
+   *
+   * Both need the lighting context off `dependencies`, and a field initializer
+   * runs before a parameter property is assigned -- reading it there threw on
+   * every island start.
+   */
+  private readonly nearMaterial: GrassNearMaterial;
+  private readonly midMaterial: GrassNearMaterial;
   private readonly lodSamplePoint = new THREE.Vector3();
   private readonly cameraPosition = new THREE.Vector3();
   private readonly wind = new WindField();
@@ -88,7 +85,24 @@ export class GrassSystem {
   private lodOverridden = false;
   private disposed = false;
 
-  constructor(private readonly dependencies: GrassSystemDependencies) {}
+  constructor(private readonly dependencies: GrassSystemDependencies) {
+    this.nearMaterial = new GrassNearMaterial({
+      name: "grass-near-material",
+      context: dependencies.materialContext,
+      cacheKey: "grass-near-material-v17-legacy-near",
+      ditherSeed: LEGACY_DITHER_SEED,
+      worldLod: false,
+    });
+    this.midMaterial = new GrassNearMaterial({
+      name: "grass-mid-material",
+      context: dependencies.materialContext,
+      cacheKey: "grass-near-material-v17-legacy-mid",
+      invertLodCoverage: true,
+      windLodScale: MID_WIND_SCALE,
+      ditherSeed: LEGACY_DITHER_SEED,
+      worldLod: false,
+    });
+  }
 
   attachGui(gui: GUI): void {
     this.assertNotDisposed();

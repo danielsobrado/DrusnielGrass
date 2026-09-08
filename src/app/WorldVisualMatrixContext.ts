@@ -2,6 +2,7 @@ import type * as THREE from "three";
 import type { RuntimeProfile } from "../runtime/RuntimeConfig";
 import type { WorldController } from "../controls/WorldController";
 import type { TerrainField } from "../world/TerrainField";
+import type { RendererWithFrameInfo } from "../render/RendererDiagnosticsTypes";
 
 /**
  * What the visual-matrix QA runner needs from the running world.
@@ -11,7 +12,8 @@ import type { TerrainField } from "../world/TerrainField";
  */
 export interface WorldVisualMatrixContext {
   readonly camera: THREE.PerspectiveCamera;
-  readonly renderer: THREE.WebGLRenderer;
+  /** Only the frame counters are read from it, and both renderers publish those. */
+  readonly renderer: RendererWithFrameInfo;
   readonly field: TerrainField;
   readonly profile: RuntimeProfile;
   readonly controls: WorldController;

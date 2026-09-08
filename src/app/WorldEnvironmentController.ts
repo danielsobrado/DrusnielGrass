@@ -2,7 +2,10 @@ import * as THREE from "three";
 import type { GrassArtDirection } from "../grass/GrassArtDirection";
 import type { RuntimeProfile } from "../runtime/RuntimeConfig";
 import { WORLD_CLOUD_TIME_WRAP_SECONDS } from "../world/sky/WorldCloudWeather";
-import { WorldSky } from "../world/sky/WorldSky";
+import { WorldSkyNode } from "../world/sky/WorldSkyNode";
+import type { RendererCapabilities } from "../render/RendererCapabilities";
+import type { WebGPURenderer } from "three/webgpu";
+import { WorldNodeMaterialContext } from "../render/WorldNodeMaterialContext";
 import { WorldCloudEnvironmentLighting } from "./WorldCloudEnvironmentLighting";
 import { WorldCloudShadowController } from "./WorldCloudShadowController";
 import {
@@ -32,7 +35,7 @@ const MAX_ENVIRONMENT_DELTA_SECONDS = 0.25;
 export class WorldEnvironmentController {
   private readonly sun: THREE.DirectionalLight;
   private readonly hemisphere: THREE.HemisphereLight;
-  private readonly sky: WorldSky;
+  private readonly sky: WorldSkyNode;
   private readonly cloudLighting: WorldCloudEnvironmentLighting;
   private readonly cloudShadow: WorldCloudShadowController;
   private readonly shadowMapSize: number;
@@ -41,13 +44,15 @@ export class WorldEnvironmentController {
   private shadowFocusY = Number.NaN;
   private shadowFocusZ = Number.NaN;
   private elapsedSeconds = 0;
+  private context?: WorldNodeMaterialContext;
   private disposed = false;
 
   constructor(
     private readonly scene: THREE.Scene,
-    private readonly renderer: THREE.WebGLRenderer,
+    private readonly renderer: WebGPURenderer,
     private readonly profile: RuntimeProfile,
     shadowsEnabled: boolean,
+    private readonly capabilities: RendererCapabilities,
   ) {
     this.hemisphere = new THREE.HemisphereLight(
       WORLD_DEFAULT_HEMISPHERE_SKY,
@@ -72,12 +77,15 @@ export class WorldEnvironmentController {
       this.sun,
       this.cloudLighting,
       shadowsEnabled,
+      this.capabilities,
     );
     this.shadowMapSize = Math.max(
       1,
       Math.min(
         this.profile.shadowMapSize,
-        this.renderer.capabilities.maxTextureSize,
+        // From the session's capability probe: the node renderer reports its
+        // limits through the backend, not through a WebGL capabilities object.
+        this.capabilities.maxTextureSize,
       ),
     );
     this.shadowTexelSize =
@@ -88,9 +96,9 @@ export class WorldEnvironmentController {
     this.sun.castShadow = shadowsEnabled;
     this.configureShadow();
 
-    let sky: WorldSky | undefined;
+    let sky: WorldSkyNode | undefined;
     try {
-      sky = new WorldSky(this.scene, this.renderer, this.profile);
+      sky = new WorldSkyNode(this.scene, this.renderer, this.profile, this.capabilities);
       this.sky = sky;
       this.scene.add(this.hemisphere, this.sun, this.sun.target);
       this.applyArtDirection();
@@ -173,6 +181,34 @@ export class WorldEnvironmentController {
       .addScaledVector(SUN_DIRECTION, WORLD_SUN_SHADOW_DISTANCE);
     this.sun.target.updateMatrixWorld();
     this.sun.updateMatrixWorld();
+  }
+
+  /**
+   * The lighting and cloud-shadow field every world material is built against.
+   *
+   * This replaces the scene-walking integrator the GLSL route used. That
+   * integrator had to find materials after the fact and patch them; a node
+   * material takes the field when it is constructed, so a material that is
+   * built later cannot miss the injection and none of them can be patched
+   * twice. It is created once here because the lights and the shadow map it
+   * closes over live for the session.
+   */
+  get materialContext(): WorldNodeMaterialContext {
+    this.context ??= new WorldNodeMaterialContext(
+      this.sun, [this.hemisphere], this.cloudShadow.nodes,
+    );
+    return this.context;
+  }
+
+  /**
+   * Advances the sky's own history before the beauty pass.
+   *
+   * The node sky keeps a temporal cloud buffer that must be stepped exactly
+   * once per displayed frame; offscreen water and atlas cameras must not
+   * advance it, so the frame owner calls this rather than a render callback.
+   */
+  prepareFrame(camera: THREE.PerspectiveCamera): void {
+    if (!this.disposed) this.sky.prepareFrame(camera);
   }
 
   dispose(): void {

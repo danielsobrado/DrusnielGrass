@@ -179,12 +179,15 @@ assert(
   "Riverbed composition must reuse the existing two bed texture samples.",
 );
 assert(
-  waterMaterial.includes("forceSinglePass = true"),
+  // Moved into the node material the controller now builds.
+  read("src/world/hydrology/WaterSurfaceNodeMaterial.ts").includes(
+    "forceSinglePass = true",
+  ),
   "Water surface must remain forceSinglePass.",
 );
 assert(
-  streamer.includes("new WaterMaterialController(config, compact)") &&
-    streamer.includes("new WaterBedMaterialController(config, compact)") &&
+  streamer.includes("new WaterMaterialController(config, compact, materialContext)") &&
+    streamer.includes("new WaterBedMaterialController(config, compact, materialContext)") &&
     streamer.includes("this.waterMaterialController?.material") &&
     streamer.includes("this.waterBedMaterialController?.material"),
   "TerrainStreamer must own the shared water and bed controllers.",

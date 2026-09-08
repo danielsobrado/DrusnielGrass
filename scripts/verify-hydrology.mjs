@@ -68,6 +68,12 @@ try {
   const { WaterMaterialController } = await server.ssrLoadModule(
     "/src/world/hydrology/WaterMaterialController.ts",
   );
+  const { createWaterSurfaceLegacyMaterial } = await server.ssrLoadModule(
+    "/src/world/hydrology/WaterSurfaceLegacyMaterial.ts",
+  );
+  const { createWaterBedLegacyMaterial } = await server.ssrLoadModule(
+    "/src/world/hydrology/WaterBedLegacyMaterial.ts",
+  );
   const { WATER_VISIBLE_COVERAGE_THRESHOLD } = await server.ssrLoadModule(
     "/src/world/hydrology/WaterMaterialTuning.ts",
   );
@@ -842,13 +848,21 @@ try {
     `Cross-flow p95 slope ${crossFlowP95} exceeded the ${CROSS_FLOW_P95_LIMIT} regression limit.`,
   );
 
+  // The shipped surface is a node material now, and its equivalence to this
+  // program is held by `check-renderer-harness.mjs water`. These assertions are
+  // about what the shading consumes and what it must never composite, so they
+  // keep reading the GLSL reference, built over the controller's own table.
   const waterController = new WaterMaterialController(config);
   const shader = {
     uniforms: {},
     vertexShader: "#include <common>\n#include <begin_vertex>",
     fragmentShader: "#include <common>\n#include <normal_fragment_maps>",
   };
-  waterController.material.onBeforeCompile(shader, {});
+  const legacyWaterMaterial = createWaterSurfaceLegacyMaterial(
+    waterController.shaderUniforms,
+    waterController.shaderUniforms.uWaterRoughness.value,
+  );
+  legacyWaterMaterial.onBeforeCompile(shader, {});
   assert(
     shader.vertexShader.includes("attribute vec4 waterData") &&
       shader.vertexShader.includes("attribute vec4 waterContext") &&
@@ -911,10 +925,16 @@ try {
     "The water sheet must forward its per-vertex normal to the fragment stage.",
   );
   assert(
-    waterController.material.isMeshPhysicalMaterial === true &&
+    // The shipped material is the node physical one. The BRDF, its dielectric
+    // ior and the absence of transmission are unchanged; the base roughness
+    // moved into the shared uniform table, which is the single owner both the
+    // node material and the GLSL reference read it from.
+    waterController.material.isMeshPhysicalNodeMaterial === true &&
       Math.abs(waterController.material.ior - 1.333) < 1e-6 &&
-      Math.abs(waterController.material.roughness - config.waterRoughness) <
-        1e-9 &&
+      Math.abs(
+        waterController.shaderUniforms.uWaterRoughness.value -
+          config.waterRoughness,
+      ) < 1e-9 &&
       waterController.material.transmission === 0,
     "Water must use the physical dielectric BRDF without transmission overhead.",
   );
@@ -931,7 +951,10 @@ try {
     vertexShader: "#include <common>\n#include <begin_vertex>",
     fragmentShader: "#include <common>\n#include <color_fragment>",
   };
-  waterBedController.material.onBeforeCompile(bedShader, {});
+  const legacyBedMaterial = createWaterBedLegacyMaterial(
+    waterBedController.shaderUniforms,
+  );
+  legacyBedMaterial.onBeforeCompile(bedShader, {});
   assert(
     bedShader.vertexShader.includes("attribute vec4 waterData") &&
       bedShader.vertexShader.includes("transformed.y -= max(0.0, waterData.y)"),

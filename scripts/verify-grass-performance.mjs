@@ -256,7 +256,11 @@ const nearField = read("src/world/grass/WorldNearGrassField.ts");
 const tileFactory = read("src/world/grass/WorldSingleBladeTileFactory.ts");
 const tileField = read("src/world/grass/WorldSingleBladeTileField.ts");
 const terrainChunk = read("src/world/TerrainChunk.ts");
-const nearMaterial = read("src/grass/materials/GrassNearMaterial.ts");
+// The blade's shading is split between the state owner and the GLSL
+// reference the comparison measures against, so the shader contract is
+// read from both halves rather than from whichever half a line lives in.
+const nearMaterial = read("src/grass/materials/GrassNearMaterial.ts")
+  + read("src/grass/materials/GrassNearLegacyMaterial.ts");
 const worldGrassSystem = read("src/world/WorldGrassSystem.ts");
 const lodController = read("src/grass/GrassLodController.ts");
 const lodTuning = read("src/grass/GrassLodTuning.ts");
@@ -1092,7 +1096,10 @@ assert(
 // cannot tell a hollow from a bank.
 assert(
   terrainField.includes("samplePathVisibility(height") &&
-    terrainChunk.includes("new THREE.BufferAttribute(this.paths, 4)") &&
+    // The path field is still four floats per vertex; it shares one interleaved
+    // vertex buffer with the other terrain fields so the chunk fits inside
+    // WebGPU's eight-buffer limit.
+    terrainChunk.includes('["terrainPath", this.paths, 4]') &&
     terrainMaterialShader.includes("terrainPathVisibility") &&
     terrainMaterialShader.includes("abs(vTerrainPath.xy)") &&
     terrainMaterialShader.includes("vTerrainPath.w"),

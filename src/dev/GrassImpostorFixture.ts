@@ -4,6 +4,7 @@ import {
   NoColorSpace, Quaternion, RGBAFormat, UnsignedByteType, Vector3, type CanvasTexture,
 } from "three/webgpu";
 import { WorldGrassImpostorMaterial } from "../world/grass/WorldGrassImpostorMaterial";
+import type { WorldNodeMaterialContext } from "../render/WorldNodeMaterialContext";
 import type { WorldGrassImpostorAtlas } from "../world/grass/WorldGrassImpostorAtlasFactory";
 import { prepareGrassNodeGeometry } from "../grass/materials/GrassNodeGeometry";
 import { GRASS_MAX_BIOMES } from "../grass/biome/GrassBiomeProfile";
@@ -163,7 +164,8 @@ export function createImpostorField(atlas: WorldGrassImpostorAtlas): InstancedMe
 }
 
 export function createImpostorState(atlas: WorldGrassImpostorAtlas,
-  variant: GrassImpostorVariant): WorldGrassImpostorMaterial {
+  variant: GrassImpostorVariant,
+  context: WorldNodeMaterialContext): WorldGrassImpostorMaterial {
   const material = new WorldGrassImpostorMaterial(atlas,
     { baseColor: "#273f22", tipColor: "#83a96b", dryColor: "#a8a06a", rootDarkening: 0.55,
       normalUp: 0.45, ambientBoost: 0.12, backlightStrength: 0.16 },
@@ -171,7 +173,7 @@ export function createImpostorState(atlas: WorldGrassImpostorAtlas,
       flutterStrength: 0.035, flutterSpeed: 3.4 },
     { nearMaxDistance: 8, midMaxDistance: 16, farMaxDistance: 44, hysteresisDistance: 2,
       transitionDistance: 3 },
-    18, 34, variant === "desktop", 1, variant === "desktop");
+    18, 34, variant === "desktop", 1, variant === "desktop", context);
   const uniforms = material.shaderUniforms;
   uniforms.uTime.value = 9.25;
   uniforms.uWindNoise.value = getGrassWindNoiseTexture();

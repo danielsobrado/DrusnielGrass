@@ -24,7 +24,7 @@ try {
       if (fixture === 'foliage') await page.waitForFunction(() => document.querySelector('#canvas')?.dataset.foliageComparison, null, { timeout: 90000 });
       if (fixture === 'trail') await page.waitForFunction(() => document.querySelector('#canvas')?.dataset.trailComparison, null, { timeout: 90000 });
       if (fixture === 'bake') await page.waitForFunction(() => document.querySelector('#canvas')?.dataset.bakeComparison, null, { timeout: 90000 });
-      if (fixture === 'stone') await page.waitForFunction(() => document.querySelector('#canvas')?.dataset.stoneComparison, null, { timeout: 90000 });
+      if (fixture === 'stone') await page.waitForFunction(() => document.querySelector('#canvas')?.dataset.stoneShader, null, { timeout: 90000 });
       if (fixture === 'water') await page.waitForFunction(() => document.querySelector('#canvas')?.dataset.refractionComparison, null, { timeout: 180000 });
       if (fixture === 'cloudresponse') await page.waitForFunction(() => document.querySelector('#canvas')?.dataset.cloudResponseComparison, null, { timeout: 90000 });
       if (fixture === 'actor') await page.waitForFunction(() => document.querySelector('#canvas')?.dataset.actorComparison, null, { timeout: 90000 });
@@ -61,6 +61,7 @@ try {
       const trail = await page.locator('#canvas').getAttribute('data-trail-comparison');
       const bake = await page.locator('#canvas').getAttribute('data-bake-comparison');
       const stone = await page.locator('#canvas').getAttribute('data-stone-comparison');
+      const stoneShader = await page.locator('#canvas').getAttribute('data-stone-shader');
       const cloudResponse = await page.locator('#canvas').getAttribute('data-cloud-response-comparison');
       if (fixture === 'cloudresponse') {
         const reports = JSON.parse(cloudResponse);
@@ -184,18 +185,23 @@ try {
       }
       if (fixture === 'stone') {
         const reports = JSON.parse(stone);
-        assert.equal(reports.length, 3);
+        assert.equal(reports.length, 5);
         for (const report of reports) {
           assert.ok(report.nonzero > 8000,
             `${report.variant} ${report.mode} must cover the stone body: ${stone}`);
           const detailAlbedo = report.variant === 'detail' && report.mode === 'albedo';
+          // The lit run carries the detail albedo's threshold-edge pixels
+          // through the lighting that consumes it, so it is bounded just above
+          // the residual that mode already has rather than at the exact step
+          // the coarse body and the normal hold.
+          const detailLit = report.variant === 'detail' && report.mode === 'lit';
           if (actual === 'webgl2') {
             // Same API on both sides. The coarse surface is exact; the detail
             // albedo keeps a handful of threshold-edge pixels where the crust,
             // stain and colony smoothsteps land on opposite sides of a byte
             // after a different order of operations, and the derivative-built
             // normal bump agrees to a quantization step.
-            assert.ok(report.maximum <= (detailAlbedo ? 4 : 1)
+            assert.ok(report.maximum <= (detailAlbedo ? 4 : detailLit ? 2 : 1)
               && report.differing <= report.nonzero * 3 * 0.001,
             `Node stone ${report.variant} ${report.mode} differs from the GLSL material: ${stone}`);
             continue;
@@ -206,9 +212,32 @@ try {
           // long way while leaving the surface as a whole in place. Bounded on
           // the average rather than on a maximum, and deliberately still
           // measured; the same-API run above is what holds the port exact.
-          assert.ok(report.mean <= (report.mode === 'normal' ? 3 : 0.1),
+          // The lit mode shades with that same derivative-built normal, so it
+          // inherits a fraction of the normal run's cross-API spread.
+          assert.ok(report.mean <= (report.mode === 'normal' ? 3 : report.mode === 'lit' ? 0.8 : 0.1),
             `Node stone ${report.variant} ${report.mode} differs from the GLSL material: ${stone}`);
         }
+      }
+      if (fixture === 'stone') {
+        // The node equivalent of the shipped string-based stone shader check.
+        // TSL names nothing in its output, so that check's marker strings do
+        // not exist in generated WGSL or GLSL; what survives is the cost. The
+        // near path is the only one that takes screen-space derivatives and the
+        // only one that samples the grain texture, so the far material running
+        // neither is the same guarantee against the compiled program.
+        const programs = JSON.parse(stoneShader);
+        assert.equal(programs.length, 2, `Both stone programs must compile: ${stoneShader}`);
+        const detail = programs.find((program) => program.variant === 'detail');
+        const coarse = programs.find((program) => program.variant === 'coarse');
+        assert.ok(detail.derivatives && detail.textureSamples,
+          `The detail stone program must run the near grain path: ${stoneShader}`);
+        assert.ok(!coarse.derivatives && !coarse.textureSamples,
+          `The coarse stone program must not run derivatives or sample the grain: ${stoneShader}`);
+        // Measured at about 0.17 on both backends. Bounded well above that so
+        // ordinary codegen churn does not fail the run, and far below 1 so a
+        // coarse material that grew the near work could not pass.
+        assert.ok(coarse.length < detail.length * 0.4 && coarse.length > 200,
+          `The coarse stone program must stay a fraction of the detail one: ${stoneShader}`);
       }
       if (fixture === 'bake') {
         const report = JSON.parse(bake);
@@ -301,7 +330,7 @@ try {
       }
       if (fixture === 'grass') {
         const reports = JSON.parse(grass);
-        assert.equal(reports.length, 12);
+        assert.equal(reports.length, 16);
         for (const report of reports) {
           // The island layers split one population across two threshold bands,
           // so each of them draws about half the field the world layers do.

@@ -54,7 +54,10 @@ function verifyStoneSystemConstructionOwnership() {
     );
   }
   const setup = source.slice(helper, helperEnd);
-  const shaderSetup = setup.indexOf("applyStoneSurfaceShader(");
+  // The surface shading is a node material now; the ordering contract is
+  // unchanged — the materials are acquired before the global clearance field is
+  // registered, and the rollback releases everything acquired before it.
+  const shaderSetup = setup.indexOf("createStoneNodeMaterial(config, \"detail\"");
   const registration = setup.indexOf(
     "clearanceRegistration = registerStoneClearanceField(",
   );

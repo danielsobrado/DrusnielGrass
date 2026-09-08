@@ -42,6 +42,14 @@ export interface RendererWithCanvas {
 }
 
 /**
+ * What the workload diagnostics hold a renderer for.
+ *
+ * They draw the world through it, wrap that call to time and probe the frame,
+ * and read its counters afterwards. Nothing else, and nothing backend-specific.
+ */
+export interface DiagnosticsRenderer extends RendererWithFrameInfo, SceneRenderer {}
+
+/**
  * A renderer an isolation or diagnostics pass can inspect mid-frame.
  *
  * `getRenderTarget` is only ever compared against null — the question is "is

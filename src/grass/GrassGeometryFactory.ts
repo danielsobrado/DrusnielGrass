@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import { packGrassInstanceFields, packGrassVertexFields } from "./materials/GrassNodeGeometry";
 import { disposeResources } from "../render/ResourceDisposal";
 import type { GrassGeometryConfig } from "./GrassConfig";
 import { SeededRandom } from "./internal/SeededRandom";
@@ -135,6 +136,17 @@ export class GrassGeometryFactory {
             1,
           ),
       );
+      // Three defaults this to Infinity and the WebGL renderer never reads it —
+      // it derives the instance count from the instanced attributes instead.
+      // The node renderer passes it straight to the draw call, where an
+      // infinite instance count is rejected outright and the frame is lost. It
+      // is set from the attribute the other counts are already derived from, so
+      // there is one source for it.
+      geometry.instanceCount = instanceCount;
+      // The per-instance fields belong to this geometry, so they are packed
+      // here. Together with the source packing above this brings a blade from
+      // twelve vertex buffers to six, under WebGPU's eight.
+      packGrassInstanceFields(geometry);
       geometry.boundingBox = source.boundingBox?.clone() ?? null;
       geometry.boundingSphere = source.boundingSphere?.clone() ?? null;
       return geometry;
@@ -302,6 +314,9 @@ export class GrassGeometryFactory {
         new THREE.Float32BufferAttribute(shadeValues, 1),
       );
       geometry.setIndex(indices);
+      // Packed on the shared source, so every instanced geometry built from it
+      // inherits one interleaved blade buffer instead of four separate ones.
+      packGrassVertexFields(geometry);
       geometry.computeVertexNormals();
       geometry.computeBoundingBox();
       geometry.computeBoundingSphere();

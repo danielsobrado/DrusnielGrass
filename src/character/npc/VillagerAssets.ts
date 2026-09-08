@@ -1,6 +1,7 @@
 import * as THREE from "three";
 import { mergeActorParts } from "../../actor/geometry/ActorPartMerge";
-import { applyActorEnvironmentResponse } from "../../render/ActorEnvironmentResponse";
+import { applyActorEnvironmentNodeResponse } from "../../render/ActorEnvironmentNodeResponse";
+import { MeshStandardNodeMaterial } from "three/webgpu";
 import {
   buildVillagerParts,
   type VillagerPartSlot,
@@ -11,7 +12,7 @@ const VILLAGER_ROUGHNESS = 0.9;
 
 export interface VillagerAssets {
   geometryFor(variant: number, slot: VillagerPartSlot): THREE.BufferGeometry;
-  createMaterial(): THREE.MeshStandardMaterial;
+  createMaterial(): MeshStandardNodeMaterial;
   readonly variantCount: number;
   dispose(): void;
 }
@@ -33,14 +34,14 @@ class VillagerAssetLibrary implements VillagerAssets {
     return geometry;
   }
 
-  createMaterial(): THREE.MeshStandardMaterial {
-    const material = new THREE.MeshStandardMaterial({
+  createMaterial(): MeshStandardNodeMaterial {
+    const material = new MeshStandardNodeMaterial({
       vertexColors: true,
       roughness: VILLAGER_ROUGHNESS,
       metalness: 0,
     });
     try {
-      applyActorEnvironmentResponse(material);
+      applyActorEnvironmentNodeResponse(material);
       return material;
     } catch (error) {
       material.dispose();

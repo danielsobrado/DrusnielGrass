@@ -1,6 +1,7 @@
 import * as THREE from "three";
 import type { RuntimeProfile } from "../runtime/RuntimeConfig";
 import type { WorldConfig } from "../world/WorldConfig";
+import type { ControllerRecoveryState } from "./WorldController";
 import {
   exitPointerLockSafely,
   isEditableInputTarget,
@@ -183,6 +184,20 @@ export class FlyController {
 
   isCaptureLocked(): boolean {
     return this.captureLocked;
+  }
+
+  captureRecoveryState(): ControllerRecoveryState {
+    return { mode: "fly", position: this.camera.position.toArray(), yaw: this.yaw,
+      pitch: this.pitch, speed: this.speed };
+  }
+
+  restoreRecoveryState(state: ControllerRecoveryState): void {
+    if (this.disposed || state.mode !== "fly") return;
+    this.camera.position.fromArray(state.position);
+    this.yaw = state.yaw; this.pitch = state.pitch; this.speed = state.speed;
+    this.camera.rotation.set(this.pitch, this.yaw, 0, "YXZ");
+    this.captureLocked = false;
+    this.clearTransientInput();
   }
 
   getSpeed(): number {

@@ -13,7 +13,7 @@ import type { TerrainField } from "../world/TerrainField";
 import { WorldTerrainContactSampler } from "../world/WorldTerrainContactSampler";
 import type { WorldConfig } from "../world/WorldConfig";
 import { ThirdPersonInput } from "./ThirdPersonInput";
-import type { WorldController, WorldControlMode } from "./WorldController";
+import type { ControllerRecoveryState, WorldController, WorldControlMode } from "./WorldController";
 
 const CAMERA_COLLISION_SAMPLES = [0.35, 0.6, 0.85] as const;
 const CAMERA_POSITION_RATE = 12;
@@ -249,6 +249,24 @@ export class ThirdPersonController implements WorldController {
       THREE.MathUtils.clamp(z, -halfWorld, halfWorld),
       this.facing,
     );
+  }
+
+  captureRecoveryState(): ControllerRecoveryState {
+    return { mode: "third-person", x: this.position.x, z: this.position.z,
+      facing: this.facing, yaw: this.cameraYaw, elevation: this.cameraElevation,
+      distance: this.cameraDistance };
+  }
+
+  restoreRecoveryState(state: ControllerRecoveryState): void {
+    if (this.disposed || state.mode !== "third-person") return;
+    this.captureLocked = false;
+    this.cameraElevation = state.elevation;
+    this.cameraDistance = state.distance;
+    // Resume safely on the rebuilt ground, retaining position and framing,
+    // rather than carrying a half-completed jump across renderer loss.
+    this.placeAt(state.x, state.z, state.facing);
+    this.cameraYaw = state.yaw;
+    this.updateCamera(0, true);
   }
 
   captureLookAt(camera: THREE.Vector3, target: THREE.Vector3): void {

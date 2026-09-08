@@ -16,7 +16,7 @@ export const WATER_REFRACTION_LAYER = 2;
 
 /** What the pass needs from the frame it is rendered inside. */
 export type WaterRefractionArgs = [
-  renderer: THREE.WebGLRenderer,
+  renderer: import("three/webgpu").WebGPURenderer,
   scene: THREE.Scene,
   camera: THREE.Camera,
 ];

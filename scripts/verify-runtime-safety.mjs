@@ -78,7 +78,13 @@ assert(
     world.includes("this.stats?.update()") &&
     statsPanel.includes('await import("stats-gl")') &&
     statsPanel.includes("Optional stats panel unavailable") &&
-    diagnosticsController.includes("options.gpuTiming && !options.statsPanelEnabled"),
+    // Two GPU timers must never run at once. stats-gl can only attach to the
+    // classic WebGL renderer, so on a node backend it declines and the frame
+    // timer is free to run even when the panel was asked for; the exclusion
+    // stays in force exactly where the panel can actually time the frame.
+    diagnosticsController.includes(
+      "options.gpuTiming && (!options.statsPanelEnabled || !!runtime.renderer.backend)",
+    ),
   "The lazy stats-gl panel and custom GPU timer must not issue overlapping GPU timing queries.",
 );
 assert(

@@ -1,5 +1,5 @@
 import {
-  AmbientLight, Color, MeshBasicNodeMaterial, PerspectiveCamera, RenderTarget,
+  AmbientLight, Color, DirectionalLight, MeshBasicNodeMaterial, PerspectiveCamera, RenderTarget,
   Scene, WebGPUCoordinateSystem, type NodeBuilder, type WebGPURenderer,
 } from "three/webgpu";
 import { WebGLRenderer, WebGLRenderTarget, DoubleSide } from "three";
@@ -8,6 +8,8 @@ import { createGrassNodeUniforms } from "../grass/materials/GrassNearNodeInputs"
 import { createGrassNearNodes, setupGrassPosition } from "../grass/materials/GrassNearNodes";
 import { instanceMatrixColumns } from "../render/InstanceMatrixNode";
 import { GrassNearNodeMaterial } from "../grass/materials/GrassNearNodeMaterial";
+import { createGrassNearLegacyMaterial } from "../grass/materials/GrassNearLegacyMaterial";
+import { WorldNodeMaterialContext } from "../render/WorldNodeMaterialContext";
 import { readRenderTargetRgba8 } from "../render/RenderTargetReadback";
 import { disposeResources } from "../render/ResourceDisposal";
 import {
@@ -23,16 +25,33 @@ import {
  */
 const DEFORMATION_ENCODE_SCALE = 1.5;
 
-export type GrassComparisonMode = "albedo" | "deformation" | "ambient";
+export type GrassComparisonMode = "albedo" | "deformation" | "ambient" | "directional";
+
+/**
+ * The sun sits low, behind the field and slightly off the camera axis.
+ *
+ * Transmission needs light travelling through the blade towards the camera, so
+ * a sun placed on the camera's own side would drive `intoSun` to zero and the
+ * run would compare two black backlight terms and prove nothing. The offset in
+ * x keeps the half-vector away from the degenerate `sun + view` case the sheen
+ * lobe guards, which is covered separately by that guard's own branch.
+ */
+function createDirectionalLights() {
+  const sun = new DirectionalLight(0xfff2d8, 2.2);
+  sun.position.set(2.4, 1.35, -7.5);
+  return { sun, ambient: new AmbientLight(0xc3d7ed, 0.4) };
+}
 
 /**
  * Compares the node grass blade against the shipped GLSL material.
  *
  * Albedo covers the palette, biome rows, gust tip lift and contact shading;
  * deformation covers the silhouette, the LOD keep test, the sub-pixel width
- * clamp, wind and the character trail. The ambient run also compares the real
- * material's lighting response without an optional directional-light context.
- * Directional transmission and sheen still need separate numerical coverage.
+ * clamp, wind and the character trail. The ambient run compares the real
+ * material's lighting response without an optional directional-light context;
+ * the directional run adds a sun and so covers the terms only it reaches — the
+ * transmission lobe on every variant, and the waxy sheen on the one variant
+ * whose feature set enables it.
  */
 export async function compareGrassNearMaterial(renderer: WebGPURenderer,
   variant: GrassComparisonVariant, mode: GrassComparisonMode) {
@@ -50,10 +69,16 @@ export async function compareGrassNearMaterial(renderer: WebGPURenderer,
       return setupGrassPosition(builder, graph.position);
     }
   }
-  const nodeMaterial = mode === "ambient"
-    ? new GrassNearNodeMaterial("ambient-comparison", state.shaderUniforms, state.nodeFeatures)
+  // Both lit modes compare the shipped materials themselves rather than an
+  // isolated output channel, so neither side is patched below.
+  const lit = mode === "ambient" || mode === "directional";
+  const lights = mode === "directional" ? createDirectionalLights() : undefined;
+  const legacyLights = mode === "directional" ? createDirectionalLights() : undefined;
+  const context = lights && new WorldNodeMaterialContext(lights.sun, [lights.ambient]);
+  const nodeMaterial = lit
+    ? new GrassNearNodeMaterial(`${mode}-comparison`, state.shaderUniforms, state.nodeFeatures, context)
     : new GrassIsolationMaterial({ side: DoubleSide, toneMapped: false });
-  if (mode !== "ambient") nodeMaterial.positionNode = graph.position;
+  if (!lit) nodeMaterial.positionNode = graph.position;
   if (mode === "albedo") {
     nodeMaterial.colorNode = graph.color;
   } else if (mode === "deformation") {
@@ -66,12 +91,15 @@ export async function compareGrassNearMaterial(renderer: WebGPURenderer,
     nodeMaterial.colorNode = varying(deformation).mul(DEFORMATION_ENCODE_SCALE).add(0.5).clamp(0, 1);
   }
 
-  const legacyMaterial = state.material;
+  // The shipped GLSL blade, over the state owner's own uniform table. Kept out
+  // of the production bundle: only this comparison reaches it.
+  const legacyMaterial = createGrassNearLegacyMaterial(state.shaderUniforms,
+    state.options, { ...state.nodeFeatures });
   legacyMaterial.dithering = false;
   const compile = legacyMaterial.onBeforeCompile;
   legacyMaterial.onBeforeCompile = (shader, gl) => {
     compile(shader, gl);
-    if (mode === "ambient") return;
+    if (lit) return;
     if (mode === "albedo") {
       shader.fragmentShader = shader.fragmentShader.replace("#include <opaque_fragment>",
         "outgoingLight = diffuseColor.rgb;\n#include <opaque_fragment>");
@@ -98,12 +126,15 @@ export async function compareGrassNearMaterial(renderer: WebGPURenderer,
   mesh.material = nodeMaterial;
   scene.add(mesh);
   if (mode === "ambient") scene.add(new AmbientLight(0xc3d7ed, 0.4));
+  // A light belongs to one parent, so each scene gets its own matched pair.
+  if (lights) scene.add(lights.sun, lights.ambient);
   const legacyScene = new Scene();
   legacyScene.background = new Color(0);
   const legacyMesh = createGrassField();
   legacyMesh.material = legacyMaterial;
   legacyScene.add(legacyMesh);
   if (mode === "ambient") legacyScene.add(new AmbientLight(0xc3d7ed, 0.4));
+  if (legacyLights) legacyScene.add(legacyLights.sun, legacyLights.ambient);
   const legacy = new WebGLRenderer();
   const target = new RenderTarget(width, height);
   const legacyTarget = new WebGLRenderTarget(width, height);

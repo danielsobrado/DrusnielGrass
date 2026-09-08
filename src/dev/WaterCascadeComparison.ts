@@ -5,6 +5,7 @@ import {
 import { WebGLRenderer, WebGLRenderTarget } from "three";
 import { diffuseColor, vec3, vec4 } from "three/tsl";
 import { WaterCascadeMaterialController } from "../world/hydrology/WaterCascadeMaterialController";
+import { createWaterCascadeLegacyMaterial } from "../world/hydrology/WaterCascadeLegacyMaterial";
 import { WaterCascadeNodeMaterial } from "../world/hydrology/WaterCascadeNodeMaterial";
 import { createWaterCascadeGeometry } from "../world/hydrology/WaterCascadeGeometry";
 import { CASCADE_SILL_SAMPLES } from "../world/hydrology/WaterCascadeSill";
@@ -72,7 +73,8 @@ export async function compareWaterCascade(renderer: WebGPURenderer, config: Worl
 
   const legacyScene = new Scene();
   legacyScene.background = new Color(0);
-  const legacyMaterial = controller.material;
+  // Built from the controller's own table; production draws the node material.
+  const legacyMaterial = createWaterCascadeLegacyMaterial(controller.shaderUniforms);
   legacyMaterial.transparent = false;
   legacyMaterial.depthWrite = true;
   const compile = legacyMaterial.onBeforeCompile;
@@ -125,6 +127,6 @@ export async function compareWaterCascade(renderer: WebGPURenderer, config: Worl
       differing, nonzero, legacyNonzero, shared, coverageMismatch, flippedRows: flip };
   } finally {
     renderer.setRenderTarget(previous);
-    disposeResources([node, controller, geometry, target, legacyTarget, legacy]);
+    disposeResources([node, legacyMaterial, controller, geometry, target, legacyTarget, legacy]);
   }
 }

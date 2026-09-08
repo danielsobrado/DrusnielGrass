@@ -1,4 +1,7 @@
 import * as THREE from "three";
+import type { RendererSession } from "../render/RendererSession";
+import type { RuntimeRecoveryState } from "./RuntimeRecoveryState";
+import { WorldNodeMaterialContext } from "../render/WorldNodeMaterialContext";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import type { GrassDevelopmentController } from "../dev/GrassDevelopmentController";
@@ -24,7 +27,7 @@ const ISLAND_FATAL_FRAME_MESSAGE =
 type LoadedGltf = Awaited<ReturnType<GLTFLoader["loadAsync"]>>;
 
 interface IslandRuntimeResources {
-  renderer: THREE.WebGLRenderer;
+  renderer: RendererSession["renderer"];
   controls: OrbitControls;
   grass: GrassSystem;
   terrainMaterial: THREE.MeshPhongMaterial;
@@ -33,7 +36,7 @@ interface IslandRuntimeResources {
 export class IslandApp {
   private readonly scene = new THREE.Scene();
   private readonly camera: THREE.PerspectiveCamera;
-  private readonly renderer: THREE.WebGLRenderer;
+  private readonly renderer: RendererSession["renderer"];
   private readonly controls: OrbitControls;
   private readonly grass: GrassSystem;
   private readonly clock = new THREE.Clock();
@@ -49,11 +52,19 @@ export class IslandApp {
   private contextLost = false;
   private resumeAfterContextRestore = false;
   private disposed = false;
+  private readonly canvas: HTMLCanvasElement;
 
-  constructor(
-    private readonly canvas: HTMLCanvasElement,
+  /** The session is created by the bootstrap, which owns backend recovery. */
+  static create(session: RendererSession, profile: RuntimeProfile): IslandApp {
+    return new IslandApp(session, profile);
+  }
+
+  private constructor(
+    private readonly session: RendererSession,
     private readonly profile: RuntimeProfile,
   ) {
+    const canvas = session.renderer.domElement;
+    this.canvas = canvas;
     this.camera = new THREE.PerspectiveCamera(
       profile.cameraFov,
       resolveViewportSize().aspect,
@@ -64,7 +75,7 @@ export class IslandApp {
     const resources = createIslandRuntimeResources(
       this.scene,
       this.camera,
-      canvas,
+      session,
       profile,
     );
     this.renderer = resources.renderer;
@@ -152,6 +163,17 @@ export class IslandApp {
     this.frameHandle = requestAnimationFrame(this.render);
   }
 
+  captureRecoveryState(): RuntimeRecoveryState {
+    return { mode: "island", position: this.camera.position.toArray(), target: this.controls.target.toArray() };
+  }
+
+  restoreRecoveryState(state: RuntimeRecoveryState): void {
+    if (this.disposed || state.mode !== "island") return;
+    this.camera.position.fromArray(state.position);
+    this.controls.target.fromArray(state.target);
+    this.controls.update();
+  }
+
   dispose(): void {
     if (this.disposed) {
       return;
@@ -195,7 +217,7 @@ export class IslandApp {
     this.decorativeMaterial = undefined;
     disposeSafely("Decorative material", () => decorativeMaterial?.dispose());
     disposeSafely("Terrain material", () => this.terrainMaterial.dispose());
-    disposeSafely("Renderer", () => this.renderer.dispose());
+    disposeSafely("Renderer", () => this.session.dispose());
   }
 
   private render = (): void => {
@@ -394,20 +416,17 @@ export class IslandApp {
 function createIslandRuntimeResources(
   scene: THREE.Scene,
   camera: THREE.PerspectiveCamera,
-  canvas: HTMLCanvasElement,
+  session: RendererSession,
   profile: RuntimeProfile,
 ): IslandRuntimeResources {
-  let renderer: THREE.WebGLRenderer | undefined;
+  const canvas = session.renderer.domElement;
+  let renderer: RendererSession["renderer"] | undefined;
   let controls: OrbitControls | undefined;
   let grass: GrassSystem | undefined;
   let terrainMaterial: THREE.MeshPhongMaterial | undefined;
 
   try {
-    renderer = new THREE.WebGLRenderer({
-      canvas,
-      antialias: !profile.compact,
-      powerPreference: "high-performance",
-    });
+    renderer = session.renderer;
     renderer.outputColorSpace = THREE.SRGBColorSpace;
     renderer.toneMapping = WORLD_TONE_MAPPING;
     renderer.shadowMap.enabled = profile.shadows;
@@ -423,16 +442,16 @@ function createIslandRuntimeResources(
     controls.enableDamping = true;
     controls.autoRotate = profile.autoRotate;
     controls.autoRotateSpeed = -0.5;
-    grass = new GrassSystem({ scene });
+    const materialContext = addIslandLights(scene, profile, session.capabilities.maxTextureSize);
+    grass = new GrassSystem({ scene, materialContext });
     terrainMaterial = new THREE.MeshPhongMaterial({ color: "#5e875e" });
-    addIslandLights(scene, profile, renderer.capabilities.maxTextureSize);
 
     return { renderer, controls, grass, terrainMaterial };
   } catch (error) {
     disposeSafely("Grass system construction", () => grass?.dispose());
     disposeSafely("Orbit controls construction", () => controls?.dispose());
     disposeSafely("Terrain material construction", () => terrainMaterial?.dispose());
-    disposeSafely("Renderer construction", () => renderer?.dispose());
+    disposeSafely("Renderer construction", () => session.dispose());
     throw error;
   }
 }
@@ -450,8 +469,9 @@ function addIslandLights(
   scene: THREE.Scene,
   profile: RuntimeProfile,
   maxTextureSize: number,
-): void {
-  scene.add(new THREE.AmbientLight(0xffffff, 0.5));
+): WorldNodeMaterialContext {
+  const ambient = new THREE.AmbientLight(0xffffff, 0.5);
+  scene.add(ambient);
   const sun = new THREE.DirectionalLight(0xffffff, 2);
   sun.position.set(100, 100, 100);
   sun.castShadow = profile.shadows;
@@ -461,6 +481,7 @@ function addIslandLights(
   );
   sun.shadow.mapSize.set(shadowMapSize, shadowMapSize);
   scene.add(sun);
+  return new WorldNodeMaterialContext(sun, [ambient]);
 }
 
 function loadGltfWithTimeout(

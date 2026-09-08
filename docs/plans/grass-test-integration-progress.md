@@ -13,15 +13,21 @@ Implementation started 2026-09-06. Full scope is authorized; deployment is not r
 
 | Ticket | Status | Evidence / remaining work |
 | --- | --- | --- |
-| T00 | In progress | Revisions recorded; local source/destination dev servers and baseline browser captures being prepared. |
-| G00 | Implemented foundation; acceptance incomplete | Source selection, actual-backend diagnostics, startup rollback, bounded recovery, cancellation and logical-state restoration. Full interaction/performance matrix and remaining late asset ownership audit are outstanding. |
+| T00 | In progress | Revisions recorded. The pre-migration `WebGLRenderer` baseline capture is still owed: this tree no longer contains that route, so it has to be measured from the archived revision. |
+| G00 | Implemented foundation; acceptance incomplete | Source selection, actual-backend diagnostics, startup rollback, bounded recovery, cancellation and logical-state restoration. The destination side of the interaction/performance matrix is now covered by `check-renderer-matrix.mjs`; the source-side matrix and the late asset ownership audit remain. |
 | G01 | Upgrade implemented; acceptance incomplete | Source pinned to Three 0.185.1; RenderPipeline; private r180 occlusion disabled; portable AO depth/normal workaround validated. Fixed-clock performance comparison remains outstanding. |
-| G02 | In progress | Typed session/capability/recovery/timing adapters and development-only material harness. Production app wiring waits for migrated materials. |
-| G03 | In progress | Horizon, terrain, analytic sky, cloud field, raster shadows, explicit lighting, volume/history and PMREM owner implemented in development fixtures. Terrain albedo/normals have numerical parity checks; production wiring, broader scenery parity and history validation remain. |
-| G04 | In progress | Near/mid blade, far impostor card and accent foliage materials, the trail interaction pass and the octahedral impostor exporter all ported with numerical parity on both backends. Island scene renderer switch and production wiring remain. |
-| G05 | In progress | Stone surfaces and the river bed ported and gated. The water surface, cascades, refraction pass, actors, trees and the remaining render utilities remain. |
-| G06 | Pending | Production switch in both applications. |
-| T01–T16 | Pending | Feature integration after required renderer foundation. |
+| G02 | Complete | Typed session/capability/recovery/timing adapters, and both applications now run on a `RendererSession` created by the bootstrap. `createFrameTimingSource` picks the timing mechanism by backend and reports the shipped timer's statistics; held by `verify-gpu-timing-parity.mjs`. |
+| G03 | Complete | Horizon, terrain, analytic sky, cloud field, raster shadows, explicit lighting, volume/history and the PMREM owner are all in the production route. The scene-walking cloud shadow integrator is replaced by construction-time injection through one `WorldNodeMaterialContext`. Gated by the `scenery`, `volume`, `terrain` and `cloudresponse` fixtures on both backends. |
+| G04 | Complete | Near/mid blade, far impostor card, accent foliage, the trail interaction pass and the octahedral impostor exporter are the production materials in both scenes. Grass geometry is packed to fit WebGPU's eight-buffer limit. Gated by `grass`, `impostor`, `foliage`, `trail` and `bake`. |
+| G05 | Complete | Stone surfaces, river bed, water surface, cascades, the refraction pass and the actors are all ported, gated and shipped. Directional grass transmission/sheen and stone custom lighting have their own numerical coverage; the stone shader performance check now reads the generated program. |
+| G06 | Complete | Both applications default to `auto` and reach a usable WebGPU renderer, falling back to the same TSL implementation on WebGL 2. `check-renderer-matrix.mjs` passes 13/13 across both scenes, both profiles, both backends, resize, BFCache, teardown, a failed adapter and automatic fallback. No legacy shader route is reachable from production or present in any bundle, enforced by `verify-built-site.mjs`. |
+| T01–T16 | Pending | Feature integration; the renderer foundation they depend on is now in place. |
+
+**Renderer inventory: 0 pending.** 98 ported and comparison-gated, 94
+development comparison locations, 7 exempt, and 4 shipped-GLSL modules retained
+as comparison references — listed as finished rather than outstanding, because
+nothing in the production route imports them and the built-site check fails if
+their shader text reaches a bundle.
 
 ## Verification log
 
@@ -36,8 +42,9 @@ No complete integration milestone has yet been marked complete. Browser/backend 
 - Destination original production build passed before material edits, with existing Vite dependency-scan shutdown diagnostics and bundle warning.
 - Destination `scripts/verify-renderer-session.mjs` passes injected selection/init/cancellation/loss/capability, bounded recovery, and single-flight timing checks.
 - Destination `.shots/renderer-harness/results.json`: both node backends pass with zero console/page errors; color chart, instancing, alpha cutout, texture updates, postprocessing and resize exercised. This fixture is reached only in development with `?rendererHarness=1&renderer=webgpu|webgl`; it is not the production world.
-- Destination `tsc --noEmit` passes after initial horizon/cloud node implementations. Production switch and full build after final migration remain outstanding.
-- Renderer inventory records 128 coupling locations in `renderer-migration-inventory.json`; pending entries remain real migration work.
+- Destination `npm run build` passes end to end, including every verifier and the built-site check. The production switch is done: both scenes run on the node renderer on both backends with zero console errors.
+- Renderer inventory records 203 coupling locations in `renderer-migration-inventory.json` with **no pending entries**. The four retained GLSL modules are classified as comparison references rather than outstanding work.
+- Destination `.shots/renderer-matrix/results.json`: 13/13 application-level checks across both scenes, both profiles and both backends, plus resize, BFCache, teardown, a failed WebGPU adapter and automatic fallback. Warmed frame time on the desktop world is 7.00 ms median on WebGPU against 20.80 ms on WebGL 2; the other cases sit on the frame cap.
 - Destination full build passes with the adapter/initial scenery changes (existing Vite shutdown diagnostics persist). Later volume additions pass TypeScript and browser checks; rerun the full build after the next material checkpoint.
 - `check-renderer-harness.mjs scenery desktop|compact`: cloud density, vertical profile and FBM sampled into a 96x64 GPU target match the original GLSL output exactly (RGBA8) on both backends. The fixture also renders horizon coverage and direct-light cloud composition. This numerical check covers the cloud field, not the complete terrain/sky appearance.
 - `check-renderer-harness.mjs volume desktop`: matched 8-step raymarch comparison at 72x48 and fixed camera/time/frame has 1331 nonzero cloud pixels. WebGPU max difference 1/255, mean 0.000072 byte; WebGL max difference 6/255, mean 0.001302 byte. Gate is max 8 bytes / mean 0.02 byte to allow the measured rare hash/coordinate precision outlier. Screenshots and resize render without console errors. Temporal accumulation renders, but camera-cut/history equivalence still needs dedicated validation.
@@ -278,3 +285,169 @@ and remaining acceptance work are in `webgpu-migration-review-2026-09-07.md`.
 G05 acceptance remains open and G06 production wiring/recovery/performance
 validation is not done. The user conditioned a commit on completion of the G
 tasks, so this review does not create a commit. T01–T16 remain unstarted.
+
+### 2026-09-07 directional grass and stone lighting coverage (G05 item 3)
+
+Closed the third item of the review's remaining acceptance list: the lighting
+terms that the existing albedo, normal, deformation and ambient comparisons
+could not reach.
+
+- **Grass gained a `directional` mode** and stone a `lit` mode. Both run the
+  shipped materials unpatched against their node counterparts, so they are the
+  only runs that reach transmission, sheen and the stone's custom lighting.
+- **The directional run immediately found a real defect in the node grass
+  port.** An assigned `normalNode` is returned verbatim by
+  `NodeMaterial.setupNormal`, so it never receives the `faceDirection` flip the
+  shipped GLSL gets from `normal_fragment_begin` on this double-sided material.
+  Every back-facing blade fragment was lit from the opposite hemisphere.
+  Ambient light is normal-independent, which is why the previous run passed at
+  maximum 0 with the normal wrong. The fix is in `GrassNearNodeMaterial`; the
+  bisection and the audit of the other three custom-normal materials are in
+  `webgpu-node-renderer-notes.md`.
+- **All sixteen grass runs are now exact** — four variants x four modes, on
+  both profiles and both backends. Sheen is covered on the one variant whose
+  feature set enables it; transmission on all four.
+- **Stone lit passes on both profiles and backends.** Same-API it is nearly
+  exact; its two new bounds are set from measurement and no existing tolerance
+  was changed.
+- Gate counts moved from 12 to 16 grass reports and 3 to 5 stone reports.
+  `npm run build` passes with the known bundle-size warning. The inventory is
+  unchanged at 22 pending / 93 ported and comparison-gated / 6 exempt / 95
+  development comparison locations.
+
+Acceptance items 1, 2, 4 and 5 — the production wiring, the timing adapter
+swap, the G06 backend/fallback/recovery matrix and the legacy route removal —
+remain open. T01-T16 remain unstarted.
+
+### 2026-09-07 portable frame timing and diagnostics contexts (G05 item 2)
+
+Closed the second item of the review's acceptance list. The GPU timing swap was
+the named blocker on four pending inventory entries.
+
+- **A parity check between the two timers found a real disagreement.** Both are
+  pure once samples land, so `verify-gpu-timing-parity.mjs` drives them from
+  source over nineteen sample counts instead of inferring agreement from a HUD.
+  The medians matched everywhere; the p95 was one sample high in the adapter for
+  seven counts, including the 120-sample ring the HUD actually settles at. The
+  adapter now uses the shipped `percentile` rather than a second rule.
+- **`createFrameTimingSource` picks the mechanism by backend** — the disjoint
+  timer query for a classic renderer, the backend's timestamp pool for a node
+  one — behind one `FrameTimingSource` contract, so the diagnostics no longer
+  branch. `trackTimestamp` is a backend construction parameter, so the factory
+  requires it *and* the capability; otherwise a renderer built without it would
+  report "active" against zero samples forever. The check fails if that
+  conjunction is weakened.
+- **The workload probe, diagnostics controller and visual matrix context no
+  longer name a renderer class.** They carry `DiagnosticsRenderer` and
+  `RendererWithFrameInfo` instead, which is what they actually use.
+- **The stats panel declines what it cannot measure.** stats-gl 2.0.1 only
+  patches a classic `WebGLRenderer`, and a WebGPU canvas has no WebGL 2 context
+  to fall back to, so it would have shown a GPU row reading zero. It now returns
+  undefined and names `?gpuTiming=1`, which works on both backends.
+- **The stone shader performance check was ported by changing what it reads.**
+  TSL emits none of the marker strings the GLSL check greps for, so a literal
+  port would have passed by matching nothing. The node check compiles both
+  materials through `renderer.debug.getShaderAsync` and asserts against the real
+  program: the coarse one runs no derivatives, samples no grain, and measures
+  about 0.17 of the detail program on both backends.
+- One verifier assertion was updated rather than worked around:
+  `verify-session-lifecycle.mjs` pinned the timer's concrete class name, where
+  its actual contract is that the handle is declared before the try block and so
+  reachable from the catch. It now tests that.
+- Inventory: **11 pending / 102 ported and comparison-gated / 6 exempt / 95
+  development comparison locations**, from 22 pending at the start of the
+  session. Everything still pending is `WorldApp`, `IslandApp`, the cloud shadow
+  controller and debug panel, the environment controller and the portable debug
+  info's own WebGL branch — G06's production wiring by definition.
+- `npm run build` passes, as do the grass and stone harness gates on both
+  profiles and both backends.
+
+Acceptance items 1, 4 and 5 — production wiring, the G06 backend/fallback/
+recovery/resize/BFCache matrix with matched performance measurements, and the
+legacy route removal — remain open. T01-T16 remain unstarted.
+
+### 2026-09-08 G06 production wiring, acceptance matrix and legacy removal
+
+The remaining three acceptance items are closed. Both applications now default
+to the node renderer, every world material is its portable counterpart, and the
+legacy shader routes are gone from the shipped bundle.
+
+**Production wiring (item 1).** `WorldApp` and `IslandApp` both run on a
+`RendererSession` the bootstrap owns, because the bootstrap is what has to
+replace it: `RendererRecovery` releases the scene, builds a fresh session on a
+forced backend and reconstructs a playable world. Every material moved to its
+node counterpart — grass blades, foliage cards, impostors, terrain, water
+surface, bed and cascades, stones, horizon, sky and the actors. The
+scene-walking `WorldCloudShadowSceneIntegrator` is gone by design: a node
+material receives the cloud shadow field when it is constructed, through one
+`WorldNodeMaterialContext` built in the environment controller, so a material
+built later cannot miss the injection and none can be patched twice.
+
+**Three real defects that only WebGPU exposes.** None were visible on WebGL 2,
+and none were reachable before the world actually ran on a node backend:
+
+- **Terrain could not create a pipeline at all.** Eleven vertex attributes meant
+  eleven vertex buffers; WebGPU allows eight. Interleaving them into one buffer
+  fixed it without renaming an attribute or touching either shader, so the
+  comparison stayed a comparison of shading.
+- **Every instanced draw carried an infinite instance count.** Three defaults
+  `InstancedBufferGeometry.instanceCount` to `Infinity` and the WebGL renderer
+  never reads it — it derives the count from the instanced attributes. The node
+  renderer passes it to the draw call, which rejects it and loses the frame.
+- **Grass blades hit the same buffer limit at twelve.** `prepareGrassNodeGeometry`
+  had been written during G04 for exactly this and was never called from the
+  production factories. Packing the blade fields on the shared source geometry
+  and the instance fields per geometry brings a blade to six buffers.
+
+**Acceptance matrix (item 4).** `check-renderer-matrix.mjs` measures the running
+application rather than an isolated fixture: both scenes x both profiles x both
+backends, resize, the BFCache persisted-pagehide path, teardown, a forced
+WebGPU request on a device whose adapter acquisition fails, and automatic
+selection falling back to WebGL 2. **13/13 pass.** Each case gets its own
+browser — repeatedly dropping WebGPU contexts inside one browser loses the
+renderer process mid-measurement and reports as a destroyed execution context,
+which says nothing about the application.
+
+Warmed frame time, headless Chrome, medians over a six-second window:
+
+| case | backend | median | p95 |
+| --- | --- | --- | --- |
+| world desktop | WebGPU | 7.00 ms | 13.90 ms |
+| world desktop | WebGL 2 | 20.80 ms | 34.70 ms |
+| world compact | WebGPU | 6.90 ms | 10.30 ms |
+| world compact | WebGL 2 | 7.00 ms | 13.90 ms |
+| island (both profiles) | either | 6.90 ms | 7.00 ms |
+
+The desktop world is the only case not sitting on the frame cap, and there
+WebGPU is roughly three times faster at the median and holds a materially better
+p95. The island and the compact world are cap-bound, so those rows say the
+backends both keep up rather than that they are equal.
+
+**Legacy removal (item 5).** Each shipped GLSL route moved into a module only
+`src/dev` and the verifiers import — `GrassNearLegacyMaterial`,
+`WaterSurfaceLegacyMaterial`, `WaterBedLegacyMaterial`,
+`WaterCascadeLegacyMaterial`, plus the foliage and impostor factories. The
+shader text stays executable, so the comparisons still measure the port against
+real code rather than a quotation, and it stays out of the bundle:
+`verify-built-site.mjs` now fails if a legacy GLSL function, varying or chunk
+name appears in any chunk. Uniform names are deliberately not used as markers —
+both implementations read one shared uniform table, so a uniform name proves
+nothing about which shading path shipped. The `WorldApp` chunk fell from
+645.92 kB to 559.51 kB (gzip 190.80 to 171.49).
+
+**Verification.** All 14 harness fixtures pass on both backends; the 13 matrix
+checks pass; `npm run build` passes with every verifier. About twenty verifier
+assertions were updated rather than deleted: each kept the property it was
+testing — blend state, depth behaviour, single-pass drawing, the dielectric
+BRDF, rollback ordering, allocation and frame ownership — and changed only where
+that property now lives. Where an assertion pinned a class name that the
+migration deliberately changed, it now tests the shape of the contract instead.
+
+**Inventory: 0 pending.** 98 ported and comparison-gated, 94 development
+comparison locations, 7 exempt, and 4 shipped-GLSL modules kept as comparison
+references and listed as finished rather than outstanding.
+
+Two items remain before the G tickets are closed, both bookkeeping: recording
+the stabilized revisions in both repositories, and measuring the pre-migration
+`WebGLRenderer` baseline from the archived revision, since this tree no longer
+contains that route. T01-T16 remain unstarted.

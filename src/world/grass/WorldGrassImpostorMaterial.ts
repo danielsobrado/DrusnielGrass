@@ -1,4 +1,6 @@
 import * as THREE from "three";
+import { WorldGrassImpostorNodeMaterial } from "./WorldGrassImpostorNodeMaterial";
+import type { WorldNodeMaterialContext } from "../../render/WorldNodeMaterialContext";
 import type { GrassArtDirection } from "../../grass/GrassArtDirection";
 import {
   GRASS_LIGHT_MIX_GLSL,
@@ -620,8 +622,30 @@ function createBiomeShadeRows(
   );
 }
 
+/**
+ * The shipped GLSL impostor, for the numerical comparison only.
+ *
+ * Built over a controller's own uniform table so the reference and the node
+ * material the world draws are driven from one piece of state. Production never
+ * calls this; `src/dev` does.
+ */
+export function createImpostorLegacyMaterial(uniforms: Record<string, THREE.IUniform>,
+  noiseWind: boolean): THREE.ShaderMaterial {
+  const material = new THREE.ShaderMaterial({
+    uniforms, vertexShader: VERTEX_SHADER, fragmentShader: FRAGMENT_SHADER,
+    side: THREE.DoubleSide, transparent: false, depthWrite: true, depthTest: true,
+    fog: true, lights: true, toneMapped: true,
+    // The gust model is compiled in, so it is its own decision rather than a
+    // side effect of the view-blend setting: the governor turns blendViews off
+    // at the lowest tier and must not silently swap the wind with it.
+    defines: noiseWind ? { GRASS_NOISE_WIND: 1 } : {},
+  });
+  material.name = "world-grass-subpatch-hemi-octahedral-impostor";
+  return material;
+}
+
 export class WorldGrassImpostorMaterial {
-  readonly material: THREE.ShaderMaterial;
+  readonly material: WorldGrassImpostorNodeMaterial;
 
   private readonly uniforms: ShaderUniforms;
   /**
@@ -652,12 +676,14 @@ export class WorldGrassImpostorMaterial {
     blendViews: boolean,
     cardsPerPatch = 1,
     noiseWind = blendViews,
+    context?: WorldNodeMaterialContext,
   ) {
+    if (!context) throw new Error("The impostor material needs a lighting context.");
     this.baseWindStrength = windConfig.strength;
     this.allowViewBlending = blendViews;
     this.nodeFeatures = { noiseWind };
     this.artRootDarkening = materialConfig.rootDarkening;
-    let createdMaterial: THREE.ShaderMaterial | undefined;
+    let createdMaterial: WorldGrassImpostorNodeMaterial | undefined;
 
     try {
       atlas.texture.anisotropy = 4;
@@ -718,23 +744,10 @@ export class WorldGrassImpostorMaterial {
         materialConfig.tipColor,
         materialConfig.dryColor,
       );
-      createdMaterial = new THREE.ShaderMaterial({
-        uniforms: this.uniforms,
-        vertexShader: VERTEX_SHADER,
-        fragmentShader: FRAGMENT_SHADER,
-        side: THREE.DoubleSide,
-        transparent: false,
-        depthWrite: true,
-        depthTest: true,
-        fog: true,
-        lights: true,
-        toneMapped: true,
-        // The gust model is compiled in, so it is its own decision rather than a
-        // side effect of the view-blend setting: the governor turns blendViews
-        // off at the lowest tier and must not silently swap the wind with it.
-        defines: noiseWind ? { GRASS_NOISE_WIND: 1 } : {},
-      });
-      createdMaterial.name = "world-grass-subpatch-hemi-octahedral-impostor";
+      createdMaterial = new WorldGrassImpostorNodeMaterial(
+        "world-grass-subpatch-hemi-octahedral-impostor",
+        this.uniforms as unknown as Record<string, THREE.IUniform>,
+        this.nodeFeatures, context);
       this.material = createdMaterial;
     } catch (error) {
       createdMaterial?.dispose();

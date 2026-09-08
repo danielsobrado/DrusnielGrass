@@ -287,7 +287,11 @@ try {
   assert(checkedDirections >= 7, "Every shipped art preset must be checked.");
 
   // --- Runtime/registry wander contract ---
-  const nearMaterialSource = read("src/grass/materials/GrassNearMaterial.ts");
+// The blade's shading is split between the state owner and the GLSL
+// reference the comparison measures against, so the shader contract is
+// read from both halves rather than from whichever half a line lives in.
+  const nearMaterialSource = read("src/grass/materials/GrassNearMaterial.ts")
+    + read("src/grass/materials/GrassNearLegacyMaterial.ts");
   const impostorMaterialSource = read(
     "src/world/grass/WorldGrassImpostorMaterial.ts",
   );

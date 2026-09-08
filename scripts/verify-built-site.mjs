@@ -178,6 +178,38 @@ for (const legalFile of ["LICENSE", "THIRD_PARTY_NOTICES.md"]) {
   );
 }
 
+/**
+ * The shipped bundle must carry one material implementation, not two.
+ *
+ * Every legacy GLSL route now lives in a module only `src/dev` and the
+ * verifiers import, so the shader text the node materials were ported from
+ * stays available as an executable comparison reference without being shipped.
+ * These markers are GLSL function, varying and chunk names, which exist only in
+ * the legacy sources: if one reappears in a chunk, a production path has
+ * reached back into the legacy implementation. Uniform names are deliberately
+ * not used here -- both implementations read one shared uniform table, so a
+ * uniform name proves nothing about which shading path shipped.
+ */
+const LEGACY_SHADER_MARKERS = Object.freeze([
+  "GRASS_SHEEN_OUTPUT",
+  "waterSampleRiverBed",
+  "stoneGrowthNoise",
+  "uHorizonSinkDepth",
+  "vWorldCloudDirectScale",
+  "#include <opaque_fragment>",
+]);
+const bundleFiles = listFiles(resolve(DIST_DIRECTORY, "assets"))
+  .filter((file) => file.endsWith(".js"));
+for (const marker of LEGACY_SHADER_MARKERS) {
+  const carrying = bundleFiles.filter((file) =>
+    readFileSync(file, "utf8").includes(marker));
+  assert(
+    carrying.length === 0,
+    `A legacy shader route reached the bundle: ${marker} appears in `
+      + carrying.map((file) => relative(DIST_DIRECTORY, file)).join(", "),
+  );
+}
+
 console.log(
-  `[built-site] Single-entry Pages artifact, relative index/bundles, complete runtime CSP, no source maps, ${references.length} HTML references, byte-identical public/legal assets verified.`,
+  `[built-site] Single-entry Pages artifact, relative index/bundles, complete runtime CSP, no source maps, ${references.length} HTML references, byte-identical public/legal assets, no legacy shader route in ${bundleFiles.length} chunks verified.`,
 );

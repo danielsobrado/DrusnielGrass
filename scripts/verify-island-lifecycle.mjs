@@ -91,7 +91,9 @@ assert(
 );
 
 assert(
-  island.includes("renderer.capabilities.maxTextureSize") &&
+  // Still clamped to the device limit; the node renderer reports it through
+  // the session's capability probe rather than a WebGL capabilities object.
+  island.includes("session.capabilities.maxTextureSize") &&
     /function addIslandLights\([\s\S]*?maxTextureSize: number[\s\S]*?Math\.min\(profile\.shadowMapSize, maxTextureSize\)[\s\S]*?sun\.shadow\.mapSize\.set\(shadowMapSize, shadowMapSize\)/.test(
       island,
     ),
@@ -170,7 +172,7 @@ assert(
     development.includes("this.abortController.signal") &&
     development.includes("delete windowWithResults.__FLUFFY_GRASS_IMPOSTOR_BAKE__") &&
     development.includes("delete windowWithResults.__FLUFFY_GRASS_QA__") &&
-    /const result = await baker\.bake\([\s\S]*?if \(this\.disposed\) \{[\s\S]*?return;[\s\S]*?\}[\s\S]*?createDownloadLinks/.test(
+    /const result = await baker\.bake\([\s\S]*?if \(this\.disposed\) \{[\s\S]*?return;[\s\S]*?\}[\s\S]*?createImpostorDownloadLinks/.test(
       development,
     ) &&
     /finally \{[\s\S]*?if \(!this\.disposed\) \{[\s\S]*?setLodBakeOverride\(false\)/.test(

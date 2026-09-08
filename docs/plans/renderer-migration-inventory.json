@@ -1,82 +1,12 @@
 {
   "note": "Generated inventory. A \"ported\" entry means a portable implementation exists and a named check compares it against the shipped one; it is not a claim that the production route has been switched. Pending entries are unmigrated.",
   "counts": {
-    "pending": 22,
-    "not a renderer coupling": 6,
-    "comparison harness, development only": 95,
-    "ported, comparison-gated": 93
+    "not a renderer coupling": 7,
+    "ported, comparison-gated": 98,
+    "comparison harness, development only": 94,
+    "shipped GLSL kept as the comparison reference": 4
   },
   "entries": [
-    {
-      "file": "src/app/IslandApp.ts",
-      "line": 27,
-      "symbols": [
-        "WebGLRenderer"
-      ],
-      "owner": "G02/G05",
-      "status": "pending",
-      "source": "renderer: THREE.WebGLRenderer;"
-    },
-    {
-      "file": "src/app/IslandApp.ts",
-      "line": 36,
-      "symbols": [
-        "WebGLRenderer"
-      ],
-      "owner": "G02/G05",
-      "status": "pending",
-      "source": "private readonly renderer: THREE.WebGLRenderer;"
-    },
-    {
-      "file": "src/app/IslandApp.ts",
-      "line": 400,
-      "symbols": [
-        "WebGLRenderer"
-      ],
-      "owner": "G02/G05",
-      "status": "pending",
-      "source": "let renderer: THREE.WebGLRenderer | undefined;"
-    },
-    {
-      "file": "src/app/IslandApp.ts",
-      "line": 406,
-      "symbols": [
-        "WebGLRenderer"
-      ],
-      "owner": "G02/G05",
-      "status": "pending",
-      "source": "renderer = new THREE.WebGLRenderer({"
-    },
-    {
-      "file": "src/app/WorldApp.ts",
-      "line": 53,
-      "symbols": [
-        "WebGLRenderer"
-      ],
-      "owner": "G02/G05",
-      "status": "pending",
-      "source": "private readonly renderer: THREE.WebGLRenderer;"
-    },
-    {
-      "file": "src/app/WorldApp.ts",
-      "line": 106,
-      "symbols": [
-        "WebGLRenderer"
-      ],
-      "owner": "G02/G05",
-      "status": "pending",
-      "source": "this.renderer = new THREE.WebGLRenderer({"
-    },
-    {
-      "file": "src/app/WorldCloudShadowController.ts",
-      "line": 31,
-      "symbols": [
-        "WebGLRenderer"
-      ],
-      "owner": "G03",
-      "status": "pending",
-      "source": "renderer: THREE.WebGLRenderer,"
-    },
     {
       "file": "src/app/WorldCloudShadowDebugPanel.ts",
       "line": 140,
@@ -84,18 +14,9 @@
         "getContext("
       ],
       "owner": "G03",
-      "status": "pending",
+      "status": "not a renderer coupling",
+      "reason": "a 2D canvas that draws the shadow preview, unrelated to the 3D renderer",
       "source": "const context = canvas.getContext(\"2d\", { alpha: false });"
-    },
-    {
-      "file": "src/app/WorldEnvironmentController.ts",
-      "line": 48,
-      "symbols": [
-        "WebGLRenderer"
-      ],
-      "owner": "G02/G05",
-      "status": "pending",
-      "source": "private readonly renderer: THREE.WebGLRenderer,"
     },
     {
       "file": "src/app/WorldMinimap.ts",
@@ -126,28 +47,70 @@
         "WebGLRenderer"
       ],
       "owner": "G02/G05",
-      "status": "pending",
+      "status": "ported, comparison-gated",
+      "replacement": "src/render/FrameTimingSource.ts via the diagnostics HUD; stats-gl 2.0.1 can only patch a classic WebGLRenderer, so the panel declines any other renderer",
+      "check": "verify-session-lifecycle.mjs (declines rather than attaching a GPU row that reads zero)",
       "source": "import type { WebGLRenderer } from \"three\";"
     },
     {
       "file": "src/app/WorldStatsPanel.ts",
-      "line": 12,
+      "line": 18,
       "symbols": [
         "WebGLRenderer"
       ],
       "owner": "G02/G05",
-      "status": "pending",
-      "source": "renderer: WebGLRenderer,"
+      "status": "ported, comparison-gated",
+      "replacement": "src/render/FrameTimingSource.ts via the diagnostics HUD; stats-gl 2.0.1 can only patch a classic WebGLRenderer, so the panel declines any other renderer",
+      "check": "verify-session-lifecycle.mjs (declines rather than attaching a GPU row that reads zero)",
+      "source": "isWebGLRenderer?: boolean;"
     },
     {
-      "file": "src/app/WorldVisualMatrixContext.ts",
-      "line": 14,
+      "file": "src/app/WorldStatsPanel.ts",
+      "line": 24,
       "symbols": [
         "WebGLRenderer"
       ],
       "owner": "G02/G05",
-      "status": "pending",
-      "source": "readonly renderer: THREE.WebGLRenderer;"
+      "status": "ported, comparison-gated",
+      "replacement": "src/render/FrameTimingSource.ts via the diagnostics HUD; stats-gl 2.0.1 can only patch a classic WebGLRenderer, so the panel declines any other renderer",
+      "check": "verify-session-lifecycle.mjs (declines rather than attaching a GPU row that reads zero)",
+      "source": "* stats-gl 2.0.1 reaches the GPU exactly one way: it tests `isWebGLRenderer`,"
+    },
+    {
+      "file": "src/app/WorldStatsPanel.ts",
+      "line": 35,
+      "symbols": [
+        "WebGLRenderer"
+      ],
+      "owner": "G02/G05",
+      "status": "ported, comparison-gated",
+      "replacement": "src/render/FrameTimingSource.ts via the diagnostics HUD; stats-gl 2.0.1 can only patch a classic WebGLRenderer, so the panel declines any other renderer",
+      "check": "verify-session-lifecycle.mjs (declines rather than attaching a GPU row that reads zero)",
+      "source": "renderer: WebGLRenderer | WebGPURenderer,"
+    },
+    {
+      "file": "src/app/WorldStatsPanel.ts",
+      "line": 37,
+      "symbols": [
+        "WebGLRenderer"
+      ],
+      "owner": "G02/G05",
+      "status": "ported, comparison-gated",
+      "replacement": "src/render/FrameTimingSource.ts via the diagnostics HUD; stats-gl 2.0.1 can only patch a classic WebGLRenderer, so the panel declines any other renderer",
+      "check": "verify-session-lifecycle.mjs (declines rather than attaching a GPU row that reads zero)",
+      "source": "if (!(renderer as PatchableRenderer).isWebGLRenderer) {"
+    },
+    {
+      "file": "src/app/WorldStatsPanel.ts",
+      "line": 54,
+      "symbols": [
+        "WebGLRenderer"
+      ],
+      "owner": "G02/G05",
+      "status": "ported, comparison-gated",
+      "replacement": "src/render/FrameTimingSource.ts via the diagnostics HUD; stats-gl 2.0.1 can only patch a classic WebGLRenderer, so the panel declines any other renderer",
+      "check": "verify-session-lifecycle.mjs (declines rather than attaching a GPU row that reads zero)",
+      "source": "stats.init(renderer as WebGLRenderer);"
     },
     {
       "file": "src/dev/ActorEnvironmentComparison.ts",
@@ -425,16 +388,6 @@
       "source": "legacy.readRenderTargetPixels(legacyTarget, 0, 0, width, height, expected);"
     },
     {
-      "file": "src/dev/GrassDevelopmentController.ts",
-      "line": 11,
-      "symbols": [
-        "WebGLRenderer"
-      ],
-      "owner": "G04",
-      "status": "comparison harness, development only",
-      "source": "renderer: THREE.WebGLRenderer;"
-    },
-    {
       "file": "src/dev/GrassFoliageComparison.ts",
       "line": 5,
       "symbols": [
@@ -447,7 +400,7 @@
     },
     {
       "file": "src/dev/GrassFoliageComparison.ts",
-      "line": 76,
+      "line": 79,
       "symbols": [
         "WebGLRenderer"
       ],
@@ -457,7 +410,7 @@
     },
     {
       "file": "src/dev/GrassFoliageComparison.ts",
-      "line": 78,
+      "line": 81,
       "symbols": [
         "WebGLRenderTarget"
       ],
@@ -467,7 +420,7 @@
     },
     {
       "file": "src/dev/GrassFoliageComparison.ts",
-      "line": 87,
+      "line": 90,
       "symbols": [
         "readRenderTargetPixels"
       ],
@@ -488,7 +441,7 @@
     },
     {
       "file": "src/dev/GrassImpostorComparison.ts",
-      "line": 68,
+      "line": 75,
       "symbols": [
         "WebGLRenderer"
       ],
@@ -498,7 +451,7 @@
     },
     {
       "file": "src/dev/GrassImpostorComparison.ts",
-      "line": 70,
+      "line": 77,
       "symbols": [
         "WebGLRenderTarget"
       ],
@@ -508,7 +461,7 @@
     },
     {
       "file": "src/dev/GrassImpostorComparison.ts",
-      "line": 79,
+      "line": 86,
       "symbols": [
         "readRenderTargetPixels"
       ],
@@ -529,7 +482,7 @@
     },
     {
       "file": "src/dev/GrassNearComparison.ts",
-      "line": 71,
+      "line": 99,
       "symbols": [
         "onBeforeCompile"
       ],
@@ -539,7 +492,7 @@
     },
     {
       "file": "src/dev/GrassNearComparison.ts",
-      "line": 72,
+      "line": 100,
       "symbols": [
         "onBeforeCompile"
       ],
@@ -549,7 +502,7 @@
     },
     {
       "file": "src/dev/GrassNearComparison.ts",
-      "line": 107,
+      "line": 138,
       "symbols": [
         "WebGLRenderer"
       ],
@@ -559,7 +512,7 @@
     },
     {
       "file": "src/dev/GrassNearComparison.ts",
-      "line": 109,
+      "line": 140,
       "symbols": [
         "WebGLRenderTarget"
       ],
@@ -569,7 +522,7 @@
     },
     {
       "file": "src/dev/GrassNearComparison.ts",
-      "line": 118,
+      "line": 149,
       "symbols": [
         "readRenderTargetPixels"
       ],
@@ -733,7 +686,7 @@
     },
     {
       "file": "src/dev/StoneSurfaceComparison.ts",
-      "line": 199,
+      "line": 173,
       "symbols": [
         "onBeforeCompile"
       ],
@@ -743,7 +696,7 @@
     },
     {
       "file": "src/dev/StoneSurfaceComparison.ts",
-      "line": 200,
+      "line": 174,
       "symbols": [
         "onBeforeCompile"
       ],
@@ -753,7 +706,7 @@
     },
     {
       "file": "src/dev/StoneSurfaceComparison.ts",
-      "line": 217,
+      "line": 192,
       "symbols": [
         "WebGLRenderer"
       ],
@@ -763,7 +716,7 @@
     },
     {
       "file": "src/dev/StoneSurfaceComparison.ts",
-      "line": 219,
+      "line": 194,
       "symbols": [
         "WebGLRenderTarget"
       ],
@@ -773,7 +726,7 @@
     },
     {
       "file": "src/dev/StoneSurfaceComparison.ts",
-      "line": 228,
+      "line": 203,
       "symbols": [
         "readRenderTargetPixels"
       ],
@@ -855,7 +808,7 @@
     },
     {
       "file": "src/dev/WaterBedComparison.ts",
-      "line": 102,
+      "line": 104,
       "symbols": [
         "onBeforeCompile"
       ],
@@ -865,7 +818,7 @@
     },
     {
       "file": "src/dev/WaterBedComparison.ts",
-      "line": 103,
+      "line": 105,
       "symbols": [
         "onBeforeCompile"
       ],
@@ -875,7 +828,7 @@
     },
     {
       "file": "src/dev/WaterBedComparison.ts",
-      "line": 114,
+      "line": 116,
       "symbols": [
         "WebGLRenderer"
       ],
@@ -885,7 +838,7 @@
     },
     {
       "file": "src/dev/WaterBedComparison.ts",
-      "line": 116,
+      "line": 118,
       "symbols": [
         "WebGLRenderTarget"
       ],
@@ -895,7 +848,7 @@
     },
     {
       "file": "src/dev/WaterBedComparison.ts",
-      "line": 125,
+      "line": 127,
       "symbols": [
         "readRenderTargetPixels"
       ],
@@ -916,7 +869,7 @@
     },
     {
       "file": "src/dev/WaterCascadeComparison.ts",
-      "line": 78,
+      "line": 80,
       "symbols": [
         "onBeforeCompile"
       ],
@@ -926,7 +879,7 @@
     },
     {
       "file": "src/dev/WaterCascadeComparison.ts",
-      "line": 79,
+      "line": 81,
       "symbols": [
         "onBeforeCompile"
       ],
@@ -936,7 +889,7 @@
     },
     {
       "file": "src/dev/WaterCascadeComparison.ts",
-      "line": 93,
+      "line": 95,
       "symbols": [
         "WebGLRenderer"
       ],
@@ -946,7 +899,7 @@
     },
     {
       "file": "src/dev/WaterCascadeComparison.ts",
-      "line": 95,
+      "line": 97,
       "symbols": [
         "WebGLRenderTarget"
       ],
@@ -956,7 +909,7 @@
     },
     {
       "file": "src/dev/WaterCascadeComparison.ts",
-      "line": 104,
+      "line": 106,
       "symbols": [
         "readRenderTargetPixels"
       ],
@@ -1059,7 +1012,7 @@
     },
     {
       "file": "src/dev/WaterSurfaceComparison.ts",
-      "line": 148,
+      "line": 152,
       "symbols": [
         "onBeforeCompile"
       ],
@@ -1069,7 +1022,7 @@
     },
     {
       "file": "src/dev/WaterSurfaceComparison.ts",
-      "line": 149,
+      "line": 153,
       "symbols": [
         "onBeforeCompile"
       ],
@@ -1079,7 +1032,7 @@
     },
     {
       "file": "src/dev/WaterSurfaceComparison.ts",
-      "line": 161,
+      "line": 165,
       "symbols": [
         "WebGLRenderer"
       ],
@@ -1089,7 +1042,7 @@
     },
     {
       "file": "src/dev/WaterSurfaceComparison.ts",
-      "line": 163,
+      "line": 167,
       "symbols": [
         "WebGLRenderTarget"
       ],
@@ -1099,7 +1052,7 @@
     },
     {
       "file": "src/dev/WaterSurfaceComparison.ts",
-      "line": 206,
+      "line": 210,
       "symbols": [
         "readRenderTargetPixels"
       ],
@@ -1109,7 +1062,7 @@
     },
     {
       "file": "src/dev/WaterSurfaceComparison.ts",
-      "line": 217,
+      "line": 221,
       "symbols": [
         "readRenderTargetPixels"
       ],
@@ -1155,7 +1108,7 @@
     },
     {
       "file": "src/grass/impostors/OctahedralImpostorBaker.ts",
-      "line": 342,
+      "line": 267,
       "symbols": [
         "getContext("
       ],
@@ -1287,8 +1240,19 @@
       "source": "const target = new THREE.WebGLRenderTarget(size, size, {"
     },
     {
+      "file": "src/grass/materials/GrassNearLegacyMaterial.ts",
+      "line": 943,
+      "symbols": [
+        "onBeforeCompile"
+      ],
+      "owner": "G04",
+      "status": "shipped GLSL kept as the comparison reference",
+      "check": "check-renderer-harness.mjs grass",
+      "source": "legacy.onBeforeCompile = (shader) => {"
+    },
+    {
       "file": "src/grass/materials/GrassNearMaterial.ts",
-      "line": 965,
+      "line": 85,
       "symbols": [
         "WebGLRenderer"
       ],
@@ -1297,18 +1261,6 @@
       "replacement": "src/grass/materials/GrassNearNodes.ts, GrassNearNodeMaterial.ts",
       "check": "check-renderer-harness.mjs grass (4 configurations x deformation/albedo/ambient lighting)",
       "source": "* WebGLRenderer), and its opaque sort groups by `material.id` before depth. The"
-    },
-    {
-      "file": "src/grass/materials/GrassNearMaterial.ts",
-      "line": 1212,
-      "symbols": [
-        "onBeforeCompile"
-      ],
-      "owner": "G04",
-      "status": "ported, comparison-gated",
-      "replacement": "src/grass/materials/GrassNearNodes.ts, GrassNearNodeMaterial.ts",
-      "check": "check-renderer-harness.mjs grass (4 configurations x deformation/albedo/ambient lighting)",
-      "source": "this.material.onBeforeCompile = (shader) => {"
     },
     {
       "file": "src/render/ActorEnvironmentResponse.ts",
@@ -1323,13 +1275,27 @@
       "source": "material.onBeforeCompile = (shader) => {"
     },
     {
+      "file": "src/render/FrameTimingSource.ts",
+      "line": 52,
+      "symbols": [
+        "WebGLRenderer"
+      ],
+      "owner": "G02/G05",
+      "status": "ported, comparison-gated",
+      "replacement": "the portable route itself; it names the WebGL renderer only to construct the shipped timer for a renderer that has no node backend",
+      "check": "verify-gpu-timing-parity.mjs (same statistics as the shipped timer, and timing reported only where the renderer can deliver it)",
+      "source": "if (!backend) return new GpuFrameTimer(renderer as THREE.WebGLRenderer, enabled);"
+    },
+    {
       "file": "src/render/RendererDebugInfo.ts",
       "line": 18,
       "symbols": [
         "WebGLRenderer"
       ],
       "owner": "G02/G05",
-      "status": "pending",
+      "status": "ported, comparison-gated",
+      "replacement": "the portable route itself; it names the WebGL context only to read the fields a WebGL backend can answer and reports the rest as unavailable",
+      "check": "verify-renderer-session.mjs (both backends report honestly; nothing is fabricated for the backend that has no such concept)",
       "source": "/** A classic `WebGLRenderer`, which reaches its context directly. */"
     },
     {
@@ -1339,7 +1305,9 @@
         "getContext("
       ],
       "owner": "G02/G05",
-      "status": "pending",
+      "status": "ported, comparison-gated",
+      "replacement": "the portable route itself; it names the WebGL context only to read the fields a WebGL backend can answer and reports the rest as unavailable",
+      "check": "verify-renderer-session.mjs (both backends report honestly; nothing is fabricated for the backend that has no such concept)",
       "source": "getContext(): WebGLRenderingContext | WebGL2RenderingContext;"
     },
     {
@@ -1473,66 +1441,6 @@
       "source": "this.gl.beginQuery(this.extension.TIME_ELAPSED_EXT, query);"
     },
     {
-      "file": "src/runtime/GrassWorkloadProbe.ts",
-      "line": 67,
-      "symbols": [
-        "WebGLRenderer"
-      ],
-      "owner": "G04",
-      "status": "pending",
-      "source": "renderer?: THREE.WebGLRenderer;"
-    },
-    {
-      "file": "src/runtime/GrassWorkloadProbe.ts",
-      "line": 90,
-      "symbols": [
-        "WebGLRenderer"
-      ],
-      "owner": "G04",
-      "status": "pending",
-      "source": "renderer: THREE.WebGLRenderer;"
-    },
-    {
-      "file": "src/runtime/WorldDiagnosticsController.ts",
-      "line": 19,
-      "symbols": [
-        "WebGLRenderer"
-      ],
-      "owner": "G02/G05",
-      "status": "pending",
-      "source": "private readonly renderer: THREE.WebGLRenderer;"
-    },
-    {
-      "file": "src/runtime/WorldDiagnosticsController.ts",
-      "line": 20,
-      "symbols": [
-        "WebGLRenderer"
-      ],
-      "owner": "G02/G05",
-      "status": "pending",
-      "source": "private readonly originalRender: THREE.WebGLRenderer[\"render\"];"
-    },
-    {
-      "file": "src/runtime/WorldDiagnosticsController.ts",
-      "line": 32,
-      "symbols": [
-        "WebGLRenderer"
-      ],
-      "owner": "G02/G05",
-      "status": "pending",
-      "source": "renderer: THREE.WebGLRenderer,"
-    },
-    {
-      "file": "src/runtime/WorldDiagnosticsController.ts",
-      "line": 89,
-      "symbols": [
-        "WebGLRenderer"
-      ],
-      "owner": "G02/G05",
-      "status": "pending",
-      "source": "private readonly renderWithDiagnostics: THREE.WebGLRenderer[\"render\"] = ("
-    },
-    {
       "file": "src/world/grass/WorldDetailFoliageAtlasFactory.ts",
       "line": 98,
       "symbols": [
@@ -1545,7 +1453,7 @@
     },
     {
       "file": "src/world/grass/WorldDetailFoliageMaterial.ts",
-      "line": 474,
+      "line": 568,
       "symbols": [
         "ShaderMaterial"
       ],
@@ -1553,11 +1461,11 @@
       "status": "ported, comparison-gated",
       "replacement": "src/world/grass/WorldDetailFoliageNodes.ts, WorldDetailFoliageNodeMaterial.ts",
       "check": "check-renderer-harness.mjs foliage (single-pass and production settings)",
-      "source": "readonly material: THREE.ShaderMaterial;"
+      "source": "createLegacyMaterial(): THREE.ShaderMaterial {"
     },
     {
       "file": "src/world/grass/WorldDetailFoliageMaterial.ts",
-      "line": 552,
+      "line": 569,
       "symbols": [
         "ShaderMaterial"
       ],
@@ -1565,7 +1473,7 @@
       "status": "ported, comparison-gated",
       "replacement": "src/world/grass/WorldDetailFoliageNodes.ts, WorldDetailFoliageNodeMaterial.ts",
       "check": "check-renderer-harness.mjs foliage (single-pass and production settings)",
-      "source": "this.material = new THREE.ShaderMaterial({"
+      "source": "const material = new THREE.ShaderMaterial({"
     },
     {
       "file": "src/world/grass/WorldGrassImpostorAtlasFactory.ts",
@@ -1580,7 +1488,7 @@
     },
     {
       "file": "src/world/grass/WorldGrassImpostorMaterial.ts",
-      "line": 624,
+      "line": 633,
       "symbols": [
         "ShaderMaterial"
       ],
@@ -1588,11 +1496,11 @@
       "status": "ported, comparison-gated",
       "replacement": "src/world/grass/WorldGrassImpostorNodes.ts, WorldGrassImpostorNodeMaterial.ts",
       "check": "check-renderer-harness.mjs impostor",
-      "source": "readonly material: THREE.ShaderMaterial;"
+      "source": "noiseWind: boolean): THREE.ShaderMaterial {"
     },
     {
       "file": "src/world/grass/WorldGrassImpostorMaterial.ts",
-      "line": 660,
+      "line": 634,
       "symbols": [
         "ShaderMaterial"
       ],
@@ -1600,19 +1508,7 @@
       "status": "ported, comparison-gated",
       "replacement": "src/world/grass/WorldGrassImpostorNodes.ts, WorldGrassImpostorNodeMaterial.ts",
       "check": "check-renderer-harness.mjs impostor",
-      "source": "let createdMaterial: THREE.ShaderMaterial | undefined;"
-    },
-    {
-      "file": "src/world/grass/WorldGrassImpostorMaterial.ts",
-      "line": 721,
-      "symbols": [
-        "ShaderMaterial"
-      ],
-      "owner": "G04",
-      "status": "ported, comparison-gated",
-      "replacement": "src/world/grass/WorldGrassImpostorNodes.ts, WorldGrassImpostorNodeMaterial.ts",
-      "check": "check-renderer-harness.mjs impostor",
-      "source": "createdMaterial = new THREE.ShaderMaterial({"
+      "source": "const material = new THREE.ShaderMaterial({"
     },
     {
       "file": "src/world/horizon/WorldHorizonMaterial.ts",
@@ -1627,52 +1523,26 @@
       "source": "this.material.onBeforeCompile = (shader) => {"
     },
     {
-      "file": "src/world/hydrology/WaterBedMaterialController.ts",
-      "line": 151,
+      "file": "src/world/hydrology/WaterBedLegacyMaterial.ts",
+      "line": 36,
       "symbols": [
         "onBeforeCompile"
       ],
       "owner": "G05",
-      "status": "ported, comparison-gated",
-      "replacement": "src/world/hydrology/WaterBedNodes.ts, WaterBedNodeMaterial.ts",
-      "check": "check-renderer-harness.mjs water (desktop and compact detail scales)",
-      "source": "this.material.onBeforeCompile = (shader) => {"
+      "status": "shipped GLSL kept as the comparison reference",
+      "check": "check-renderer-harness.mjs water",
+      "source": "material.onBeforeCompile = (shader) => {"
     },
     {
-      "file": "src/world/hydrology/WaterCascadeMaterialController.ts",
-      "line": 76,
+      "file": "src/world/hydrology/WaterCascadeLegacyMaterial.ts",
+      "line": 34,
       "symbols": [
         "onBeforeCompile"
       ],
       "owner": "G05",
-      "status": "ported, comparison-gated",
-      "replacement": "src/world/hydrology/WaterCascadeNodes.ts, WaterCascadeNodeMaterial.ts",
-      "check": "check-renderer-harness.mjs water (cascade albedo and alpha, both detail scales)",
-      "source": "this.material.onBeforeCompile = (shader) => {"
-    },
-    {
-      "file": "src/world/hydrology/WaterMaterialController.ts",
-      "line": 210,
-      "symbols": [
-        "onBeforeCompile"
-      ],
-      "owner": "G05",
-      "status": "ported, comparison-gated",
-      "replacement": "src/world/hydrology/WaterSurfaceNodes.ts, WaterSurfaceNodeMaterial.ts",
-      "check": "check-renderer-harness.mjs water (albedo/alpha on both optics presets, normal, roughness, live captured refraction)",
-      "source": "this.material.onBeforeCompile = (shader) => {"
-    },
-    {
-      "file": "src/world/hydrology/WaterRefractionPass.ts",
-      "line": 19,
-      "symbols": [
-        "WebGLRenderer"
-      ],
-      "owner": "G05",
-      "status": "ported, comparison-gated",
-      "replacement": "src/world/hydrology/WaterRefractionNodePass.ts",
-      "check": "check-renderer-harness.mjs water (capture, depth coverage and surface sampling after shader warmup)",
-      "source": "renderer: THREE.WebGLRenderer,"
+      "status": "shipped GLSL kept as the comparison reference",
+      "check": "check-renderer-harness.mjs water",
+      "source": "material.onBeforeCompile = (shader) => {"
     },
     {
       "file": "src/world/hydrology/WaterRefractionPass.ts",
@@ -1721,6 +1591,17 @@
       "replacement": "src/world/hydrology/WaterRefractionNodePass.ts",
       "check": "check-renderer-harness.mjs water (capture, depth coverage and surface sampling after shader warmup)",
       "source": "this.target = new THREE.WebGLRenderTarget(width, height, {"
+    },
+    {
+      "file": "src/world/hydrology/WaterSurfaceLegacyMaterial.ts",
+      "line": 48,
+      "symbols": [
+        "onBeforeCompile"
+      ],
+      "owner": "G05",
+      "status": "shipped GLSL kept as the comparison reference",
+      "check": "check-renderer-harness.mjs water",
+      "source": "material.onBeforeCompile = (shader) => {"
     },
     {
       "file": "src/world/sky/WorldCloudPassMaterials.ts",
@@ -2353,7 +2234,9 @@
         "onBeforeCompile"
       ],
       "owner": "G05",
-      "status": "pending",
+      "status": "ported, comparison-gated",
+      "replacement": "src/dev/StoneShaderNodeVerification.ts (the generated program, since TSL emits none of the marker strings the GLSL check greps for)",
+      "check": "check-renderer-harness.mjs stone (coarse program runs no derivatives, samples no grain, and stays a fraction of the detail program on both backends)",
       "source": "material.onBeforeCompile("
     },
     {
@@ -2363,7 +2246,9 @@
         "WebGLRenderer"
       ],
       "owner": "G05",
-      "status": "pending",
+      "status": "ported, comparison-gated",
+      "replacement": "src/dev/StoneShaderNodeVerification.ts (the generated program, since TSL emits none of the marker strings the GLSL check greps for)",
+      "check": "check-renderer-harness.mjs stone (coarse program runs no derivatives, samples no grain, and stays a fraction of the detail program on both backends)",
       "source": "{} as THREE.WebGLRenderer,"
     },
     {

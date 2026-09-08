@@ -1,4 +1,12 @@
 import type * as THREE from "three";
+import type { DiagnosticsRenderer } from "../render/RendererDiagnosticsTypes";
+import type { TimeableRenderer } from "../render/FrameTimingSource";
+
+/**
+ * The diagnostics draw the world through the renderer and time it, so the
+ * runtime carries both surfaces. Neither names a concrete renderer class.
+ */
+type DiagnosticsHostRenderer = DiagnosticsRenderer & TimeableRenderer;
 
 const MID_INDICES_PER_BLADE = 3;
 const FAR_INDICES_PER_CARD = 6;
@@ -64,7 +72,7 @@ interface RuntimeGrassSystem {
 
 interface RuntimeWorldApp {
   scene?: THREE.Scene;
-  renderer?: THREE.WebGLRenderer;
+  renderer?: DiagnosticsHostRenderer;
   grass?: RuntimeGrassSystem;
 }
 
@@ -87,7 +95,7 @@ interface RenderHook {
 
 export interface WorldDiagnosticsRuntime {
   scene: THREE.Scene;
-  renderer: THREE.WebGLRenderer;
+  renderer: DiagnosticsHostRenderer;
   grass: RuntimeGrassSystem;
 }
 

@@ -1,6 +1,7 @@
 import * as THREE from "three";
 import { mergeActorParts } from "../../actor/geometry/ActorPartMerge";
-import { applyActorEnvironmentResponse } from "../../render/ActorEnvironmentResponse";
+import { applyActorEnvironmentNodeResponse } from "../../render/ActorEnvironmentNodeResponse";
+import { MeshStandardNodeMaterial } from "three/webgpu";
 import { buildDeerParts, type DeerPartSlot, type DeerVariant } from "./DeerGeometry";
 
 const DEER_ROUGHNESS = 0.88;
@@ -9,7 +10,7 @@ export interface DeerAssets {
   /** The merged buffer one bone draws, shared by every deer of that variant. */
   geometryFor(variant: DeerVariant, slot: DeerPartSlot): THREE.BufferGeometry;
   /** One material per animal: same program, different coat tint. */
-  createMaterial(tint: THREE.Color): THREE.MeshStandardMaterial;
+  createMaterial(tint: THREE.Color): MeshStandardNodeMaterial;
   dispose(): void;
 }
 
@@ -47,15 +48,15 @@ class DeerAssetLibrary implements DeerAssets {
     return geometry;
   }
 
-  createMaterial(tint: THREE.Color): THREE.MeshStandardMaterial {
-    const material = new THREE.MeshStandardMaterial({
+  createMaterial(tint: THREE.Color): MeshStandardNodeMaterial {
+    const material = new MeshStandardNodeMaterial({
       color: tint,
       vertexColors: true,
       roughness: DEER_ROUGHNESS,
       metalness: 0,
     });
     try {
-      applyActorEnvironmentResponse(material);
+      applyActorEnvironmentNodeResponse(material);
       return material;
     } catch (error) {
       material.dispose();

@@ -1,6 +1,8 @@
 import type * as THREE from "three";
 import { WorldVisibilityProbe } from "../render/visibility/WorldVisibilityProbe";
-import { GpuFrameTimer } from "./GpuFrameTimer";
+import type { SceneRenderer } from "../render/RendererDiagnosticsTypes";
+import type { WorldDiagnosticsRuntime } from "./GrassWorkloadProbe";
+import { createFrameTimingSource, type FrameTimingSource } from "../render/FrameTimingSource";
 import {
   GrassWorkloadProbe,
   resolveWorldDiagnosticsRuntime,
@@ -16,10 +18,10 @@ export interface WorldDiagnosticsOptions {
 
 export class WorldDiagnosticsController {
   private readonly scene: THREE.Scene;
-  private readonly renderer: THREE.WebGLRenderer;
-  private readonly originalRender: THREE.WebGLRenderer["render"];
+  private readonly renderer: WorldDiagnosticsRuntime["renderer"];
+  private readonly originalRender: SceneRenderer["render"];
   private readonly probe: GrassWorkloadProbe;
-  private readonly gpuTimer: GpuFrameTimer;
+  private readonly gpuTimer: FrameTimingSource;
   private readonly hud: WorldDiagnosticsHud;
   private readonly visibility = new WorldVisibilityProbe();
   private lastCamera?: THREE.Camera;
@@ -29,9 +31,9 @@ export class WorldDiagnosticsController {
 
   private constructor(
     scene: THREE.Scene,
-    renderer: THREE.WebGLRenderer,
+    renderer: WorldDiagnosticsRuntime["renderer"],
     probe: GrassWorkloadProbe,
-    gpuTimer: GpuFrameTimer,
+    gpuTimer: FrameTimingSource,
     hud: WorldDiagnosticsHud,
   ) {
     this.scene = scene;
@@ -48,14 +50,18 @@ export class WorldDiagnosticsController {
     options: WorldDiagnosticsOptions,
   ): WorldDiagnosticsController | undefined {
     let probe: GrassWorkloadProbe | undefined;
-    let gpuTimer: GpuFrameTimer | undefined;
+    let gpuTimer: FrameTimingSource | undefined;
     let hud: WorldDiagnosticsHud | undefined;
     try {
       const runtime = resolveWorldDiagnosticsRuntime(app);
       probe = new GrassWorkloadProbe(runtime.grass);
-      gpuTimer = new GpuFrameTimer(
+      // The mechanism follows the renderer: a disjoint-timer query on the
+      // classic WebGL renderer, the backend's own timestamp pool on the node
+      // one. Both report the same statistics; `verify-gpu-timing-parity.mjs`
+      // holds that.
+      gpuTimer = createFrameTimingSource(
         runtime.renderer,
-        options.gpuTiming && !options.statsPanelEnabled,
+        options.gpuTiming && (!options.statsPanelEnabled || !!runtime.renderer.backend),
       );
       hud = new WorldDiagnosticsHud();
       return new WorldDiagnosticsController(
@@ -86,7 +92,7 @@ export class WorldDiagnosticsController {
     disposeSafely(this.gpuTimer, "GPU frame timer");
   }
 
-  private readonly renderWithDiagnostics: THREE.WebGLRenderer["render"] = (
+  private readonly renderWithDiagnostics: SceneRenderer["render"] = (
     scene,
     camera,
   ): void => {

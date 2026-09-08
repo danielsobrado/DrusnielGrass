@@ -20,6 +20,7 @@ import { GrassConfigLoader } from "../grass/internal/GrassConfigLoader";
 import { SeededRandom } from "../grass/internal/SeededRandom";
 import { GRASS_MID_DENSITY_FALLOFF } from "../grass/GrassLodTuning";
 import { GrassNearMaterial } from "../grass/materials/GrassNearMaterial";
+import type { WorldNodeMaterialContext } from "../render/WorldNodeMaterialContext";
 import { WindField } from "../grass/wind/WindField";
 import {
   GRASS_WIND_NOISE_SCALE,
@@ -297,8 +298,10 @@ export class WorldGrassSystem {
     private readonly field: TerrainField,
     private readonly worldConfig: WorldConfig,
     private readonly profile: RuntimeProfile,
+    private readonly materialContext: WorldNodeMaterialContext,
   ) {
     this.material = new GrassNearMaterial({
+      context: materialContext,
       name: "world-grass-mid-material",
       cacheKey: `grass-near-material-v27-mid-vertex-palette-no-sheen-${
         profile.compact ? "sine" : "noise"
@@ -333,6 +336,7 @@ export class WorldGrassSystem {
       field,
       worldConfig,
       profile,
+      materialContext,
     );
   }
 
@@ -631,6 +635,7 @@ export class WorldGrassSystem {
         !this.profile.compact,
         this.worldConfig.grassFarImpostorsPerPatch,
         !this.profile.compact,
+        this.materialContext,
       );
       impostorMaterial.applyArtDirection(this.artDirection);
       if (!this.profile.compact) {

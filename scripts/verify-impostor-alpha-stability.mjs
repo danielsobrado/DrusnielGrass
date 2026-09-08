@@ -237,7 +237,9 @@ assert(
   "Alpha stability must stay screen-space driven and must not retain the old distance-coupled cutoff path.",
 );
 assert(
-  material.includes("let createdMaterial: THREE.ShaderMaterial | undefined") &&
+  // The class changed with the node migration; the contract is that the handle
+  // is declared before the try so a failure can still release the atlas.
+  /let createdMaterial: \w+ \| undefined/.test(material) &&
     material.includes("createdMaterial?.dispose()") &&
     material.includes("atlas.texture.dispose()") &&
     material.includes("atlas.geometry.dispose()"),

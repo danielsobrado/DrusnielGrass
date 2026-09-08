@@ -62,7 +62,11 @@ async function importTypeScriptModule(relativePath, sourceOverride) {
 
 const controller = read("src/grass/GrassLodController.ts");
 const thirdPersonController = read("src/controls/ThirdPersonController.ts");
-const nearMaterial = read("src/grass/materials/GrassNearMaterial.ts");
+// The blade's shading is split between the state owner and the GLSL
+// reference the comparison measures against, so the shader contract is
+// read from both halves rather than from whichever half a line lives in.
+const nearMaterial = read("src/grass/materials/GrassNearMaterial.ts")
+  + read("src/grass/materials/GrassNearLegacyMaterial.ts");
 const sharedPalette = read("src/grass/materials/GrassPaletteShader.ts");
 const artDirections = JSON.parse(read("src/grass/GrassArtPresets.json"));
 // Read from the source of truth rather than named here: a gate that pins the
