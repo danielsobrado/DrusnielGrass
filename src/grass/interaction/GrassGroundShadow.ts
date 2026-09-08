@@ -20,22 +20,9 @@ import { WORLD_SUN_DIRECTION } from "../../app/WorldEnvironmentTuning";
  * that could least afford it. Being analytic also means it cannot shimmer or
  * pop as blades cross an LOD boundary, which is what a screen-space
  * approximation at this density would do.
- *
- * The disc is pushed along the sun's ground bearing so the dark patch sits where
- * the light says it should, and it is deliberately soft: it stands in for the
- * ambient occlusion of a body close to the canopy as much as for a cast shadow,
- * and a hard edge would advertise that it is neither.
  */
 
-const SUN = new THREE.Vector3(...WORLD_SUN_DIRECTION).normalize();
-
-/**
- * Ground offset from an occluder to its shadow, per metre of height. The sun
- * sits high, so this is short: the character's patch pools around its feet
- * rather than streaming away from them.
- */
-const SUN_GROUND_BEARING_X = -SUN.x / Math.max(SUN.y, 0.2);
-const SUN_GROUND_BEARING_Z = -SUN.z / Math.max(SUN.y, 0.2);
+const DEFAULT_SUN = new THREE.Vector3(...WORLD_SUN_DIRECTION).normalize();
 
 /** Below this the disc is doing nothing and the shader branch is skipped. */
 const MINIMUM_STRENGTH = 0.001;
@@ -45,6 +32,23 @@ class GrassGroundShadow {
   readonly disc = new THREE.Vector4(0, 0, 0, 1);
 
   private strengthValue = 0;
+  private groundBearingX = 0;
+  private groundBearingZ = 0;
+
+  constructor() {
+    this.setSunDirection(DEFAULT_SUN);
+  }
+
+  /** Rendering sun only; ecology continues to use its fixed reference sun. */
+  setSunDirection(direction: THREE.Vector3): void {
+    if (!Number.isFinite(direction.x) || !Number.isFinite(direction.y)
+      || !Number.isFinite(direction.z) || direction.lengthSq() < 1e-8) {
+      return;
+    }
+    const inverseHeight = 1 / Math.max(direction.y, 0.2);
+    this.groundBearingX = -direction.x * inverseHeight;
+    this.groundBearingZ = -direction.z * inverseHeight;
+  }
 
   /**
    * @param height Metres from the contact point to the top of the occluder. The
@@ -74,9 +78,9 @@ class GrassGroundShadow {
     }
     const lift = Math.max(0, height);
     this.disc.set(
-      x + SUN_GROUND_BEARING_X * lift,
+      x + this.groundBearingX * lift,
       y,
-      z + SUN_GROUND_BEARING_Z * lift,
+      z + this.groundBearingZ * lift,
       radius,
     );
     this.strengthValue = Math.min(1, strength);
