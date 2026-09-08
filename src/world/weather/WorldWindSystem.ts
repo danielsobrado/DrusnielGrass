@@ -3,6 +3,8 @@ import { WorldWindUniforms } from "./WorldWindUniforms";
 import { disposeWindGradientTexture } from "./WorldWindLattice";
 import { WorldWindBake, WIND_BAKE_WORLD_SIZE } from "./WorldWindBake";
 import type { Vector3, WebGPURenderer } from "three/webgpu";
+import type { WorldExperience } from "../../app/WorldExperience";
+import { WIND_MODEL_IDS, resolveCatalogId } from "../experience/WorldExperienceCatalog";
 
 /**
  * The world's wind: one field, advanced once, published once.
@@ -30,7 +32,7 @@ export class WorldWindSystem {
    * node verifiers; materials then evaluate the field per vertex, which is
    * correct and slow rather than wrong.
    */
-  constructor(renderer?: WebGPURenderer) {
+  constructor(renderer?: WebGPURenderer, private readonly focus?: () => Vector3) {
     if (renderer) {
       this.bake = new WorldWindBake(renderer);
       this.uniforms.bakedField = this.bake.texture;
@@ -39,9 +41,18 @@ export class WorldWindSystem {
     }
   }
 
-  update(deltaSeconds: number, focus?: Vector3): void {
+  /**
+   * Advances the field and re-bakes it around the current focus.
+   *
+   * The focus arrives as a getter rather than an argument so this satisfies the
+   * optional-owner contract: the experience layer drives every optional system
+   * with a delta and nothing else, and a system that needs more of the world
+   * closes over it rather than widening that contract for everyone.
+   */
+  update(deltaSeconds: number): void {
     this.field.update(deltaSeconds);
     this.uniforms.syncFrom(this.field);
+    const focus = this.focus?.();
     if (focus) {
       this.bake?.update(deltaSeconds, focus, this.field);
     }
@@ -62,4 +73,22 @@ export class WorldWindSystem {
     this.bake?.dispose();
     disposeWindGradientTexture();
   }
+}
+
+/**
+ * Attaches the shared wind as an optional system, or does nothing.
+ *
+ * Lives here rather than in the composition root so the root does not grow a
+ * construction detail, and so the rule that makes this optional — no owner, no
+ * update, no render target — is stated next to the thing it governs.
+ */
+export function attachSharedWind(experience: WorldExperience | undefined,
+  renderer: WebGPURenderer, params: URLSearchParams,
+  focus: () => Vector3): WorldWindSystem | undefined {
+  if (resolveCatalogId(WIND_MODEL_IDS, params.get("windModel")) !== "cinematic") {
+    return undefined;
+  }
+  let wind: WorldWindSystem | undefined;
+  experience?.attach("weather", () => (wind = new WorldWindSystem(renderer, focus)));
+  return wind;
 }

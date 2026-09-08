@@ -6,8 +6,8 @@ import {
 } from "../grass/GrassArtDirection";
 import { grassTrailField } from "../grass/interaction/GrassTrailField";
 import { WorldDevelopmentHooks } from "./WorldDevelopmentHooks";
-import { WIND_MODEL_IDS, resolveCatalogId } from "../world/experience/WorldExperienceCatalog";
 import { WorldExperience } from "./WorldExperience";
+import { attachSharedWind } from "../world/weather/WorldWindSystem";
 import { WorldFrameSubsystems } from "./WorldFrameSubsystems";
 import { WorldExperienceConfigLoader } from "../world/experience/WorldExperienceConfigLoader";
 import { WorldViewState } from "../runtime/WorldViewState";
@@ -160,11 +160,11 @@ export class WorldApp {
         environment.materialContext,
       );
       this.stones = stones;
-      // Opt-in via `?windModel=cinematic` until its cost is understood; the
-      // measurement and what was ruled out are recorded in WorldWindNodes.
-      const sharedWind = resolveCatalogId(WIND_MODEL_IDS, params.get("windModel")) === "cinematic";
+      // Opt in with `?windModel=cinematic`; on legacy nothing is constructed.
+      const wind = attachSharedWind(this.experience, this.renderer, params,
+        () => this.controls.getStreamingPosition());
       grass = new WorldGrassSystem(this.scene, this.field, config, profile,
-        environment.materialContext, sharedWind ? environment.windUniforms : undefined);
+        environment.materialContext, wind?.uniforms);
       this.grass = grass;
 
       const tierOverride = params.get("tier");

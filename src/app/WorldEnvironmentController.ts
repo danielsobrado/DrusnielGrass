@@ -6,7 +6,6 @@ import { WorldSkyNode } from "../world/sky/WorldSkyNode";
 import type { RendererCapabilities } from "../render/RendererCapabilities";
 import type { WebGPURenderer } from "three/webgpu";
 import { WorldNodeMaterialContext } from "../render/WorldNodeMaterialContext";
-import { WorldWindSystem } from "../world/weather/WorldWindSystem";
 import { WorldCloudEnvironmentLighting } from "./WorldCloudEnvironmentLighting";
 import { WorldCloudShadowController } from "./WorldCloudShadowController";
 import {
@@ -42,7 +41,6 @@ export class WorldEnvironmentController {
   private shadowFocusZ = Number.NaN;
   private elapsedSeconds = 0;
   private context?: WorldNodeMaterialContext;
-  private readonly wind: WorldWindSystem;
   private disposed = false;
 
   constructor(
@@ -52,7 +50,6 @@ export class WorldEnvironmentController {
     shadowsEnabled: boolean,
     private readonly capabilities: RendererCapabilities,
   ) {
-    this.wind = new WorldWindSystem(renderer);
     this.hemisphere = new THREE.HemisphereLight(
       WORLD_DEFAULT_HEMISPHERE_SKY,
       WORLD_DEFAULT_HEMISPHERE_GROUND,
@@ -105,8 +102,7 @@ export class WorldEnvironmentController {
       disposeSafely(sky, "Sky");
       disposeSafely(this.cloudShadow, "Cloud shadow system");
       disposeSafely(this.cloudLighting, "Cloud lighting");
-      disposeSafely(this.wind, "Wind system");
-    disposeSafely(this.sun.shadow, "Sun shadow");
+      disposeSafely(this.sun.shadow, "Sun shadow");
       this.scene.remove(this.hemisphere, this.sun, this.sun.target);
       throw error;
     }
@@ -136,7 +132,6 @@ export class WorldEnvironmentController {
     );
     this.elapsedSeconds =
       (this.elapsedSeconds + safeDelta) % WORLD_CLOUD_TIME_WRAP_SECONDS;
-    this.wind.update(safeDelta, focus);
     this.cloudLighting.update(safeDelta, focus, this.elapsedSeconds);
     this.cloudShadow.update(safeDelta, focus, this.elapsedSeconds);
     this.sky.update(this.elapsedSeconds, focus);
@@ -183,9 +178,6 @@ export class WorldEnvironmentController {
     this.sun.target.updateMatrixWorld();
     this.sun.updateMatrixWorld();
   }
-
-  /** The uniforms every wind-driven material reads. */
-  get windUniforms() { return this.wind.uniforms; }
 
   /**
    * The lighting and cloud-shadow field every world material is built against.
