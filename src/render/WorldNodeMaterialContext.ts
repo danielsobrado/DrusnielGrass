@@ -1,6 +1,7 @@
 import { DirectionalLightNode, type AmbientLight, type Color, type DirectionalLight, type HemisphereLight, type Light, type Node, type NodeBuilder, type NodeMaterial, type Vector3 } from "three/webgpu";
 import { lights, positionWorld, cameraPosition, cameraViewMatrix, vec3, mix, uniform, reference, lightPosition, lightTargetDirection } from "three/tsl";
 import type { WorldCloudShadowNodes } from "../world/sky/WorldCloudShadowNodes";
+import type { WorldWindUniforms } from "../world/weather/WorldWindUniforms";
 import type { WorldLightingState } from "./WorldLightingState";
 
 class CloudDirectionalLightNode extends DirectionalLightNode {
@@ -14,24 +15,30 @@ class CloudDirectionalLightNode extends DirectionalLightNode {
   }
 }
 
-// r185 LightsNode accepts Light or LightingNode; @types/three 0.185.0 only
-// declares Light[]. Keep this verified declaration gap isolated here.
 const composeLights = lights as (sources: (Light | DirectionalLightNode)[]) => ReturnType<typeof lights>;
 
-/** A streamed material receives the same light and cloud field at creation. */
+/** Shared per-world render state borrowed by every streamed node material. */
 export class WorldNodeMaterialContext {
+  private wind?: WorldWindUniforms;
+
   constructor(private readonly sun: DirectionalLight,
     private readonly otherLights: readonly Light[], private readonly clouds?: WorldCloudShadowNodes,
     private readonly lighting?: WorldLightingState) {}
 
-  /** Mutable world-space render sun; ecology intentionally never receives it. */
   worldSunDirection(): Vector3 | undefined {
     return this.lighting?.sunDirection;
   }
 
-  /** Mutable render haze shared by the sky and permanent horizon shell. */
   worldHazeColor(): Color | undefined {
     return this.lighting?.skyHazeColor;
+  }
+
+  setWorldWindUniforms(wind: WorldWindUniforms | undefined): void {
+    this.wind = wind;
+  }
+
+  worldWindUniforms(): WorldWindUniforms | undefined {
+    return this.wind;
   }
 
   directionalSurfaceLight(cloudResponseStrength = 1) {
@@ -44,7 +51,6 @@ export class WorldNodeMaterialContext {
     };
   }
 
-  /** Irradiance for materials that shade themselves in the vertex stage. */
   vertexIrradiance(viewNormal: Node<"vec3">): Node<"vec3"> {
     let total = vec3(0) as Node<"vec3">;
     for (const light of [this.sun, ...this.otherLights]) {
@@ -64,7 +70,6 @@ export class WorldNodeMaterialContext {
     return total;
   }
 
-  /** Hemisphere fill used by materials with a dedicated sky-side term. */
   hemisphereFill(): { skyColor: Node<"vec3">; direction: Node<"vec3"> } | undefined {
     const light = this.otherLights.find((candidate): candidate is HemisphereLight =>
       (candidate as HemisphereLight).isHemisphereLight === true);
