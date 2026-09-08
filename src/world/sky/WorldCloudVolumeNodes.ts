@@ -2,20 +2,26 @@ import { Color, Matrix4, MeshBasicNodeMaterial, Vector3 } from "three/webgpu";
 import { Fn, If, Loop, Break, float, vec2, vec3, vec4, uniform, uv,
   getViewPosition, screenCoordinate, screenSize, max, mix, smoothstep } from "three/tsl";
 import type { RuntimeProfile } from "../../runtime/RuntimeConfig";
+import type { WorldLightingState } from "../../render/WorldLightingState";
 import { WORLD_SUN_DIRECTION } from "../../app/WorldEnvironmentTuning";
 import { cloudValueNoiseNode, createCloudFieldNodes } from "./WorldCloudFieldNodes";
 
 /** Raster raymarch, with the legacy strata, optical model and early-out gates. */
-export function createWorldCloudVolumeNodes(profile: RuntimeProfile, steps: number) {
+export function createWorldCloudVolumeNodes(
+  profile: RuntimeProfile,
+  steps: number,
+  lighting?: WorldLightingState,
+) {
   const cloud = profile.cloud;
   // The shipped volume pass never defines WORLD_CLOUD_COMPACT: its density
   // field has three octaves even when compact settings supply the parameters.
   // Only analytic sky and shadow-map passes use the compact two-octave field.
   const field = createCloudFieldNodes(cloud, false);
+  if (lighting) field.coverage.value = lighting.cloudThreshold;
   const inverseProjection = uniform(new Matrix4());
   const cameraWorld = uniform(new Matrix4());
   const cameraPosition = uniform(new Vector3());
-  const sun = uniform(new Vector3(...WORLD_SUN_DIRECTION).normalize());
+  const sun = uniform(lighting?.sunDirection ?? new Vector3(...WORLD_SUN_DIRECTION).normalize());
   const frameIndex = uniform(0);
   const ambient = uniform(new Color(cloud.ambientColor));
   const shadow = uniform(new Color(cloud.shadowColor));
@@ -75,5 +81,5 @@ export function createWorldCloudVolumeNodes(profile: RuntimeProfile, steps: numb
     });
     return output;
   })();
-  return { material, field, inverseProjection, cameraWorld, cameraPosition, frameIndex };
+  return { material, field, inverseProjection, cameraWorld, cameraPosition, frameIndex, sun };
 }
