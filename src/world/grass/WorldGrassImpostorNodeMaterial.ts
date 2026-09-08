@@ -6,6 +6,8 @@ import type { WorldWindUniforms } from "../weather/WorldWindUniforms";
 import { createGrassNodeUniforms } from "../../grass/materials/GrassNearNodeInputs";
 import { createGrassImpostorNodes, type GrassImpostorNodeFeatures } from "./WorldGrassImpostorNodes";
 
+type GrassImpostorMaterialFeatures = Omit<GrassImpostorNodeFeatures, "cinematicWind">;
+
 /** Portable far-grass card material driven by the controller's live uniforms. */
 export class WorldGrassImpostorNodeMaterial extends MeshBasicNodeMaterial {
   private readonly inputs: ReturnType<typeof createGrassNodeUniforms>;
@@ -14,7 +16,7 @@ export class WorldGrassImpostorNodeMaterial extends MeshBasicNodeMaterial {
   constructor(
     name: string,
     values: Record<string, IUniform>,
-    features: GrassImpostorNodeFeatures,
+    features: GrassImpostorMaterialFeatures,
     context: WorldNodeMaterialContext,
     wind?: WorldWindUniforms,
   ) {
@@ -27,11 +29,15 @@ export class WorldGrassImpostorNodeMaterial extends MeshBasicNodeMaterial {
     this.fog = true;
     this.toneMapped = true;
     this.inputs = createGrassNodeUniforms(values);
+    const sharedWind = wind ?? context.worldWindUniforms();
     const sun = context.directionalSurfaceLight();
-    const graph = createGrassImpostorNodes(this.inputs, features, {
+    const graph = createGrassImpostorNodes(this.inputs, {
+      ...features,
+      cinematicWind: sharedWind !== undefined,
+    }, {
       irradiance: normal => context.vertexIrradiance(normal),
       sunDirection: sun.direction,
-    }, wind);
+    }, sharedWind);
     this.world = graph.worldPosition;
     this.colorNode = graph.color;
   }
