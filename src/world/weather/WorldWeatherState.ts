@@ -29,13 +29,7 @@ export type WorldWeatherPresetApplied = (
   preset: ResolvedWorldEnvironmentPreset,
 ) => void;
 
-/**
- * One authoritative presentation-weather owner.
- *
- * Preset changes never query or mutate ecology, terrain placement or hydrology.
- * They update render lighting/palette state plus the shared wind field, then the
- * environment phase consumes that same snapshot before anything draws.
- */
+/** One authoritative presentation-weather owner. Ecology never reads it. */
 export class WorldWeatherState {
   private active: ResolvedWorldEnvironmentPreset;
   private disposed = false;
@@ -123,7 +117,9 @@ export class WorldWeatherState {
       field.setNoiseScale(preset.windNoiseScale);
       field.setSimulationSpeed(preset.windSimulationSpeed);
       this.wind.uniforms.restBendGain.value = preset.restBendGain;
-      this.wind.uniforms.syncFrom(field);
+      // Preset cuts must update the reduced-cadence bake before any grass can
+      // render the next frame; refresh does not advance the integrated phase.
+      this.wind.refresh();
     }
     this.onPresetApplied(preset);
   }
