@@ -1,6 +1,6 @@
 import type { Node, NodeBuilder } from "three/webgpu";
 import {
-  Discard, Fn, If, abs, attribute, cameraPosition, cameraViewMatrix, clamp, cross, dFdx, dFdy,
+  Discard, Fn, If, abs, attribute, cameraPosition, cameraViewMatrix, clamp, cos, cross, dFdx, dFdy,
   float, floor, fract, int,
   inverseSqrt, log2, max, min, mix, mod, modelWorldMatrix, positionGeometry, pow, sin, smoothstep,
   property, step, uv, varying, vec2, vec3, vec4,
@@ -19,6 +19,12 @@ import {
   GRASS_WEATHER_CALM_FLOOR, GRASS_WEATHER_PULSE_SPEED,
 } from "../../grass/wind/WindNoiseTexture";
 import {
+  createBakedWorldWindNodes,
+  createWorldWindFieldNodes,
+} from "../weather/WorldWindNodes";
+import { WORLD_WIND_RESPONSE } from "../weather/WorldWindMath";
+import type { WorldWindUniforms } from "../weather/WorldWindUniforms";
+import {
   IMPOSTOR_AERIAL_BLEND_END, IMPOSTOR_AERIAL_BLEND_START, IMPOSTOR_ALPHA_DITHER_SEED,
   IMPOSTOR_HORIZON_ATLAS_ELEVATION, IMPOSTOR_MINIFICATION_FULL_TEXELS_PER_PIXEL,
   IMPOSTOR_MINIFICATION_START_TEXELS_PER_PIXEL, IMPOSTOR_MINIFIED_ALPHA_CUTOFF,
@@ -30,11 +36,7 @@ import {
 
 const WORLD_UP = vec3(0, 1, 0);
 const RECIPROCAL_PI = 0.3183098861837907;
-/**
- * The GLSL substitutes its tuning through `toFixed`, so the shipped shader uses
- * the rounded literal. The node port rounds identically; anything else would
- * move a dither threshold or a blend edge by a quantization step.
- */
+const DEG_TO_RAD = Math.PI / 180;
 const round = (value: number, digits: number) => Number(value.toFixed(digits));
 const TERRAIN_UP_BLEND = round(IMPOSTOR_TERRAIN_UP_BLEND, 2);
 const AERIAL_START = round(IMPOSTOR_AERIAL_BLEND_START, 2);
@@ -53,13 +55,11 @@ const MINIFIED_COVERAGE_SEED = round(IMPOSTOR_MINIFIED_COVERAGE_SEED_OFFSET, 2);
 const VIEW_DITHER_GRID = round(IMPOSTOR_VIEW_DITHER_GRID_SCALE, 2);
 const ALPHA_DITHER_SEED = round(IMPOSTOR_ALPHA_DITHER_SEED, 2);
 
-/** The card's compile-time selection, mirroring the material's defines. */
 export interface GrassImpostorNodeFeatures {
-  /** Sample the shared scrolling gust field instead of the compact sine front. */
   noiseWind: boolean;
+  cinematicWind: boolean;
 }
 
-/** Irradiance and the sun, in view space, as the cards' vertex stage sums them. */
 export interface GrassImpostorLighting {
   irradiance(viewNormal: Node<"vec3">): Node<"vec3">;
   sunDirection: Node<"vec3">;
@@ -70,16 +70,20 @@ const safeNormalize3 = Fn(([value, fallback]: [Node<"vec3">, Node<"vec3">]) => {
   return lengthSquared.greaterThan(1e-8).select(value.mul(inverseSqrt(lengthSquared)), fallback);
 });
 
-/** The atlas hash, shared by the view, alpha and coverage dithers. */
 const coverageNoise = Fn(([position, seed]: [Node<"vec2">, Node<"float">]) => {
   const value = fract(vec3(position.x, position.y, position.x).mul(0.1031).add(seed)).toVar();
   value.addAssign(value.dot(value.yzx.add(33.33)));
   return fract(value.x.add(value.y).mul(value.z));
 });
 
-export function createGrassImpostorNodes(u: GrassNodeUniforms,
-  features: GrassImpostorNodeFeatures, lighting: GrassImpostorLighting) {
+export function createGrassImpostorNodes(
+  u: GrassNodeUniforms,
+  features: GrassImpostorNodeFeatures,
+  lighting: GrassImpostorLighting,
+  wind?: WorldWindUniforms,
+) {
   const time = u.number("uTime");
+  const cinematic = features.cinematicWind && wind ? wind : undefined;
   const windDirection = u.vector2("uWindDirection");
   const variation = attribute<"vec4">("instanceVariation", "vec4");
   const instanceCoverage = attribute<"float">("instanceCoverage", "float");
@@ -87,18 +91,8 @@ export function createGrassImpostorNodes(u: GrassNodeUniforms,
   const subpatchOffset = attribute<"vec2">("grassSubpatchOffset", "vec2");
   const subpatchIndex = attribute<"float">("grassSubpatchIndex", "float");
 
-  // Packed to the interpolator count the GLSL declared; every one of these is
-  // constant across a card, so packing changes no value.
-  //
-  // They are flat, as the shipped shader declares them, and that is not
-  // cosmetic. Barycentric interpolation of three equal values still carries
-  // float error, and the subpatch index addresses an atlas page while the
-  // instance seed keys the view, alpha and coverage hashes: a last-bit wobble
-  // there picks a different atlas cell and a different stochastic threshold
-  // per pixel, which is a visibly different card rather than a rounding
-  // difference.
-  const cardValue = property("vec4", "grassCardValue");     // gust, biome, subpatch, seed
-  const shadeValue = property("vec4", "grassShadeValue");   // dryness, rootAo, farEntry, coverage
+  const cardValue = property("vec4", "grassCardValue");
+  const shadeValue = property("vec4", "grassShadeValue");
   const localViewValue = property("vec3", "grassLocalViewValue");
   const irradianceValue = property("vec3", "grassIrradianceValue");
   const backLightValue = property("float", "grassBackLightValue");
@@ -106,8 +100,6 @@ export function createGrassImpostorNodes(u: GrassNodeUniforms,
   const vShade = varying(shadeValue).setInterpolation("flat");
   const vLocalView = varying(localViewValue).setInterpolation("flat");
   const vIrradiance = varying(irradianceValue).setInterpolation("flat");
-  // The transmission term is the one value that genuinely varies across the
-  // card: it is driven by the shear ramp and the per-vertex view direction.
   const vBackLight = varying(backLightValue);
 
   const base = u.colorRows("uBiomeBase");
@@ -117,7 +109,6 @@ export function createGrassImpostorNodes(u: GrassNodeUniforms,
 
   const worldPosition = Fn((builder: NodeBuilder) => {
     const columns = instanceMatrixColumns(builder);
-    // Column j of (model * instance) is model applied to instance column j.
     const axisX = modelWorldMatrix.mul(vec4(columns[0].xyz, 0)).xyz.toVar();
     const axisY = modelWorldMatrix.mul(vec4(columns[1].xyz, 0)).xyz.toVar();
     const axisZ = modelWorldMatrix.mul(vec4(columns[2].xyz, 0)).xyz.toVar();
@@ -153,18 +144,36 @@ export function createGrassImpostorNodes(u: GrassNodeUniforms,
       cylindricalRight).toVar();
     const billboardUp = safeNormalize3(mix(cardUp, sphericalUp, aerialBlend), cardUp).toVar();
 
-    const gustNoise = (features.noiseWind
-      ? u.texture("uWindNoise").sample(center.xz.mul(u.number("uWindNoiseScale"))
-        .sub(windDirection.mul(time.mul(u.number("uWindNoiseSpeed"))))).level(float(0)).r
-      : float(0.5).add(float(0.5).mul(
-        sin(center.xz.dot(windDirection).mul(GRASS_GUST_FRONT_SCALE)
-          .sub(time.mul(GRASS_GUST_FRONT_SPEED))).mul(GRASS_GUST_PRIMARY_WEIGHT)
-          .add(sin(center.xz.dot(vec2(windDirection.y.negate(), windDirection.x))
-            .mul(GRASS_GUST_CROSS_SCALE).add(time.mul(GRASS_GUST_CROSS_SPEED))
-            .add(GRASS_GUST_CROSS_PHASE)).mul(GRASS_GUST_CROSS_WEIGHT))))).toVar();
+    const field = !cinematic ? undefined
+      : cinematic.bakedField && cinematic.bakedOriginXZ
+        ? createBakedWorldWindNodes({
+          positionXZ: center.xz,
+          bakedField: cinematic.bakedField,
+          originXZ: cinematic.bakedOriginXZ,
+          worldSize: cinematic.bakedWorldSize,
+          time: cinematic.time,
+          noiseScale: cinematic.noiseScale,
+        })
+        : createWorldWindFieldNodes({
+          positionXZ: center.xz,
+          time: cinematic.time,
+          directionDegrees: cinematic.directionDegrees,
+          intensity: cinematic.intensity,
+          noiseScale: cinematic.noiseScale,
+        });
+    const animationTime = cinematic ? cinematic.time : time;
+    const gustNoise = (field
+      ? field.gust
+      : features.noiseWind
+        ? u.texture("uWindNoise").sample(center.xz.mul(u.number("uWindNoiseScale"))
+          .sub(windDirection.mul(time.mul(u.number("uWindNoiseSpeed"))))).level(float(0)).r
+        : float(0.5).add(float(0.5).mul(
+          sin(center.xz.dot(windDirection).mul(GRASS_GUST_FRONT_SCALE)
+            .sub(time.mul(GRASS_GUST_FRONT_SPEED))).mul(GRASS_GUST_PRIMARY_WEIGHT)
+            .add(sin(center.xz.dot(vec2(windDirection.y.negate(), windDirection.x))
+              .mul(GRASS_GUST_CROSS_SCALE).add(time.mul(GRASS_GUST_CROSS_SPEED))
+              .add(GRASS_GUST_CROSS_PHASE)).mul(GRASS_GUST_CROSS_WEIGHT))))).toVar();
 
-    // Coverage is per instance: every term is a uniform or an instance
-    // attribute, and only the comparison against the dither is per fragment.
     const cameraDistance = cameraPosition.distance(center).toVar();
     const transition = u.number("uTransitionDistance");
     const nearExit = smoothstep(u.number("uNearDistance").sub(transition),
@@ -174,8 +183,6 @@ export function createGrassImpostorNodes(u: GrassNodeUniforms,
     const farEntry = mix(nearExit.mul(u.number("uMidImpostorUnderfill")), 1, fullFarEntry).toVar();
     const terrainCoverage = smoothstep(u.number("uFarDistance").sub(transition),
       u.number("uFarDistance").add(transition), cameraDistance).oneMinus().toVar();
-    // Legacy multi-instance cards keep complementary weights; the production
-    // path draws one instance whose geometry holds four real subpatch cards.
     const cardWeight = float(1).toVar();
     If(u.number("uCardsPerPatch").greaterThan(1.5), () => {
       const inverseCards = float(1).div(u.number("uCardsPerPatch"));
@@ -187,16 +194,11 @@ export function createGrassImpostorNodes(u: GrassNodeUniforms,
     });
     const canopyRange = u.vector2("uCanopyTransferRange");
     const canopyTransfer = smoothstep(canopyRange.x, canopyRange.y, cameraDistance).toVar();
-    // Terrain progressively takes over the meadow's visual mean; a residual
-    // card population keeps wind and silhouette without far stipple.
     const fieldCoverage = instanceCoverage.mul(cardWeight)
       .mul(mix(float(1), float(0.2), canopyTransfer)).toVar();
     const effectiveCoverage = farEntry
       .mul(min(fieldCoverage.mul(u.number("uArtDensityScale")), 1)).toVar();
 
-    // A rejected card collapses to its centre rather than leaving the vertex
-    // stage early: some tile renderers are sensitive to primitives whose
-    // vertices write different output sets.
     const cardVisibility = step(0.001, effectiveCoverage).toVar();
     const terrainDither = fract(variation.x.mul(TERRAIN_DITHER_INSTANCE)
       .add(subpatchIndex.mul(TERRAIN_DITHER_SUBPATCH))
@@ -206,19 +208,29 @@ export function createGrassImpostorNodes(u: GrassNodeUniforms,
     const cardOffset = billboardRight.mul(positionGeometry.x).mul(scaleX).mul(FOOTPRINT_SCALE)
       .add(billboardUp.mul(positionGeometry.y).mul(scaleY)).toVar();
     const world = center.add(cardOffset.mul(cardVisibility)).toVar();
-    // Root-to-tip shear matches real blade bending. uCardRadius is the quad's
-    // own half-extent, so position.y spans the full [0, 1] of the ramp.
     const shearProgress = positionGeometry.y.div(max(u.number("uCardRadius"), 0.0001))
       .mul(0.5).add(0.5).clamp(0, 1).toVar();
     const weather = mix(GRASS_WEATHER_CALM_FLOOR, 1,
-      float(0.5).add(sin(time.mul(GRASS_WEATHER_PULSE_SPEED)).mul(0.5))).toVar();
-    const sway = gustNoise.mul(2).sub(1).mul(u.number("uWindStrength")).mul(WIND_SHEAR)
-      .mul(weather).mul(mix(float(1), float(0.72), variation.w)).toVar();
-    world.addAssign(vec3(windDirection.x, 0, windDirection.y)
-      .mul(sway).mul(shearProgress).mul(scaleY).mul(cardVisibility));
+      float(0.5).add(sin(animationTime.mul(GRASS_WEATHER_PULSE_SPEED)).mul(0.5))).toVar();
+    const sway = (field
+      ? field.gust.mul(2).sub(1)
+        .mul(WORLD_WIND_RESPONSE.billboard.bendScale * 4)
+        .mul(field.strength)
+        .mul(weather)
+        .mul(mix(float(1), float(0.72), variation.w))
+      : gustNoise.mul(2).sub(1).mul(u.number("uWindStrength")).mul(WIND_SHEAR)
+        .mul(weather).mul(mix(float(1), float(0.72), variation.w))).toVar();
+    const swayDirection = field ? field.direction : windDirection;
+    const displacement = swayDirection.mul(sway).toVar();
+    if (cinematic) {
+      const restRadians = cinematic.directionDegrees.mul(DEG_TO_RAD);
+      displacement.addAssign(
+        vec2(cos(restRadians), sin(restRadians)).mul(sin(cinematic.restBendGain)),
+      );
+    }
+    world.addAssign(vec3(displacement.x, 0, displacement.y)
+      .mul(shearProgress).mul(scaleY).mul(cardVisibility));
 
-    // Source blades lie in local XY, so their geometric normal is local Z.
-    // That axis blends toward the terrain normal exactly as the real blades do.
     const grassWorldNormal = safeNormalize3(mix(basisZ, basisY,
       mix(u.number("uNormalUp"), float(1), cameraDistance.sub(48).div(90).clamp(0, 1))),
     basisY).toVar();
@@ -229,9 +241,6 @@ export function createGrassImpostorNodes(u: GrassNodeUniforms,
     const viewDirection = safeNormalize3(viewPosition, vec3(0, 0, -1)).toVar();
     const backLight = pow(viewDirection.dot(lighting.sunDirection).clamp(0, 1), 2)
       .mul(mix(float(0.22), float(1), shearProgress))
-      // The shipped shader dots a world-space normal with the view-space light
-      // direction here. That space mismatch is part of the card's appearance
-      // today, so the port reproduces it rather than quietly correcting it.
       .mul(float(0.42).add(abs(grassWorldNormal.dot(lighting.sunDirection))
         .oneMinus().mul(0.58)))
       .mul(mix(float(0.78), float(1.14), variation.w.oneMinus())).toVar();
@@ -249,7 +258,6 @@ export function createGrassImpostorNodes(u: GrassNodeUniforms,
     return world;
   })();
 
-  /** One atlas fetch, with the gradients the caller resolved before any discard. */
   const sampleFrame = (frameIndex: Node<"vec2">, localUv: Node<"vec2">,
     localUvDx: Node<"vec2">, localUvDy: Node<"vec2">) => {
     const frameResolution = u.number("uFrameResolution");
@@ -276,8 +284,6 @@ export function createGrassImpostorNodes(u: GrassNodeUniforms,
   };
 
   const color = Fn(() => {
-    // Derivatives are captured before any stochastic discard: later explicit
-    // and implicit derivatives are undefined after a non-uniform discard.
     const frameUv = uv().toVar();
     const frameUvDx = dFdx(frameUv).toVar();
     const frameUvDy = dFdy(frameUv).toVar();
@@ -287,9 +293,6 @@ export function createGrassImpostorNodes(u: GrassNodeUniforms,
     const minification = smoothstep(MINIFICATION_START, MINIFICATION_FULL,
       atlasTexelsPerPixel).toVar();
     const fullyMinified = atlasTexelsPerPixel.greaterThanEqual(MINIFICATION_FULL).toVar();
-    // Packed frames are separated by two padding gutters; past that separation
-    // a coarser mip averages a neighbouring view in. Cap only the sampling
-    // gradients, keeping the real footprint for policy and alpha hardening.
     const safeMipTexelsPerPixel = max(float(1), u.number("uPadding").mul(2));
     const mipGradientScale = min(float(1),
       safeMipTexelsPerPixel.div(max(atlasTexelsPerPixel, 0.0001))).toVar();
@@ -311,8 +314,6 @@ export function createGrassImpostorNodes(u: GrassNodeUniforms,
     If(u.number("uBlendViews").lessThan(0.5), () => {
       atlasColor.assign(sampleFrame(nearestFrame, frameUv, sampleUvDx, sampleUvDy));
     }).Else(() => {
-      // The stochastic frame index must not influence texture gradients:
-      // neighbouring pixels can select frames a whole atlas cell apart.
       If(fullyMinified.not(), () => {
         const frameBase = floor(framePosition).toVar();
         const frameBlend = fract(framePosition).toVar();
@@ -342,15 +343,10 @@ export function createGrassImpostorNodes(u: GrassNodeUniforms,
           selectedFrame.assign(frame11);
         });
       });
-      // Stable stochastic bilinear selection reproduces the four-view average
-      // with one fetch while the card is large enough to benefit.
       atlasColor.assign(sampleFrame(selectedFrame, frameUv, sampleUvDx, sampleUvDy));
     });
 
     const cutoff = mix(u.number("uAlphaCutoff"), float(MINIFIED_ALPHA_CUTOFF), minification).toVar();
-    // The atlas alpha is already geometric coverage from canvas rasterization
-    // and mip filtering, so it is remapped directly rather than differentiated:
-    // neighbouring pixels may choose different views on purpose.
     const alphaCoverage = atlasColor.a.sub(cutoff).div(max(cutoff.oneMinus(), 0.001))
       .clamp(0, 1).toVar();
     If(fullyMinified, () => {
@@ -358,16 +354,11 @@ export function createGrassImpostorNodes(u: GrassNodeUniforms,
     }).Else(() => {
       const alphaDither = coverageNoise(floor(frameUv.mul(frameResolution)),
         vCard.w.mul(211).add(vCard.z.mul(0.173)).add(ALPHA_DITHER_SEED));
-      // A strict >= is required: with >, a hash of exactly zero survives an
-      // alphaCoverage of zero and paints an opaque pixel in transparent space.
       const alphaThreshold = mix(alphaDither, float(0.5), minification);
       Discard(alphaThreshold.greaterThanEqual(alphaCoverage));
     });
 
     const effectiveCoverage = vShade.z.mul(min(vShade.w.mul(u.number("uArtDensityScale")), 1)).toVar();
-    // Once cards become tiny, coverage resolves per subpatch so no low-coverage
-    // source turns into isolated pixels at the horizon. This test deliberately
-    // follows the atlas sample; no derivatives are evaluated after a discard.
     const dither = float(0).toVar();
     If(fullyMinified, () => {
       dither.assign(coverageNoise(vec2(vCard.z, vCard.z.mul(MINIFIED_COVERAGE_SUBPATCH)),
@@ -390,8 +381,6 @@ export function createGrassImpostorNodes(u: GrassNodeUniforms,
     resolved.mulAssign(u.number("uColorScale"));
     const lambert = resolved.mul(vIrradiance).mul(RECIPROCAL_PI)
       .add(resolved.mul(u.number("uAmbientBoost")));
-    // Transmission is warmed towards the tip colour and scaled by the same
-    // uniform as the near blades, with no extra per-LOD attenuation.
     return mix(resolved, lambert, GRASS_LIGHT_MIX)
       .add(mix(resolved, rowTip, 0.35).mul(vBackLight).mul(u.number("uBacklightStrength")));
   })();
