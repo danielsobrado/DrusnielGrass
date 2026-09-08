@@ -7,9 +7,16 @@ import {
 import { grassTrailField } from "../grass/interaction/GrassTrailField";
 import { WorldDevelopmentHooks } from "./WorldDevelopmentHooks";
 import { WorldExperience } from "./WorldExperience";
-import { attachSharedWind } from "../world/weather/WorldWindSystem";
 import { WorldFrameSubsystems } from "./WorldFrameSubsystems";
 import { WorldExperienceConfigLoader } from "../world/experience/WorldExperienceConfigLoader";
+import {
+  DEFAULT_WEATHER_PRESET,
+} from "../world/experience/WorldExperienceCatalog";
+import {
+  attachWorldWeather,
+  type WorldWeatherState,
+} from "../world/weather/WorldWeatherState";
+import { WorldLightingState } from "../render/WorldLightingState";
 import { WorldViewState } from "../runtime/WorldViewState";
 import type { WorldExperienceConfig } from "../world/experience/WorldExperienceConfig";
 import { FlyWorldController } from "../controls/FlyWorldController";
@@ -28,7 +35,10 @@ import { WorldStoneSystem } from "../world/stones/WorldStoneSystem";
 import { TerrainField } from "../world/TerrainField";
 import { TerrainStreamer } from "../world/TerrainStreamer";
 import type { WorldConfig } from "../world/WorldConfig";
-import { setGrassPaletteDesaturation } from "../grass/materials/GrassPaletteShader";
+import {
+  setGrassPaletteDesaturation,
+  setGrassWeatherPaletteMultiplier,
+} from "../grass/materials/GrassPaletteShader";
 import { WorldConfigLoader } from "../world/WorldConfigLoader";
 import { WorldGrassSystem } from "../world/WorldGrassSystem";
 import { WorldEnvironmentController } from "./WorldEnvironmentController";
@@ -56,6 +66,7 @@ export class WorldApp {
   private readonly scene = new THREE.Scene();
   private readonly camera: THREE.PerspectiveCamera;
   private readonly renderer: RendererSession["renderer"];
+  private readonly lighting: WorldLightingState;
   private readonly clock = new THREE.Clock();
   private development!: WorldDevelopmentHooks;
   private readonly field: TerrainField;
@@ -85,6 +96,8 @@ export class WorldApp {
   private disposed = false;
   private grassEnabled = true;
   private experience?: WorldExperience;
+  private weather?: WorldWeatherState;
+  private grassArtDirection?: GrassArtDirection;
   private rendererPaused = false;
   private subsystems!: WorldFrameSubsystems;
   private viewState?: WorldViewState;
@@ -105,9 +118,9 @@ export class WorldApp {
       5000,
     );
 
-    // The session owns the renderer; this app owns the session. The canvas
-    // comes from the renderer because a fallback retry may have replaced it.
     this.renderer = session.renderer;
+    this.lighting = new WorldLightingState(profile);
+    setGrassWeatherPaletteMultiplier([1, 1, 1]);
     const canvas = this.renderer.domElement;
 
     let environment: WorldEnvironmentController | undefined;
@@ -139,14 +152,33 @@ export class WorldApp {
         spawn.pitch = THREE.MathUtils.degToRad(-34);
       }
 
-      // Optional owners must exist before any feature tries to attach to them.
-      // T02 originally attached wind before this assignment, which meant the
-      // cinematic owner was silently absent on the normal production path.
       this.experience = new WorldExperience(experienceConfig, profile.compact);
-
-      environment = new WorldEnvironmentController(this.scene, this.renderer,
-        profile, profile.shadows && !useFlyControls, session.capabilities);
+      environment = new WorldEnvironmentController(
+        this.scene,
+        this.renderer,
+        profile,
+        profile.shadows && !useFlyControls,
+        session.capabilities,
+        this.lighting,
+      );
       this.environment = environment;
+
+      this.weather = attachWorldWeather(this.experience, {
+        renderer: this.renderer,
+        params,
+        lighting: this.lighting,
+        focus: () => controls?.getStreamingPosition() ?? spawn.position,
+        onPresetApplied: (preset) => {
+          setGrassWeatherPaletteMultiplier(preset.paletteMultiplier);
+          environment?.applyWeatherPreset();
+          const direction = this.grassArtDirection;
+          if (direction) {
+            terrain?.setGrassArtDirection(direction);
+            grass?.setArtDirection(direction);
+          }
+        },
+      });
+
       terrain = new TerrainStreamer(
         this.scene,
         this.field,
@@ -165,10 +197,14 @@ export class WorldApp {
         environment.materialContext,
       );
       this.stones = stones;
-      const wind = attachSharedWind(this.experience, this.renderer, params,
-        () => this.controls.getStreamingPosition());
-      grass = new WorldGrassSystem(this.scene, this.field, config, profile,
-        environment.materialContext, wind?.uniforms);
+      grass = new WorldGrassSystem(
+        this.scene,
+        this.field,
+        config,
+        profile,
+        environment.materialContext,
+        this.weather?.windUniforms,
+      );
       this.grass = grass;
 
       const tierOverride = params.get("tier");
@@ -183,7 +219,6 @@ export class WorldApp {
         freshnessRate: config.grassTrailFreshnessRate,
       });
       if (!useFlyControls) {
-        // The field keeps owning the targets and the uniform table.
         grassTrailField.attachNodePass((uniforms, size) =>
           createGrassTrailNodePass(this.renderer, session.capabilities, uniforms, size),
         );
@@ -211,8 +246,6 @@ export class WorldApp {
           );
       this.controls = controls;
       this.viewState = new WorldViewState(controls, useFlyControls ? "fly" : "play");
-      // Built here because the development tools reach the controls; every
-      // query-parameter-only attachment lives behind this one owner.
       this.development = new WorldDevelopmentHooks({
         scene: this.scene, camera: this.camera, renderer: this.renderer,
         field: this.field, profile, worldConfig: config, controls,
@@ -223,8 +256,11 @@ export class WorldApp {
         setDetailFoliageTuning: (tuning) => this.grass.setDetailFoliageTuning(tuning),
         applyGrassArtDirection: this.applyGrassArtDirection,
         setLiveWaterVisuals: (visuals) => this.terrain.setLiveWaterVisuals(visuals),
+        setWeatherPreset: (value) => this.weather?.setPreset(value) ?? false,
+        getWeatherPreset: () => this.weather?.getPresetId() ?? DEFAULT_WEATHER_PRESET,
       });
       if (params.get("diagnostics") === "1") {
+        this.development.attachWeatherPresetHook();
         this.development.attachTuningMenus(artKey, GRASS_ART_DIRECTIONS[artKey]);
       }
       minimap = new WorldMinimap(this.field, config, this.controls);
@@ -249,13 +285,16 @@ export class WorldApp {
         canvas,
         this.handleResize,
         (enabled) => {
-          // A lost context is a pause, not a failure: the guard re-enables it
-          // when the context comes back, where a retired phase never returns.
           this.rendererPaused = !enabled;
-          if (enabled && !useFlyControls) {
-            this.disposeSafely("Grass trail context restore", () =>
-              grassTrailField.configure({}),
+          if (enabled) {
+            this.disposeSafely("Environment context restore", () =>
+              this.environment.handleContextRestore(),
             );
+            if (!useFlyControls) {
+              this.disposeSafely("Grass trail context restore", () =>
+                grassTrailField.configure({}),
+              );
+            }
           }
         },
       );
@@ -263,6 +302,7 @@ export class WorldApp {
       this.subsystems = new WorldFrameSubsystems(this.frameMetrics, runtimeGuard);
       this.registerFrameSubsystems();
     } catch (error) {
+      setGrassWeatherPaletteMultiplier([1, 1, 1]);
       disposeConstructionSafely("Runtime guard", () => runtimeGuard?.dispose());
       disposeConstructionSafely("World reveal", () => reveal?.dispose());
       disposeConstructionSafely("Scenic layer", () => scenic?.dispose());
@@ -296,17 +336,8 @@ export class WorldApp {
             loaded,
           )
         : loaded;
-    // Before anything resolves a palette. `TerrainSurfacePalette` balances its
-    // rows in its own constructor and the grass materials do the same at build,
-    // so a lever applied after this point would reach some LODs and not others
-    // — which is the one failure a global saturation control must not have.
     signal?.throwIfAborted();
     setGrassPaletteDesaturation(config.grassPaletteDesaturation);
-    // The constructor's own rollback releases the session once it owns it; this
-    // covers the throw that happens before that transfer completes.
-    // Loaded before the world is constructed: which optional systems exist is a
-    // construction-time decision, and a malformed budget must fail before any
-    // of them allocates.
     const experienceConfig = await new WorldExperienceConfigLoader().load();
     signal?.throwIfAborted();
     let app: WorldApp;
@@ -356,13 +387,6 @@ export class WorldApp {
     };
   }
 
-  /**
-   * Development-only hook for the actor extensibility proof (`?actorProof=1`).
-   *
-   * Hands a standalone actor the scene and terrain it needs plus a per-frame
-   * subscription. Nothing on the production path calls this, and the proof
-   * module is only imported when its query parameter is present.
-   */
   attachActorProof(
     observer: (deltaSeconds: number) => void,
   ): WorldActorProofContext {
@@ -398,11 +422,13 @@ export class WorldApp {
     this.disposeSafely("Stone system", () => this.stones.dispose());
     this.disposeGrassResources();
     this.disposeSafely("Experience", () => this.experience?.dispose());
+    this.weather = undefined;
     this.experience = undefined;
     this.disposeSafely("View state", () => this.viewState?.dispose());
     this.disposeSafely("Development hooks", () => this.development.dispose());
     this.disposeSafely("Environment", () => this.environment.dispose());
     this.disposeSafely("Renderer", () => this.session.dispose());
+    setGrassWeatherPaletteMultiplier([1, 1, 1]);
   }
 
   private readonly applyGrassArtDirection = (
@@ -411,6 +437,7 @@ export class WorldApp {
     if (this.disposed) {
       return;
     }
+    this.grassArtDirection = direction;
     this.terrain.setGrassArtDirection(direction);
     this.grass.setArtDirection(direction);
     this.environment.applyArtDirection(direction);
@@ -481,11 +508,9 @@ export class WorldApp {
       ? WORLD_COMPACT_STREAMING_BUILD_BUDGET_MS
       : WORLD_DESKTOP_STREAMING_BUILD_BUDGET_MS;
     this.streamingBuildDeadline = performance.now() + streamingBudgetMs;
-    this.renderer.info.reset(); // Once per displayed frame; three's own is off.
+    this.renderer.info.reset();
     this.frameMetrics.beginFrame(deltaSeconds);
 
-    // Phase order and failure policy live in the subsystem runner; the frame
-    // observers keep their documented slot immediately after controls.
     this.subsystems.run(deltaSeconds, (name) => {
       if (name === "controls") {
         this.notifyFrameObservers(deltaSeconds);
@@ -510,15 +535,6 @@ export class WorldApp {
     }
   };
 
-  /**
-   * Weather, scenery and reveal readiness, in their own fault domain.
-   *
-   * These used to run inside the controls phase, which meant a controls failure
-   * — or simply opening the minimap — stopped the clouds and froze the reveal.
-   * Nothing here depends on the player driving, so nothing here is disabled
-   * when the player cannot. The focus is read from the controller rather than
-   * updated by it, so it stays valid even after controls are switched off.
-   */
   private readonly updateEnvironment = (deltaSeconds: number): void => {
     const focus = this.controls.getStreamingPosition();
     this.environment.update(deltaSeconds, focus);
@@ -529,7 +545,6 @@ export class WorldApp {
     );
   };
 
-  /** The optional presentation, audio and authoring systems, if any are on. */
   private readonly updateExperience = (deltaSeconds: number): void => {
     this.experience?.update(deltaSeconds);
   };
@@ -595,23 +610,15 @@ export class WorldApp {
     this.frameHandle = requestAnimationFrame(this.render);
   };
 
-  /**
-   * The frame's phases, in order, each with what its failure costs.
-   *
-   * Registered once rather than branched every frame: the policy sits beside
-   * the phase, so adding a system cannot leave it with someone else's failure
-   * behaviour — which is what the old fallback branch did by disabling the HUD.
-   */
   private registerFrameSubsystems(): void {
     const runner = this.subsystems;
     runner.register({ name: "controls", run: this.updateControls, onFailure: () => {} });
     runner.register({
       name: "experience",
-      // Weather and shared wind live here, so this phase must run before the
-      // environment and every material consumer for the frame to read one state.
       run: this.updateExperience,
       onFailure: () => {
         this.disposeSafely("Experience", () => this.experience?.dispose());
+        this.weather = undefined;
         this.experience = undefined;
       },
     });
