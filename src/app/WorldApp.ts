@@ -1,11 +1,11 @@
 import * as THREE from "three";
-import type Stats from "stats-gl";
 import {
   GRASS_ART_DIRECTIONS,
   resolveGrassArtDirectionKey,
   type GrassArtDirection,
 } from "../grass/GrassArtDirection";
 import { grassTrailField } from "../grass/interaction/GrassTrailField";
+import { WorldDevelopmentHooks } from "./WorldDevelopmentHooks";
 import { FlyWorldController } from "../controls/FlyWorldController";
 import { ThirdPersonController } from "../controls/ThirdPersonController";
 import type { WorldController } from "../controls/WorldController";
@@ -25,14 +25,11 @@ import type { WorldConfig } from "../world/WorldConfig";
 import { setGrassPaletteDesaturation } from "../grass/materials/GrassPaletteShader";
 import { WorldConfigLoader } from "../world/WorldConfigLoader";
 import { WorldGrassSystem } from "../world/WorldGrassSystem";
-import { GrassArtMenu } from "./GrassArtMenu";
-import { DetailFoliageTuningMenu } from "./DetailFoliageTuningMenu";
 import { WorldEnvironmentController } from "./WorldEnvironmentController";
 import { WorldMinimap } from "./WorldMinimap";
 import { WorldFrameMetrics, type WorldFrameSubsystem } from "./WorldFrameMetrics";
 import { WorldRuntimeGuard } from "./WorldRuntimeGuard";
 import { WorldStatusHud } from "./WorldStatusHud";
-import { attachWorldStatsPanel } from "./WorldStatsPanel";
 import type { WorldActorProofContext } from "./WorldActorProofContext";
 import type { WorldVisualMatrixContext } from "./WorldVisualMatrixContext";
 import { WorldRevealController } from "../runtime/WorldRevealController";
@@ -54,10 +51,7 @@ export class WorldApp {
   private readonly camera: THREE.PerspectiveCamera;
   private readonly renderer: RendererSession["renderer"];
   private readonly clock = new THREE.Clock();
-  private stats?: Stats;
-  private artMenu?: GrassArtMenu;
-  private detailFoliageMenu?: DetailFoliageTuningMenu;
-  private riverArtMenu?: { dispose(): void };
+  private development!: WorldDevelopmentHooks;
   private readonly field: TerrainField;
   private readonly frameObservers = new Set<(deltaSeconds: number) => void>();
   private readonly terrain: TerrainStreamer;
@@ -183,12 +177,6 @@ export class WorldApp {
       }
       const artKey = resolveGrassArtDirectionKey(params.get("grassArt"));
       this.applyGrassArtDirection(GRASS_ART_DIRECTIONS[artKey]);
-      if (profile.showGui && params.get("diagnostics") === "1") {
-        this.artMenu = new GrassArtMenu(artKey, this.applyGrassArtDirection);
-        this.detailFoliageMenu = new DetailFoliageTuningMenu(
-          this.grass.getDetailFoliageTuning(),
-          (tuning) => this.grass.setDetailFoliageTuning(tuning));
-      }
 
       controls = useFlyControls
         ? new FlyWorldController(
@@ -209,6 +197,22 @@ export class WorldApp {
             spawn,
           );
       this.controls = controls;
+      // Built here because the development tools reach the controls; every
+      // query-parameter-only attachment lives behind this one owner.
+      this.development = new WorldDevelopmentHooks({
+        scene: this.scene, camera: this.camera, renderer: this.renderer,
+        field: this.field, profile, worldConfig: config, controls,
+        addFrameObserver: (observer) => this.addFrameObserver(observer),
+        setGrassQualityTierOverride: (tier) => this.grass.setQualityTierOverride(tier),
+        isGrassReady: () => !this.grassInitializing && this.grassEnabled,
+        getDetailFoliageTuning: () => this.grass.getDetailFoliageTuning(),
+        setDetailFoliageTuning: (tuning) => this.grass.setDetailFoliageTuning(tuning),
+        applyGrassArtDirection: this.applyGrassArtDirection,
+        setLiveWaterVisuals: (visuals) => this.terrain.setLiveWaterVisuals(visuals),
+      });
+      if (params.get("diagnostics") === "1") {
+        this.development.attachTuningMenus(artKey, GRASS_ART_DIRECTIONS[artKey]);
+      }
       minimap = new WorldMinimap(this.field, config, this.controls);
       this.minimap = minimap;
       scenic = new WorldScenicLayer(
@@ -246,8 +250,7 @@ export class WorldApp {
       disposeConstructionSafely("Scenic layer", () => scenic?.dispose());
       disposeConstructionSafely("Minimap", () => minimap?.dispose());
       disposeConstructionSafely("World controls", () => controls?.dispose());
-      disposeConstructionSafely("Detail foliage menu", () => this.detailFoliageMenu?.dispose());
-      disposeConstructionSafely("Grass art menu", () => this.artMenu?.dispose());
+      disposeConstructionSafely("Development hooks", () => this.development.dispose());
       disposeConstructionSafely("Grass trail field", () => grassTrailField.dispose());
       disposeConstructionSafely("Grass system", () => grass?.dispose());
       disposeConstructionSafely("Stone system", () => stones?.dispose());
@@ -292,16 +295,8 @@ export class WorldApp {
         console.warn("[Drusniel World] Optional river tuning unavailable.", error);
       }
     }
-    if (
-      !profile.compact &&
-      params.get("stats") === "1"
-    ) {
-      const stats = await attachWorldStatsPanel(app.renderer);
-      if (app.disposed) {
-        stats?.dom.remove();
-      } else {
-        app.stats = stats;
-      }
+    if (params.get("stats") === "1") {
+      await app.development.attachStatsPanel();
     }
     void app.initializeGrass();
     return app;
@@ -347,46 +342,17 @@ export class WorldApp {
   attachActorProof(
     observer: (deltaSeconds: number) => void,
   ): WorldActorProofContext {
-    this.frameObservers.add(observer);
-    return {
-      scene: this.scene,
-      field: this.field,
-      detach: (): void => {
-        this.frameObservers.delete(observer);
-      },
-    };
+    return this.development.attachActorProof(observer);
   }
 
   /** Development-only hook for `?qa=visual-matrix`. */
   attachVisualMatrix(): WorldVisualMatrixContext {
-    this.grass.setQualityTierOverride(1);
-    return {
-      camera: this.camera,
-      renderer: this.renderer,
-      field: this.field,
-      profile: this.profile,
-      controls: this.controls,
-      isReady: () => !this.grassInitializing && this.grassEnabled,
-    };
+    return this.development.attachVisualMatrix();
   }
 
   /** Development-only hook for `?riverTuning=1`. */
-  async attachRiverArtMenu(): Promise<void> {
-    if (this.disposed || this.riverArtMenu || !this.profile.showGui) {
-      return;
-    }
-    const { RiverArtMenu } = await import("./RiverArtMenu");
-    if (this.disposed || this.riverArtMenu) {
-      return;
-    }
-    this.riverArtMenu = new RiverArtMenu({
-      worldConfig: this.worldConfig,
-      field: this.field,
-      controls: this.controls,
-      applyLiveWaterVisuals: (visuals) => {
-        this.terrain.setLiveWaterVisuals(visuals);
-      },
-    });
+  attachRiverArtMenu(): Promise<void> {
+    return this.development.attachRiverArtMenu();
   }
 
   dispose(): void {
@@ -407,14 +373,7 @@ export class WorldApp {
     this.disposeSafely("Terrain streamer", () => this.terrain.dispose());
     this.disposeSafely("Stone system", () => this.stones.dispose());
     this.disposeGrassResources();
-    this.disposeSafely("Stats panel", () => this.stats?.dom.remove());
-    this.stats = undefined;
-    this.disposeSafely("Grass art menu", () => this.artMenu?.dispose());
-    this.disposeSafely("Detail foliage menu", () => this.detailFoliageMenu?.dispose());
-    this.disposeSafely("River art menu", () => this.riverArtMenu?.dispose());
-    this.artMenu = undefined;
-    this.detailFoliageMenu = undefined;
-    this.riverArtMenu = undefined;
+    this.disposeSafely("Development hooks", () => this.development.dispose());
     this.disposeSafely("Environment", () => this.environment.dispose());
     this.disposeSafely("Renderer", () => this.session.dispose());
   }
@@ -585,7 +544,7 @@ export class WorldApp {
     this.environment.prepareFrame(this.camera);
     this.terrain.renderWaterRefraction(this.renderer, this.scene, this.camera);
     this.renderer.render(this.scene, this.camera);
-    this.stats?.update();
+    this.development.update();
   };
 
   private readonly checkFrameHeartbeat = (): void => {

@@ -20,6 +20,7 @@ function assert(condition, message) {
 
 const main = read("src/main.ts");
 const world = read("src/app/WorldApp.ts");
+const developmentHooks = read("src/app/WorldDevelopmentHooks.ts");
 const statsPanel = read("src/app/WorldStatsPanel.ts");
 const island = read("src/app/IslandApp.ts");
 const islandGrass = read("src/grass/GrassSystem.ts");
@@ -59,11 +60,16 @@ assert(
     world.includes("attachVisualMatrix()"),
   "World visual-matrix QA must remain opt-in and outside the default bundle path.",
 );
+// The menu itself moved into the development hooks with the rest of the
+// query-parameter-only attachments; the contract is unchanged, so the dynamic
+// import is looked for wherever it now lives and the static import is still
+// forbidden in both.
 assert(
   world.includes('params.get("riverTuning") === "1"') &&
     /await import\(\s*"\.\.\/dev\/RiverDevelopmentConfig"\s*\)/.test(world) &&
-    /await import\(\s*"\.\/RiverArtMenu"\s*\)/.test(world) &&
+    /await import\(\s*"\.\/RiverArtMenu"\s*\)/.test(world + developmentHooks) &&
     !world.includes('import { RiverArtMenu }') &&
+    !developmentHooks.includes('import { RiverArtMenu }') &&
     !world.includes('import { applyRiverDevelopmentConfig }'),
   "River tuning must remain opt-in and outside the default bundle path.",
 );
@@ -74,8 +80,8 @@ assert(
 );
 assert(
   main.includes('statsPanelEnabled: params.get("stats") === "1"') &&
-    world.includes("attachWorldStatsPanel") &&
-    world.includes("this.stats?.update()") &&
+    developmentHooks.includes("attachWorldStatsPanel") &&
+    developmentHooks.includes("this.stats?.update()") &&
     statsPanel.includes('await import("stats-gl")') &&
     statsPanel.includes("Optional stats panel unavailable") &&
     // Two GPU timers must never run at once. stats-gl can only attach to the
