@@ -160,6 +160,77 @@ try {
     assert.ok(WEATHER_PRESET_IDS.includes(DEFAULT_WEATHER_PRESET),
       "The default weather preset must be in its own catalog.");
   });
+  // --- Stored settings ------------------------------------------------------
+
+  const { decodeHudSettings, HUD_SETTINGS_VERSION, MINIMUM_RENDER_SCALE, MAXIMUM_RENDER_SCALE } =
+    await server.ssrLoadModule("/src/runtime/HudSettingsStore.ts");
+
+  await check("the existing inversion setting still migrates", () => {
+    // The only field the shipped build ever wrote. A document from it has no
+    // version and no other key, and must keep meaning what it meant.
+    const migrated = decodeHudSettings({ invertHorizontalMovement: true });
+    assert.equal(migrated.invertHorizontalMovement, true);
+    assert.equal(migrated.weather, "drusniel", "Absent fields take their default.");
+    assert.ok(HUD_SETTINGS_VERSION >= 2);
+  });
+
+  await check("an identifier that no longer exists falls back", () => {
+    const decoded = decodeHudSettings({
+      weather: "thunderstorm", shape: "spike", character: "nobody", quality: "extreme",
+    });
+    assert.equal(decoded.weather, "drusniel");
+    assert.equal(decoded.shape, "blade");
+    assert.equal(decoded.character, "drow");
+    assert.equal(decoded.quality, undefined,
+      "An invalid quality must fall back to letting the profile decide, "
+      + "not to a tier nobody chose.");
+  });
+
+  await check("a valid identifier is kept", () => {
+    const decoded = decodeHudSettings({
+      weather: "rainy", shape: "reed", character: "villager", quality: "high",
+    });
+    assert.equal(decoded.weather, "rainy");
+    assert.equal(decoded.shape, "reed");
+    assert.equal(decoded.character, "villager");
+    assert.equal(decoded.quality, "high");
+  });
+
+  await check("numeric settings are clamped, not trusted", () => {
+    const high = decodeHudSettings({
+      renderScale: 99, masterVolume: 5, ambientVolume: -3, effectsVolume: Number.NaN,
+    });
+    assert.equal(high.renderScale, MAXIMUM_RENDER_SCALE);
+    assert.equal(high.masterVolume, 1);
+    assert.equal(high.ambientVolume, 0);
+    assert.equal(high.effectsVolume, 0.9, "A non-finite value takes the default.");
+    assert.equal(decodeHudSettings({ renderScale: 0.01 }).renderScale, MINIMUM_RENDER_SCALE);
+  });
+
+  await check("unknown stored fields are ignored, not rejected", () => {
+    const decoded = decodeHudSettings({
+      invertHorizontalMovement: true, somethingFromANewerBuild: { nested: true },
+    });
+    assert.equal(decoded.invertHorizontalMovement, true,
+      "A document written by a newer build must still load here.");
+    assert.equal("somethingFromANewerBuild" in decoded, false);
+  });
+
+  await check("corrupt storage decodes to defaults rather than throwing", () => {
+    for (const raw of [null, undefined, 42, "a string", []]) {
+      assert.doesNotThrow(() => decodeHudSettings(raw));
+    }
+    assert.equal(decodeHudSettings(null).weather, "drusniel");
+  });
+
+  await check("wrong types fall back per field", () => {
+    const decoded = decodeHudSettings({
+      invertHorizontalMovement: "yes", weather: 7, renderScale: "big",
+    });
+    assert.equal(decoded.invertHorizontalMovement, false);
+    assert.equal(decoded.weather, "drusniel");
+    assert.equal(decoded.renderScale, 1);
+  });
 } finally {
   await server.close();
 }
@@ -173,6 +244,6 @@ if (failures.length > 0) {
 
 console.log(
   "[experience-config] Required keys, bounds, boolean flags, multisample counts, "
-  + "the pinned authoring grid, per-profile budgets, absent-file defaults and the "
-  + "identifier catalogs verified.",
+  + "the pinned authoring grid, per-profile budgets, absent-file defaults, the "
+  + "identifier catalogs and the versioned settings decoder verified.",
 );
