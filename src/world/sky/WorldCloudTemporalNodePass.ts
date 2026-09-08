@@ -1,6 +1,7 @@
 import { LinearFilter, Matrix4, QuadMesh, Quaternion, RenderTarget, Vector2, Vector3,
   type PerspectiveCamera, type WebGPURenderer } from "three/webgpu";
 import type { RuntimeProfile } from "../../runtime/RuntimeConfig";
+import type { WorldLightingState } from "../../render/WorldLightingState";
 import type { RendererCapabilities } from "../../render/RendererCapabilities";
 import { renderNodePass } from "../../render/RenderNodePass";
 import { disposeResources } from "../../render/ResourceDisposal";
@@ -32,7 +33,8 @@ export class WorldCloudTemporalNodePass {
   private valid = false;
   private disposed = false;
 
-  constructor(private readonly renderer: WebGPURenderer, profile: RuntimeProfile, capabilities: RendererCapabilities) {
+  constructor(private readonly renderer: WebGPURenderer, profile: RuntimeProfile,
+    capabilities: RendererCapabilities, lighting?: WorldLightingState) {
     this.quality = resolveWorldCloudVolumeQuality(profile, { capabilities });
     if (!this.quality.enabled) throw new Error("Temporal volumetric clouds are disabled for this profile.");
     const owned: { dispose(): void }[] = [];
@@ -40,7 +42,7 @@ export class WorldCloudTemporalNodePass {
     try {
       this.raw = own(createTarget());
       this.history = [own(createTarget()), own(createTarget())];
-      this.volume = createWorldCloudVolumeNodes(profile, this.quality.steps);
+      this.volume = createWorldCloudVolumeNodes(profile, this.quality.steps, lighting);
       own(this.volume.material);
       this.temporal = createWorldCloudTemporalNodes(profile.cloud, this.raw.texture, this.history[0].texture);
       own(this.temporal.material);
@@ -56,6 +58,12 @@ export class WorldCloudTemporalNodePass {
   getDiagnostics() {
     return { width: this.raw.width, height: this.raw.height, frame: this.frame,
       historyUsed: this.temporal.historyValid.value >= 0.5, historyReady: this.valid };
+  }
+
+  applyLightingState(lighting: WorldLightingState): void {
+    if (this.disposed) return;
+    this.volume.field.coverage.value = lighting.cloudThreshold;
+    this.resetHistory();
   }
 
   render(camera: PerspectiveCamera, elapsedSeconds: number) {
