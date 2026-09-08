@@ -21,7 +21,10 @@ Implementation started 2026-09-06. Full scope is authorized; deployment is not r
 | G04 | Complete | Near/mid blade, far impostor card, accent foliage, the trail interaction pass and the octahedral impostor exporter are the production materials in both scenes. Grass geometry is packed to fit WebGPU's eight-buffer limit. Gated by `grass`, `impostor`, `foliage`, `trail` and `bake`. |
 | G05 | Complete | Stone surfaces, river bed, water surface, cascades, the refraction pass and the actors are all ported, gated and shipped. Directional grass transmission/sheen and stone custom lighting have their own numerical coverage; the stone shader performance check now reads the generated program. |
 | G06 | Complete | Both applications default to `auto` and reach a usable WebGPU renderer, falling back to the same TSL implementation on WebGL 2. `check-renderer-matrix.mjs` passes 13/13 across both scenes, both profiles, both backends, resize, BFCache, teardown, a failed adapter and automatic fallback. No legacy shader route is reachable from production or present in any bundle, enforced by `verify-built-site.mjs`. |
-| T01–T16 | Pending | Feature integration; the renderer foundation they depend on is now in place. |
+| T01 | Complete | Development attachments live in `WorldDevelopmentHooks`; experience config, identifier catalogs, versioned HUD settings and `WorldViewState` are in the production route. Optional owners allocate nothing when empty. Environment/scenic/reveal are separate frame fault domains from controls. Held by `verify-experience-config.mjs` and `verify-experience-lifecycle.mjs`. WorldApp remains under the 730-line architecture cap. |
+| T02 | Complete | Shared cinematic wind is the default (`DEFAULT_WIND_MODEL`). The field matches the source model over 960 samples; CPU/GPU gusts share one gradient lattice. Near/mid/far grass consume the same cinematic gust and Lowsway rest bend. `?windModel=legacy` remains the comparison baseline. Held by `verify-world-wind.mjs`. |
+| T03 | Complete | Eight presets (`drusniel`, Highfield, Emberfall, Greyrain, Galewind, Stillmeadow, Lowsway, Moonrise) owned by `WorldWeatherState`, switched through `window.__drusnielWeather` until T04. `npm run build` includes `verify-weather-presets.mjs`. Browser/dev-hook visual pass recorded 2026-09-08. Ecology and river placement were not retuned. |
+| T04–T16 | Pending | Next is T04 (iris, loading presentation, settings UI). Deployment is not requested. |
 
 **Renderer inventory: 0 pending.** 98 ported and comparison-gated, 94
 development comparison locations, 7 exempt, and 4 shipped-GLSL modules retained
@@ -451,3 +454,37 @@ Two items remain before the G tickets are closed, both bookkeeping: recording
 the stabilized revisions in both repositories, and measuring the pre-migration
 `WebGLRenderer` baseline from the archived revision, since this tree no longer
 contains that route. T01-T16 remain unstarted.
+
+### 2026-09-08 T01–T03 checkpoint
+
+T01 and T02 landed earlier on `main` (merge `3aab6c1` and follow-up wind/weather wiring). T03's remaining source-gate and architecture cleanup is `ff001d39fe64`. Full `npm run build` passes, including `verify-weather-presets.mjs`. No deployment.
+
+**T01.** Experience configuration, catalogs, versioned settings, view-state save/restore, optional-owner slots and split frame fault domains are in production. Development-only attachments stay in `WorldDevelopmentHooks`. The architecture cap on `WorldApp` (730 lines) still holds after T03 extracted the `?accentAtlas=1` debug attach into those hooks.
+
+**T02.** Shared cinematic wind is no longer opt-in: `DEFAULT_WIND_MODEL` is `cinematic`. The original merge left it behind `?windModel=cinematic` until cost was explained; later measurement and T03 LOD wiring made the shared field the production path. Legacy remains selectable. Numerical gates: source-model agreement over 960 samples, shared lattice, bounded field, phase-preserving speed changes. Far cards read the same baked gust and rest bend as near/mid blades.
+
+**T03 implementation.** Atomic `setPreset` commits lighting, palette, clouds, wind publication (bake invalidate without advancing phase) and staged PMREM. Context restore reapplies the selected preset. Ordinary wind-bake failures keep the last valid texture. Non-Drusniel URL presets skip an initial clear-sky frame; `drusniel` keeps its eased startup.
+
+**T03 browser/dev-hook visual pass.** Desktop world, `?diagnostics=1&view=aerial`, hook `window.__drusnielWeather`. Camera held at spawn focus `608 / 52 / 428` except for a later idle fly drift on one URL reload. Grass logical count stayed `22.18M` / `23,591` patches on every cut.
+
+| Preset | Hook id | Observed identity |
+| --- | --- | --- |
+| Drusniel | `drusniel` | Cool daylight baseline, pale sky, green meadow. |
+| Highfield | `sunny` | Warmer, brighter, more golden grass. |
+| Emberfall | `goldenHour` | Amber/low-sun grade, brown-gold meadow. |
+| Greyrain | `rainy` | Immediate teal fog, short visibility, muted grass. |
+| Galewind | `windy` | Bright again after rain; not a leftover overcast cut. |
+| Stillmeadow | `calm` | Soft, desaturated, gentler than Highfield. |
+| Lowsway | `bowed` | Muted overcast grade. Static lean was not judged at blade scale from 50 m AGL. |
+| Moonrise | `moonlight` | Stylized night, blue key; water did not stay daytime-bright. |
+
+Also checked:
+
+- Invalid id `not-a-weather` returned `false` and left the current preset.
+- A→B→A: `moonlight` → `rainy` cut to teal fog with no leftover night; restoring `moonlight` returned the night grade.
+- `?weather=moonlight` revealed as night, not a clear-sky first look.
+- Terrain residency stayed 169 chunks; spawn focus did not jump when switching presets.
+
+`?diagnostics=1` also opens grass-art and foliage tuners. Those "Muted Meadow" controls are art direction, not T03 weather.
+
+T04 is not started. Deployment is not requested.
