@@ -12,6 +12,7 @@ import {
 export class WorldWindSystem {
   private readonly field = new WorldWindField();
   private readonly bake?: WorldWindBake;
+  private bakeFailureReported = false;
   readonly uniforms = new WorldWindUniforms();
 
   constructor(renderer?: WebGPURenderer, private readonly focus?: () => Vector3) {
@@ -49,13 +50,31 @@ export class WorldWindSystem {
   private publish(deltaSeconds: number, forceBake: boolean): void {
     this.uniforms.syncFrom(this.field);
     const focus = this.focus?.();
-    if (!focus) {
+    if (!focus || !this.bake) {
       return;
     }
+
     if (forceBake) {
-      this.bake?.invalidate();
+      this.bake.invalidate();
+      this.bake.update(deltaSeconds, focus, this.field);
+      this.bakeFailureReported = false;
+      return;
     }
-    this.bake?.update(deltaSeconds, focus, this.field);
+
+    try {
+      this.bake.update(deltaSeconds, focus, this.field);
+      this.bakeFailureReported = false;
+    } catch (error) {
+      // Keep the last valid texture alive. Disposing this optional owner would
+      // leave already-compiled cinematic grass sampling a released texture.
+      if (!this.bakeFailureReported) {
+        console.warn(
+          "[Drusniel World] Wind bake unavailable; retaining the previous field.",
+          error,
+        );
+        this.bakeFailureReported = true;
+      }
+    }
   }
 }
 
