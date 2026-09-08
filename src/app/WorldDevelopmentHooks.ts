@@ -14,13 +14,18 @@ import { GrassArtMenu } from "./GrassArtMenu";
 import { DetailFoliageTuningMenu } from "./DetailFoliageTuningMenu";
 import { attachWorldStatsPanel } from "./WorldStatsPanel";
 
-/**
- * What the development hooks need from the running world.
- *
- * Declared as a narrow interface rather than taking `WorldApp` itself: these
- * hooks exist only behind query parameters, and giving them the whole app would
- * make it impossible to see, from here, what a development tool can reach into.
- */
+export interface WorldWeatherDevelopmentHook {
+  setPreset(value: string): boolean;
+  getPreset(): string;
+}
+
+declare global {
+  interface Window {
+    __drusnielWeather?: WorldWeatherDevelopmentHook;
+  }
+}
+
+/** What development-only attachments are allowed to reach in the world. */
 export interface WorldDevelopmentHost {
   readonly scene: THREE.Scene;
   readonly camera: THREE.PerspectiveCamera;
@@ -29,7 +34,6 @@ export interface WorldDevelopmentHost {
   readonly profile: RuntimeProfile;
   readonly worldConfig: WorldConfig;
   readonly controls: WorldController;
-  /** Returns the detach function, so a caller cannot remove someone else's. */
   addFrameObserver(observer: (deltaSeconds: number) => void): () => void;
   setGrassQualityTierOverride(tier: number): void;
   isGrassReady(): boolean;
@@ -37,24 +41,16 @@ export interface WorldDevelopmentHost {
   setDetailFoliageTuning(tuning: DetailFoliageTuning): void;
   applyGrassArtDirection(direction: GrassArtDirection): void;
   setLiveWaterVisuals: RiverArtMenuHost["applyLiveWaterVisuals"];
+  setWeatherPreset(value: string): boolean;
+  getWeatherPreset(): string;
 }
 
-/**
- * Every development-only attachment the world offers, in one owner.
- *
- * These are the tuning menus, the profiler panel and the three `attach*` hooks
- * the bootstrap reaches for behind `?diagnostics=1`, `?stats=1`, `?qa=`,
- * `?riverTuning=1` and the actor proof. None of them are part of playing the
- * world, and keeping them here is what lets the composition root stay inside
- * its size budget while the experience integration adds real systems to it.
- *
- * Ownership is complete: whatever this attaches, it disposes, and a failure in
- * one attachment never abandons the others.
- */
+/** Owns every development-only attachment exposed by the running world. */
 export class WorldDevelopmentHooks {
   private artMenu?: GrassArtMenu;
   private detailFoliageMenu?: DetailFoliageTuningMenu;
   private riverArtMenu?: { dispose(): void };
+  private weatherHook?: WorldWeatherDevelopmentHook;
   private stats?: Stats;
   private disposed = false;
 
@@ -70,9 +66,20 @@ export class WorldDevelopmentHooks {
       this.host.getDetailFoliageTuning(),
       (tuning) => this.host.setDetailFoliageTuning(tuning),
     );
-    // The menu reflects the direction the world already applied, so opening it
-    // cannot silently re-apply a different one.
     void direction;
+  }
+
+  /** Console hook used by T03 until the ordinary settings UI lands in T04. */
+  attachWeatherPresetHook(): void {
+    if (this.disposed || this.weatherHook) {
+      return;
+    }
+    const hook: WorldWeatherDevelopmentHook = {
+      setPreset: (value) => this.host.setWeatherPreset(value),
+      getPreset: () => this.host.getWeatherPreset(),
+    };
+    this.weatherHook = hook;
+    window.__drusnielWeather = hook;
   }
 
   /** The stats-gl profiler, behind `?stats=1`. Declines what it cannot time. */
@@ -97,12 +104,6 @@ export class WorldDevelopmentHooks {
     }
   }
 
-  /**
-   * Development-only hook for the actor extensibility proof.
-   *
-   * The proof adds an actor of its own and needs the world's scene and terrain
-   * to place it, plus a frame callback to drive it.
-   */
   attachActorProof(observer: (deltaSeconds: number) => void): WorldActorProofContext {
     const detach = this.host.addFrameObserver(observer);
     return { scene: this.host.scene, field: this.host.field, detach };
@@ -145,6 +146,9 @@ export class WorldDevelopmentHooks {
       return;
     }
     this.disposed = true;
+    if (window.__drusnielWeather === this.weatherHook) {
+      delete window.__drusnielWeather;
+    }
     disposeSafely("Stats panel", () => this.stats?.dom.remove());
     disposeSafely("Grass art menu", () => this.artMenu?.dispose());
     disposeSafely("Detail foliage menu", () => this.detailFoliageMenu?.dispose());
@@ -153,10 +157,10 @@ export class WorldDevelopmentHooks {
     this.artMenu = undefined;
     this.detailFoliageMenu = undefined;
     this.riverArtMenu = undefined;
+    this.weatherHook = undefined;
   }
 }
 
-/** One failed development tool must not abandon the rest of the teardown. */
 function disposeSafely(label: string, release: () => void): void {
   try {
     release();
