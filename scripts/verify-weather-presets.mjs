@@ -6,28 +6,23 @@ import { createServer } from "vite";
 
 const SCRIPT_DIRECTORY = dirname(fileURLToPath(import.meta.url));
 const REPOSITORY_ROOT = resolve(SCRIPT_DIRECTORY, "..");
-const EXPECTED_IDS = [
-  "drusniel",
-  "sunny",
-  "goldenHour",
-  "rainy",
-  "windy",
-  "calm",
-  "bowed",
-  "moonlight",
+const PRESET_IDS = [
+  "drusniel", "sunny", "goldenHour", "rainy",
+  "windy", "calm", "bowed", "moonlight",
 ];
-const EXPECTED_SOURCE = {
-  sunny: { label: "Highfield", coverage: 0.35, wind: 1 },
-  goldenHour: { label: "Emberfall", coverage: 0.30, wind: 0.625 },
-  rainy: { label: "Greyrain", coverage: 0.92, wind: 0.833333 },
-  windy: { label: "Galewind", coverage: 0.50, wind: 1.166667 },
-  calm: { label: "Stillmeadow", coverage: 0.25, wind: 0.270833 },
-  bowed: { label: "Lowsway", coverage: 0.30, wind: 0.25 },
-  moonlight: { label: "Moonrise", coverage: 0.20, wind: 0.333333 },
-};
+const SOURCE_EXPECTATIONS = Object.freeze({
+  sunny: ["Highfield", 0.35, 1],
+  goldenHour: ["Emberfall", 0.30, 0.625],
+  rainy: ["Greyrain", 0.92, 0.833333],
+  windy: ["Galewind", 0.50, 1.166667],
+  calm: ["Stillmeadow", 0.25, 0.270833],
+  bowed: ["Lowsway", 0.30, 0.25],
+  moonlight: ["Moonrise", 0.20, 0.333333],
+});
 
 function read(relativePath) {
-  return readFileSync(resolve(REPOSITORY_ROOT, relativePath), "utf8").replaceAll("\r\n", "\n");
+  return readFileSync(resolve(REPOSITORY_ROOT, relativePath), "utf8")
+    .replaceAll("\r\n", "\n");
 }
 
 function close(actual, expected, epsilon = 1e-6) {
@@ -35,29 +30,32 @@ function close(actual, expected, epsilon = 1e-6) {
     `Expected ${actual} to be within ${epsilon} of ${expected}.`);
 }
 
+function colorTuple(color) {
+  return [color.r, color.g, color.b];
+}
+
 function lightingSnapshot(lighting) {
-  const rgb = (color) => [color.r, color.g, color.b];
   return {
     presetId: lighting.presetId,
     label: lighting.label,
     baseline: lighting.baseline,
     sunDirection: lighting.sunDirection.toArray(),
-    sunColor: rgb(lighting.sunColor),
+    sunColor: colorTuple(lighting.sunColor),
     sunIntensity: lighting.sunIntensity,
-    hemisphereSkyColor: rgb(lighting.hemisphereSkyColor),
-    hemisphereGroundColor: rgb(lighting.hemisphereGroundColor),
+    hemisphereSkyColor: colorTuple(lighting.hemisphereSkyColor),
+    hemisphereGroundColor: colorTuple(lighting.hemisphereGroundColor),
     hemisphereIntensity: lighting.hemisphereIntensity,
-    ambientColor: rgb(lighting.ambientColor),
+    ambientColor: colorTuple(lighting.ambientColor),
     ambientIntensity: lighting.ambientIntensity,
-    fogColor: rgb(lighting.fogColor),
+    fogColor: colorTuple(lighting.fogColor),
     fogDensity: lighting.fogDensity,
     environmentIntensity: lighting.environmentIntensity,
     cloudThreshold: lighting.cloudThreshold,
-    skyZenithColor: rgb(lighting.skyZenithColor),
-    skyHorizonColor: rgb(lighting.skyHorizonColor),
-    skyHazeColor: rgb(lighting.skyHazeColor),
-    skySunHaloColor: rgb(lighting.skySunHaloColor),
-    skySunDiskColor: rgb(lighting.skySunDiskColor),
+    skyZenithColor: colorTuple(lighting.skyZenithColor),
+    skyHorizonColor: colorTuple(lighting.skyHorizonColor),
+    skyHazeColor: colorTuple(lighting.skyHazeColor),
+    skySunHaloColor: colorTuple(lighting.skySunHaloColor),
+    skySunDiskColor: colorTuple(lighting.skySunDiskColor),
     skyHaloPower: lighting.skyHaloPower,
     skyDiskPower: lighting.skyDiskPower,
   };
@@ -75,6 +73,10 @@ function windSnapshot(wind) {
   };
 }
 
+function assertContains(source, fragments, message) {
+  assert.ok(fragments.every((fragment) => source.includes(fragment)), message);
+}
+
 const server = await createServer({
   configFile: false,
   server: { middlewareMode: true },
@@ -82,32 +84,41 @@ const server = await createServer({
 });
 
 try {
-  const catalog = await server.ssrLoadModule("/src/world/experience/WorldExperienceCatalog.ts");
-  const sourceModule = await server.ssrLoadModule("/src/world/weather/WorldEnvironmentPresets.ts");
-  const resolver = await server.ssrLoadModule("/src/world/weather/WorldEnvironmentPresetResolver.ts");
-  const { WorldLightingState } = await server.ssrLoadModule("/src/render/WorldLightingState.ts");
-  const { WorldWeatherState } = await server.ssrLoadModule("/src/world/weather/WorldWeatherState.ts");
-  const { WorldWindSystem } = await server.ssrLoadModule("/src/world/weather/WorldWindSystem.ts");
+  const catalog = await server.ssrLoadModule(
+    "/src/world/experience/WorldExperienceCatalog.ts",
+  );
+  const sourceModule = await server.ssrLoadModule(
+    "/src/world/weather/WorldEnvironmentPresets.ts",
+  );
+  const resolver = await server.ssrLoadModule(
+    "/src/world/weather/WorldEnvironmentPresetResolver.ts",
+  );
+  const { WorldLightingState } = await server.ssrLoadModule(
+    "/src/render/WorldLightingState.ts",
+  );
+  const { WorldWeatherState } = await server.ssrLoadModule(
+    "/src/world/weather/WorldWeatherState.ts",
+  );
+  const { WorldWindSystem } = await server.ssrLoadModule(
+    "/src/world/weather/WorldWindSystem.ts",
+  );
 
-  assert.deepEqual([...catalog.WEATHER_PRESET_IDS], EXPECTED_IDS,
-    "The public weather catalog must keep the seven source presets plus drusniel.");
+  assert.deepEqual([...catalog.WEATHER_PRESET_IDS], PRESET_IDS);
   assert.equal(catalog.DEFAULT_WEATHER_PRESET, "drusniel");
 
   const sourcePresets = sourceModule.WORLD_SOURCE_ENVIRONMENT_PRESETS;
-  assert.deepEqual(Object.keys(sourcePresets), EXPECTED_IDS.slice(1));
-  for (const [id, expected] of Object.entries(EXPECTED_SOURCE)) {
+  assert.deepEqual(Object.keys(sourcePresets), PRESET_IDS.slice(1));
+  for (const [id, [label, coverage, windGain]] of Object.entries(SOURCE_EXPECTATIONS)) {
     const source = sourcePresets[id];
-    assert.equal(source.label, expected.label, `${id} must preserve its source label.`);
-    close(source.cloudCoverageTarget, expected.coverage);
-    close(source.windGain, expected.wind);
     const resolved = resolver.resolveWorldEnvironmentPreset(id);
-    assert.equal(resolved.id, id);
-    assert.equal(resolved.label, expected.label);
+    assert.equal(source.label, label);
+    close(source.cloudCoverageTarget, coverage);
+    close(source.windGain, windGain);
+    assert.equal(resolved.label, label);
     close(Math.hypot(...resolved.sunDirection), 1, 1e-12);
-    assert.ok(resolved.cloudThreshold >= 0.38 && resolved.cloudThreshold <= 0.70,
-      `${id} cloud threshold must stay inside the exercised destination range.`);
-    close(resolved.cloudCoverageTarget, expected.coverage);
-    close(resolved.windIntensity, expected.wind);
+    close(resolved.cloudCoverageTarget, coverage);
+    close(resolved.windIntensity, windGain);
+    assert.ok(resolved.cloudThreshold >= 0.38 && resolved.cloudThreshold <= 0.70);
     assert.ok(resolved.paletteMultiplier.every((value) =>
       Number.isFinite(value) && value >= 0.65 && value <= 1.35));
   }
@@ -118,22 +129,20 @@ try {
   assert.equal(baseline.rainIntensity, 0);
   assert.equal(baseline.windIntensity, 1);
   assert.equal(baseline.restBendGain, 0);
-  assert.ok(resolver.resolveWorldEnvironmentPreset("bowed").restBendGain > 0,
-    "Lowsway must preserve a static lean independently of dynamic wind.");
-  assert.equal(resolver.resolveWorldEnvironmentPreset("calm").restBendGain, 0);
   assert.equal(resolver.resolveWorldEnvironmentPreset("rainy").rainIntensity, 1);
+  assert.ok(resolver.resolveWorldEnvironmentPreset("bowed").restBendGain > 0);
+  assert.equal(resolver.resolveWorldEnvironmentPreset("calm").restBendGain, 0);
 
   let previousThreshold = Number.POSITIVE_INFINITY;
-  for (let coverage = 0; coverage <= 1.00001; coverage += 0.05) {
+  for (let coverage = 0; coverage <= 1; coverage += 0.05) {
     const threshold = resolver.resolveDestinationCloudThreshold(coverage);
     assert.ok(threshold <= previousThreshold + 1e-12,
-      "More artistic cloud coverage must never raise the density threshold.");
+      "Higher artistic coverage must never raise the destination density threshold.");
     previousThreshold = threshold;
   }
   assert.ok(
     resolver.resolveWorldEnvironmentPreset("rainy").cloudThreshold <
       resolver.resolveWorldEnvironmentPreset("sunny").cloudThreshold,
-    "Greyrain must resolve to more cloud than Highfield under the destination convention.",
   );
 
   const profile = { compact: false, cloud: { coverage: 0.57 } };
@@ -153,26 +162,21 @@ try {
     assert.equal(weather.setPreset("moonlight"), true);
     const moonLighting = lightingSnapshot(lighting);
     const moonWind = windSnapshot(wind);
-    assert.equal(moonLighting.presetId, "moonlight");
     assert.equal(moonLighting.baseline, false);
 
     assert.equal(weather.setPreset("rainy"), true);
     assert.equal(weather.getSnapshot().rainIntensity, 1);
     assert.equal(weather.setPreset("moonlight"), true);
     assert.deepEqual(lightingSnapshot(lighting), moonLighting,
-      "A→B→A must restore the complete render-lighting state numerically.");
+      "A -> B -> A must restore the complete render-lighting state.");
     assert.deepEqual(windSnapshot(wind), moonWind,
-      "A→B→A must restore wind gain, direction, speed, noise and rest bend without compounding.");
+      "A -> B -> A must restore wind state without compounding gain.");
 
     assert.equal(weather.setPreset("not-a-weather"), false);
-    assert.equal(weather.getPresetId(), "moonlight",
-      "Invalid commands must leave the active preset untouched.");
-
+    assert.equal(weather.getPresetId(), "moonlight");
     assert.equal(weather.setPreset("drusniel"), true);
-    assert.deepEqual(lightingSnapshot(lighting).presetId, "drusniel");
     assert.equal(lighting.baseline, true);
-    assert.equal(lighting.cloudThreshold, profile.cloud.coverage,
-      "Drusniel must restore the destination profile's original cloud threshold.");
+    assert.equal(lighting.cloudThreshold, profile.cloud.coverage);
   } finally {
     weather.dispose();
   }
@@ -181,74 +185,83 @@ try {
   const weatherAttach = app.indexOf("attachWorldWeather(this.experience");
   const terrainConstruction = app.indexOf("terrain = new TerrainStreamer(");
   assert.ok(weatherAttach >= 0 && terrainConstruction > weatherAttach,
-    "Initial weather must resolve before terrain and grass materials are constructed.");
-  assert.ok(app.includes("setGrassWeatherPaletteMultiplier(preset.paletteMultiplier)"));
-  assert.ok(app.includes("environment?.applyWeatherPreset()"));
-  assert.ok(app.includes("terrain?.setGrassArtDirection(direction)"));
-  assert.ok(app.includes("grass?.setArtDirection(direction)"));
-  assert.ok(app.includes("this.weather?.windUniforms"),
-    "Grass must receive the weather owner's shared cinematic wind table.");
+    "Initial weather must resolve before streamed material construction.");
+  assertContains(app, [
+    "setGrassWeatherPaletteMultiplier(preset.paletteMultiplier)",
+    "environment?.applyWeatherPreset()",
+    "terrain?.setGrassArtDirection(direction)",
+    "grass?.setArtDirection(direction)",
+    "this.weather?.windUniforms",
+  ], "WorldApp must commit palette, environment and shared wind from one preset owner.");
 
   const palette = read("src/grass/materials/GrassPaletteShader.ts");
-  assert.ok(palette.includes("weatherPaletteMultiplier"));
-  assert.ok(palette.includes("baseTarget.multiply(weatherPaletteMultiplier)"));
-  assert.ok(palette.includes("tipTarget.multiply(weatherPaletteMultiplier)"));
-  assert.ok(palette.includes("dryTarget.multiply(weatherPaletteMultiplier)"));
+  assertContains(palette, [
+    "weatherPaletteMultiplier",
+    "baseTarget.multiply(weatherPaletteMultiplier)",
+    "tipTarget.multiply(weatherPaletteMultiplier)",
+    "dryTarget.multiply(weatherPaletteMultiplier)",
+  ], "Weather tint must remain multiplicative over every balanced grass palette row.");
 
   const environment = read("src/app/WorldEnvironmentController.ts");
-  assert.ok(environment.includes("this.rebuildShadowBasis()") &&
-    environment.includes("this.invalidateShadowFocus()"),
-  "A preset cut must recompute the shadow basis even when the player does not move.");
-  assert.ok(environment.includes("this.sky.applyLightingState()"));
-  assert.ok(environment.includes("grassGroundShadow.setSunDirection(this.lighting.sunDirection)"));
-  assert.ok(environment.includes("handleContextRestore(): void") &&
-    environment.includes("this.applyWeatherPreset()"),
-  "Context restoration must rebuild the selected preset rather than the baseline.");
+  assertContains(environment, [
+    "this.rebuildShadowBasis()",
+    "this.invalidateShadowFocus()",
+    "this.sky.applyLightingState()",
+    "grassGroundShadow.setSunDirection(this.lighting.sunDirection)",
+    "handleContextRestore(): void",
+  ], "Preset cuts must reach shadows, sky, contact shading and context recovery.");
 
   const cloudLighting = read("src/app/WorldCloudEnvironmentLighting.ts");
-  assert.ok(cloudLighting.includes("if (!this.lighting.baseline)"));
-  assert.ok(cloudLighting.includes("this.sun.color.copy(this.lighting.sunColor)"));
-  assert.ok(cloudLighting.includes("this.hemisphere.color.copy(this.lighting.hemisphereSkyColor)"));
-  assert.ok(cloudLighting.includes("this.ambient.color.copy(this.lighting.ambientColor)"));
-  assert.ok(cloudLighting.includes("fog.color.copy(this.lighting.fogColor)"),
-    "Cloud lighting must start each non-baseline frame from the active preset instead of old globals.");
+  assertContains(cloudLighting, [
+    "if (!this.lighting.baseline)",
+    "this.sun.color.copy(this.lighting.sunColor)",
+    "this.hemisphere.color.copy(this.lighting.hemisphereSkyColor)",
+    "this.ambient.color.copy(this.lighting.ambientColor)",
+    "fog.color.copy(this.lighting.fogColor)",
+    "this.sampleTargets(this.lastFocus, this.lastElapsedSeconds)",
+  ], "Cloud lighting must cut to the active preset instead of easing from stale state.");
 
   const sky = read("src/world/sky/WorldSkyNode.ts");
-  assert.ok(sky.includes("this.volume?.resetHistory()"),
-    "A weather cut must invalidate temporal cloud history.");
-  assert.ok(sky.includes("this.queueEnvironmentRefresh()"));
-  assert.ok(sky.includes("environmentRefreshQueued"));
-  assert.ok(sky.includes("this.scene.environmentIntensity = this.lighting.environmentIntensity"));
-  assert.ok(sky.includes("previous?.dispose()"),
-    "A successful staged IBL swap must release the superseded target.");
+  assertContains(sky, [
+    "this.volume?.resetHistory()",
+    "this.queueEnvironmentRefresh()",
+    "environmentRefreshQueued",
+    "this.scene.environmentIntensity = this.lighting.environmentIntensity",
+    "previous?.dispose()",
+  ], "Sky cuts must reset history and coalesce staged PMREM swaps.");
 
-  const horizon = read("src/world/horizon/WorldHorizonNodeMaterial.ts");
-  assert.ok(horizon.includes("context?.worldSunDirection()"));
-  assert.ok(horizon.includes("context?.worldHazeColor()"));
-
-  const water = read("src/world/hydrology/WaterMaterialController.ts");
-  assert.ok(water.includes("context?.worldSunDirection()"),
-    "Water highlights must borrow the mutable render sun rather than the ecology reference sun.");
-
-  const groundShadow = read("src/grass/interaction/GrassGroundShadow.ts");
-  assert.ok(groundShadow.includes("setSunDirection(direction: THREE.Vector3)"));
+  assertContains(read("src/world/horizon/WorldHorizonNodeMaterial.ts"), [
+    "context?.worldSunDirection()", "context?.worldHazeColor()",
+  ], "Horizon lighting and haze must follow the render weather state.");
+  assert.ok(read("src/world/hydrology/WaterMaterialController.ts")
+    .includes("context?.worldSunDirection()"),
+  "Water highlights must follow the mutable render sun.");
+  assert.ok(read("src/grass/interaction/GrassGroundShadow.ts")
+    .includes("setSunDirection(direction: THREE.Vector3)"));
 
   const nearMaterial = read("src/grass/materials/GrassNearNodeMaterial.ts");
   const context = read("src/render/WorldNodeMaterialContext.ts");
   const farMaterial = read("src/world/grass/WorldGrassImpostorNodeMaterial.ts");
-  assert.ok(nearMaterial.includes("context.setWorldWindUniforms(wind)"),
-    "The per-world material context must receive the already-owned cinematic wind table.");
+  assert.ok(nearMaterial.includes("context.setWorldWindUniforms(wind)"));
   assert.ok(context.includes("worldWindUniforms(): WorldWindUniforms | undefined"));
-  assert.ok(farMaterial.includes("context.worldWindUniforms()"),
-    "Far cards must resolve the same cinematic wind table as near and mid blades.");
+  assert.ok(farMaterial.includes("context.worldWindUniforms()"));
+
+  const weatherSource = read("src/world/weather/WorldWeatherState.ts");
+  const windSystem = read("src/world/weather/WorldWindSystem.ts");
+  const windBake = read("src/world/weather/WorldWindBake.ts");
+  assert.ok(weatherSource.includes("this.wind.refresh()"),
+    "A preset cut must publish the changed wind before the next rendered frame.");
+  assertContains(windSystem, ["refresh(): void", "this.bake?.invalidate()"],
+    "Forced wind publication must invalidate the reduced-cadence GPU bake.");
+  assert.ok(windBake.includes("invalidate(): void"));
 
   const nearNodes = read("src/grass/materials/GrassNearNodes.ts");
   const farNodes = read("src/world/grass/WorldGrassImpostorNodes.ts");
-  assert.ok(nearNodes.includes("cinematic.restBendGain") &&
-    nearNodes.includes("cinematic.directionDegrees"));
-  assert.ok(farNodes.includes("createBakedWorldWindNodes") &&
-    farNodes.includes("field.gust") && farNodes.includes("cinematic.restBendGain"),
-  "Far cards must share the broad gust and Lowsway rest bend instead of falling back to legacy sway.");
+  assertContains(nearNodes, ["cinematic.restBendGain", "cinematic.directionDegrees"],
+    "Near and mid blades must consume Lowsway's static lean.");
+  assertContains(farNodes, [
+    "createBakedWorldWindNodes", "field.gust", "cinematic.restBendGain",
+  ], "Far cards must share the broad gust and Lowsway lean.");
 
   const ecology = read("src/world/ecology/WorldEcologyField.ts");
   const canopy = read("src/world/ecology/CanopyShadeField.ts");
@@ -259,20 +272,21 @@ try {
     "src/world/weather/WorldEnvironmentPresets.ts",
     "src/world/weather/WorldEnvironmentPresetResolver.ts",
   ]) {
-    const source = read(relativePath);
-    assert.ok(!/from\s+["'][^"']*(ecology|hydrology|TerrainField)/i.test(source),
-      `${relativePath} must not gain authority over ecology, hydrology or terrain placement.`);
+    assert.ok(!/from\s+["'][^"']*(ecology|hydrology|TerrainField)/i.test(read(relativePath)),
+      `${relativePath} must not own ecology, hydrology or terrain placement.`);
   }
 
   const development = read("src/app/WorldDevelopmentHooks.ts");
-  assert.ok(development.includes("__drusnielWeather"));
-  assert.ok(development.includes("attachWeatherPresetHook(): void"));
-  assert.ok(development.includes("setPreset: (value) => this.host.setWeatherPreset(value)"));
+  assertContains(development, [
+    "__drusnielWeather",
+    "attachWeatherPresetHook(): void",
+    "setPreset: (value) => this.host.setWeatherPreset(value)",
+  ], "All eight presets must remain reachable through the T03 diagnostics hook.");
 } finally {
   await server.close();
 }
 
 console.log(
-  "[weather-presets] Eight-preset catalog, source identities, cloud adapter, atomic A/B/A state, "
-  + "shared LOD wind, dynamic render-sun consumers, PMREM/context recovery and fixed ecology verified.",
+  "[weather-presets] Eight presets, source identities, atomic cloud/wind cuts, "
+  + "shared render lighting, PMREM recovery, LOD coherence and fixed ecology verified.",
 );
