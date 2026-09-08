@@ -137,11 +137,7 @@ export interface AttachWorldWeatherOptions {
   readonly onPresetApplied: WorldWeatherPresetApplied;
 }
 
-/**
- * Fills the single weather slot with weather + wind together.
- * This avoids the T02 bug where wind occupied the slot before the actual preset
- * controller existed and guarantees they advance once in the same frame phase.
- */
+/** Fills the single weather slot with weather + wind together. */
 export function attachWorldWeather(
   experience: WorldExperience,
   options: AttachWorldWeatherOptions,
@@ -162,13 +158,18 @@ export function attachWorldWeather(
     const wind = windModel === "cinematic"
       ? new WorldWindSystem(options.renderer, options.focus)
       : undefined;
-    weather = new WorldWeatherState(
-      options.lighting,
-      wind,
-      initialPreset,
-      options.onPresetApplied,
-    );
-    return weather;
+    try {
+      weather = new WorldWeatherState(
+        options.lighting,
+        wind,
+        initialPreset,
+        options.onPresetApplied,
+      );
+      return weather;
+    } catch (error) {
+      wind?.dispose();
+      throw error;
+    }
   });
   return weather;
 }
