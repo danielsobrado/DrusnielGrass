@@ -1,4 +1,4 @@
-import { DirectionalLightNode, type AmbientLight, type DirectionalLight, type HemisphereLight, type Light, type Node, type NodeBuilder, type NodeMaterial, type Vector3 } from "three/webgpu";
+import { DirectionalLightNode, type AmbientLight, type Color, type DirectionalLight, type HemisphereLight, type Light, type Node, type NodeBuilder, type NodeMaterial, type Vector3 } from "three/webgpu";
 import { lights, positionWorld, cameraPosition, cameraViewMatrix, vec3, mix, uniform, reference, lightPosition, lightTargetDirection } from "three/tsl";
 import type { WorldCloudShadowNodes } from "../world/sky/WorldCloudShadowNodes";
 import type { WorldLightingState } from "./WorldLightingState";
@@ -29,6 +29,11 @@ export class WorldNodeMaterialContext {
     return this.lighting?.sunDirection;
   }
 
+  /** Mutable render haze shared by the sky and permanent horizon shell. */
+  worldHazeColor(): Color | undefined {
+    return this.lighting?.skyHazeColor;
+  }
+
   directionalSurfaceLight(cloudResponseStrength = 1) {
     const color = uniform(this.sun.color).rgb.mul(reference("intensity", "float", this.sun));
     const transmittance = this.clouds?.sample(positionWorld, positionWorld.distance(cameraPosition));
@@ -39,14 +44,7 @@ export class WorldNodeMaterialContext {
     };
   }
 
-  /**
-   * Ambient, hemisphere and directional irradiance for a view-space normal.
-   * Materials that light themselves rather than through a lighting model — the
-   * grass impostor cards sum this once per card in their vertex stage — need
-   * the same three terms the built-in uniform blocks carry, in the same order
-   * and with the same intensity handling, or a card and the blades it replaces
-   * disagree across the handoff.
-   */
+  /** Irradiance for materials that shade themselves in the vertex stage. */
   vertexIrradiance(viewNormal: Node<"vec3">): Node<"vec3"> {
     let total = vec3(0) as Node<"vec3">;
     for (const light of [this.sun, ...this.otherLights]) {
@@ -57,7 +55,6 @@ export class WorldNodeMaterialContext {
         const hemisphere = light as HemisphereLight;
         const ground = uniform(hemisphere.groundColor).rgb
           .mul(reference("intensity", "float", hemisphere));
-        // Three treats the light's world position as a direction here.
         const direction = cameraViewMatrix.transformDirection(lightPosition(hemisphere));
         total = total.add(mix(ground, color, viewNormal.dot(direction).mul(0.5).add(0.5)));
       } else if ((light as DirectionalLight).isDirectionalLight) {
@@ -67,13 +64,7 @@ export class WorldNodeMaterialContext {
     return total;
   }
 
-  /**
-   * The hemisphere fill, for materials that add their own sky-side term.
-   *
-   * Stones lift a downward-facing bevel out of the turf-tuned ground colour
-   * with an explicit directional fill, so they need the same sky colour and
-   * view-space direction the built-in uniform block carries.
-   */
+  /** Hemisphere fill used by materials with a dedicated sky-side term. */
   hemisphereFill(): { skyColor: Node<"vec3">; direction: Node<"vec3"> } | undefined {
     const light = this.otherLights.find((candidate): candidate is HemisphereLight =>
       (candidate as HemisphereLight).isHemisphereLight === true);
@@ -89,8 +80,6 @@ export class WorldNodeMaterialContext {
     if (this.clouds) {
       const transmittance = this.clouds.sample(positionWorld, positionWorld.distance(cameraPosition));
       const scale = mix(1, this.clouds.relativeDirect(transmittance), cloudResponseStrength);
-      // Only the directional source is scaled. Hemisphere, ambient, IBL and
-      // emissive contributions retain their original material response.
       sunNode = new CloudDirectionalLightNode(this.sun, scale);
     }
     material.lightsNode = composeLights([sunNode, ...this.otherLights]);
