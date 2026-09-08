@@ -1,7 +1,10 @@
 import * as THREE from "three";
 import { disposeResources } from "../../render/ResourceDisposal";
 import type { WorldConfig } from "../WorldConfig";
-import { WaterRefractionPass, type WaterRefractionArgs } from "./WaterRefractionPass";
+import { WaterRefractionNodePass } from "./WaterRefractionNodePass";
+import type { WaterRefractionArgs } from "./WaterRefractionPass";
+import { WaterSurfaceNodeMaterial } from "./WaterSurfaceNodeMaterial";
+import type { WorldNodeMaterialContext } from "../../render/WorldNodeMaterialContext";
 import { createWaterFlowNoiseTexture } from "./WaterFlowNoiseTexture";
 import {
   WATER_ABSORPTION_COLOR,
@@ -10,19 +13,10 @@ import {
   WATER_F0,
   WATER_FLOW_NOISE_SEED_SALT,
   WATER_FOAM_COLOR,
-  WATER_IOR,
-  WATER_MATERIAL_CACHE_KEY,
   WATER_REFLECTION_COLOR,
   WATER_SHALLOW_COLOR,
-  WATER_SPECULAR_COLOR,
   WATER_SUN_DIRECTION,
 } from "./WaterMaterialTuning";
-import {
-  WATER_FRAGMENT_DECLARATIONS,
-  WATER_SURFACE_FRAGMENT,
-  WATER_VERTEX_DECLARATIONS,
-  WATER_VERTEX_POSITION,
-} from "./WaterShader";
 export type WaterSurfaceLiveVisuals = Pick<
   WorldConfig,
   | "waterOpacity"
@@ -44,8 +38,8 @@ export type WaterSurfaceLiveVisuals = Pick<
   | "waterRoughness"
 >;
 export class WaterMaterialController {
-  private readonly refraction = new WaterRefractionPass(0.5);
-  readonly material: THREE.MeshPhysicalMaterial;
+  private readonly refraction = new WaterRefractionNodePass(0.5);
+  readonly material: WaterSurfaceNodeMaterial;
   private readonly flowNoiseTexture: THREE.DataTexture;
   private readonly uniforms: Record<string, THREE.IUniform>;
   /**
@@ -60,28 +54,17 @@ export class WaterMaterialController {
   }
   private readonly detailScale: number;
   private disposed = false;
-  constructor(config: WorldConfig, compact = false) {
+  constructor(config: WorldConfig, compact = false, context?: WorldNodeMaterialContext) {
     const flowNoiseTexture = createWaterFlowNoiseTexture(
       (config.seed ^ WATER_FLOW_NOISE_SEED_SALT) >>> 0,
     );
-    let material: THREE.MeshPhysicalMaterial | undefined;
+    let material: WaterSurfaceNodeMaterial | undefined;
     try {
-      material = new THREE.MeshPhysicalMaterial({
-        color: WATER_SHALLOW_COLOR,
-        roughness: config.waterRoughness,
-        metalness: 0,
-        ior: WATER_IOR,
-        specularColor: WATER_SPECULAR_COLOR,
-        specularIntensity: 1,
-        transparent: true,
-        opacity: 1,
-        depthWrite: false,
-        side: THREE.DoubleSide,
-      });
       this.flowNoiseTexture = flowNoiseTexture;
-      this.material = material;
-      this.material.forceSinglePass = true;
       this.detailScale = compact ? WATER_COMPACT_DETAIL_SCALE : 1;
+      // The node material reads this table and owns every material property the
+      // legacy construction set, so the table is built before it rather than
+      // after; nothing else about this controller's ownership changes.
       this.uniforms = {
         uWaterTime: { value: 0 },
         uWaterOpacity: { value: config.waterOpacity },
@@ -135,7 +118,8 @@ export class WaterMaterialController {
         // written wherever `material.roughness` is, keeping one owner for it.
         uWaterRoughness: { value: config.waterRoughness },
       };
-      this.configureMaterial();
+      material = new WaterSurfaceNodeMaterial(this.uniforms, context);
+      this.material = material;
     } catch (error) {
       try {
         disposeResources([material, flowNoiseTexture]);
@@ -162,6 +146,7 @@ export class WaterMaterialController {
     this.uniforms.tWaterRefractionDepth.value =
       this.refraction.depthTexture ?? null;
     args[0].getDrawingBufferSize(this.uniforms.uWaterRefractionSize.value);
+    this.material.syncTextures();
   }
 
   setLiveVisuals(visuals: WaterSurfaceLiveVisuals): void {
@@ -204,31 +189,4 @@ export class WaterMaterialController {
     disposeResources([this.flowNoiseTexture, this.material]);
   }
 
-  private configureMaterial(): void {
-    this.material.name = "world-hydrology-water-material";
-    this.material.dithering = true;
-    this.material.onBeforeCompile = (shader) => {
-      Object.assign(shader.uniforms, this.uniforms);
-      shader.vertexShader = shader.vertexShader
-        .replace(
-          "#include <common>",
-          `#include <common>${WATER_VERTEX_DECLARATIONS}`,
-        )
-        .replace(
-          "#include <begin_vertex>",
-          `#include <begin_vertex>${WATER_VERTEX_POSITION}`,
-        );
-      shader.fragmentShader = shader.fragmentShader
-        .replace(
-          "#include <common>",
-          `#include <common>${WATER_FRAGMENT_DECLARATIONS}`,
-        )
-        .replace(
-          "#include <normal_fragment_maps>",
-          `#include <normal_fragment_maps>${WATER_SURFACE_FRAGMENT}`,
-        );
-    };
-    this.material.customProgramCacheKey = () => WATER_MATERIAL_CACHE_KEY;
-    this.material.needsUpdate = true;
-  }
 }

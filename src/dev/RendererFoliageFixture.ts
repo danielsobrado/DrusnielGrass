@@ -20,7 +20,7 @@ export function createRendererFoliageFixture(scene: Scene, variant: GrassFoliage
       || object instanceof HemisphereLight));
   const context = new WorldNodeMaterialContext(sun, otherLights);
   const atlas = createFoliageAtlas();
-  const state = createFoliageState(atlas, variant);
+  const state = createFoliageState(atlas, variant, context);
   try {
     const material = new WorldDetailFoliageNodeMaterial(`grass-foliage-node-${variant}`,
       state.shaderUniforms, state.nodeFeatures, createFoliageSpeciesWind(), context);

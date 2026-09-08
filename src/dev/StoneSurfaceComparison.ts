@@ -1,11 +1,11 @@
 import {
   AmbientLight, Color, DataTexture, DirectionalLight, HemisphereLight,
   LinearFilter, Mesh, PerspectiveCamera, RedFormat,
-  RenderTarget, RepeatWrapping, Scene, SphereGeometry, UnsignedByteType, Vector2,
+  RenderTarget, RepeatWrapping, Scene, SphereGeometry, UnsignedByteType,
   WebGPUCoordinateSystem, type BufferGeometry, type Texture, type WebGPURenderer,
 } from "three/webgpu";
 import { MeshLambertMaterial, WebGLRenderer, WebGLRenderTarget } from "three";
-import { diffuseColor, normalView, texture as textureNode, uniform, vec4 } from "three/tsl";
+import { diffuseColor, normalView, vec4 } from "three/tsl";
 import {
   createStoneRenderBuffers, createStoneRenderGeometry, STONE_BEDDING_OFFSET, STONE_BYTE_MAX,
   STONE_BYTE_STRIDE, STONE_COLOR_OFFSET, STONE_GROWTH_POSITION_OFFSET, STONE_GROWTH_SEED_OFFSET,
@@ -15,14 +15,10 @@ import {
 } from "../world/stones/StoneRenderPacking";
 import { prepareStoneNodeGeometry } from "../world/stones/StoneNodeGeometry";
 import {
-  applyStoneCoarseSurfaceShader, applyStoneSurfaceShader, STONE_CRUST_BREAKUP,
-  STONE_DRY_SHEEN_POWER, STONE_DRY_SHEEN_STRENGTH, STONE_WET_DARKEN, STONE_WET_SHEEN_POWER,
-  STONE_WET_SHEEN_STRENGTH,
+  applyStoneCoarseSurfaceShader, applyStoneSurfaceShader,
 } from "../world/stones/StoneGrowthShader";
-import {
-  StoneCoarseNodeMaterial, StoneSurfaceNodeMaterial,
-} from "../world/stones/StoneSurfaceNodeMaterial";
 import { createStoneSurfaceAttributes } from "../world/stones/StoneSurfaceNodes";
+import { createStoneNodeMaterial } from "../world/stones/StoneNodeMaterialFactory";
 import { WorldNodeMaterialContext } from "../render/WorldNodeMaterialContext";
 import type { WorldConfig } from "../world/WorldConfig";
 import { readRenderTargetRgba8 } from "../render/RenderTargetReadback";
@@ -30,7 +26,7 @@ import { disposeResources } from "../render/ResourceDisposal";
 
 const GRAIN_SIZE = 64;
 
-export type StoneComparisonMode = "albedo" | "normal";
+export type StoneComparisonMode = "albedo" | "normal" | "lit";
 export type StoneComparisonVariant = "detail" | "coarse";
 
 function hash01(index: number, salt: number): number {
@@ -40,7 +36,7 @@ function hash01(index: number, salt: number): number {
 }
 
 /** A deterministic stand-in for the baked grain, tiled the way the real one is. */
-function createGrainTexture(): DataTexture {
+export function createGrainTexture(): DataTexture {
   const data = new Uint8Array(GRAIN_SIZE * GRAIN_SIZE);
   for (let y = 0; y < GRAIN_SIZE; y++) for (let x = 0; x < GRAIN_SIZE; x++) {
     const value = Math.sin(x * 0.7) * Math.cos(y * 0.53) * 0.5 + 0.5;
@@ -133,18 +129,15 @@ function createLights(): { sun: DirectionalLight; ambient: AmbientLight; hemisph
  * Albedo covers the weathering crust and stain, the bedding partings, the moss
  * and lichen colonies with their breakup and runoff, the triplanar grain and
  * the wet darkening. Normals cover the derivative-built grain bump. The lit
- * additions the material owns — sky-side fill, ambient floor and sheen — are
- * exercised by the harness scene rather than by this isolation.
+ * mode leaves both sides unpatched and so covers the additions the material
+ * owns on top of them: the sky-side fill, the ambient floor and the wet and dry
+ * sheen lobes, which the albedo and normal runs both cut the output before.
  */
 export async function compareStoneSurface(renderer: WebGPURenderer, config: WorldConfig,
   variant: StoneComparisonVariant, mode: StoneComparisonMode) {
   const width = 224, height = 224;
   const geometry = createStoneGeometry();
   const grainTexture = createGrainTexture();
-  const growthFadeEnd = config.stoneGrowthDetailFadeDistance;
-  const growthFadeStart = growthFadeEnd * 0.55;
-  const grainFadeEnd = config.stoneGrainFadeDistance;
-  const grainFadeStart = grainFadeEnd * 0.6;
   const attributes = createStoneSurfaceAttributes();
   const { sun, ambient, hemisphere } = createLights();
   const scene = new Scene();
@@ -152,40 +145,21 @@ export async function compareStoneSurface(renderer: WebGPURenderer, config: Worl
   scene.add(sun, ambient, hemisphere);
   const context = new WorldNodeMaterialContext(sun, [ambient, hemisphere]);
   const detail = variant === "detail";
-  const surface = detail
-    ? new StoneSurfaceNodeMaterial("stone-node-detail", {
-      crustBreakup: uniform(STONE_CRUST_BREAKUP),
-      wetDarken: uniform(STONE_WET_DARKEN),
-      growthDetailStrength: uniform(config.stoneGrowthDetailStrength),
-      growthDetailScale: uniform(1 / config.stoneGrowthDetailSize),
-      growthDetailFadeSquared: uniform(new Vector2(growthFadeStart * growthFadeStart,
-        growthFadeEnd * growthFadeEnd)),
-      mossStreakStrength: uniform(config.stoneMossStreakStrength),
-      grain: {
-        texture: textureNode(grainTexture),
-        strength: uniform(config.stoneGrainStrength),
-        normalStrength: uniform(config.stoneGrainNormalStrength),
-        scale: uniform(1 / config.stoneGrainSize),
-        fadeSquared: uniform(new Vector2(grainFadeStart * grainFadeStart,
-          grainFadeEnd * grainFadeEnd)),
-      },
-    }, {
-      wetSheenStrength: uniform(STONE_WET_SHEEN_STRENGTH),
-      wetSheenPower: uniform(STONE_WET_SHEEN_POWER),
-      drySheenStrength: uniform(STONE_DRY_SHEEN_STRENGTH),
-      drySheenPower: uniform(STONE_DRY_SHEEN_POWER),
-    }, attributes, context, true)
-    : new StoneCoarseNodeMaterial("stone-node-coarse", uniform(STONE_WET_DARKEN),
-      attributes, context);
+  const surface = createStoneNodeMaterial(config, variant, attributes, grainTexture, context);
 
   // Isolation goes through the real material, not a basic stand-in.
   // `MeshBasicNodeMaterial.setupNormal` returns the geometry normal and ignores
   // `normalNode` outright (three #28839), so a basic isolation would have
   // compared an unperturbed normal against the shipped bumped one and called
   // the difference a pass.
-  surface.outputNode = mode === "normal"
-    ? vec4(normalView.mul(0.5).add(0.5), 1)
-    : vec4(diffuseColor.rgb, 1);
+  // The lit run leaves both sides unpatched, so it is the only one that reaches
+  // the custom lighting: the sky-side fill, the contact floor and the wet and
+  // dry sheen lobes. Albedo and normal deliberately cut the output before them.
+  if (mode !== "lit") {
+    surface.outputNode = mode === "normal"
+      ? vec4(normalView.mul(0.5).add(0.5), 1)
+      : vec4(diffuseColor.rgb, 1);
+  }
   const mesh = new Mesh(geometry, surface);
   scene.add(mesh);
 
@@ -199,6 +173,7 @@ export async function compareStoneSurface(renderer: WebGPURenderer, config: Worl
   const compile = legacyMaterial.onBeforeCompile;
   legacyMaterial.onBeforeCompile = (shader, gl) => {
     compile(shader, gl);
+    if (mode === "lit") return;
     shader.fragmentShader = shader.fragmentShader.replace("#include <opaque_fragment>",
       `outgoingLight = ${mode === "normal" ? "normal * 0.5 + 0.5" : "diffuseColor.rgb"};
        #include <opaque_fragment>`);

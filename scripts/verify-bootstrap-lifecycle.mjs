@@ -44,7 +44,9 @@ assert(
 );
 
 assert(
-  /const world = await WorldApp\.create\(canvas, profile\);[\s\S]*?app = world;[\s\S]*?if \(disposed\) \{[\s\S]*?disposeRuntime\(\);[\s\S]*?return;/.test(
+  // The session is created by the bootstrap now and handed to the app; the
+  // ownership contract under test is unchanged.
+  /const world = await WorldApp\.create\(session, profile, lifetime.signal\);[\s\S]*?app = world;[\s\S]*?if \(disposed\) \{[\s\S]*?disposeRuntime\(\);[\s\S]*?return;/.test(
     source,
   ) &&
     /await island\.initialize\(\);[\s\S]*?if \(disposed\) \{[\s\S]*?return;/.test(

@@ -35,6 +35,10 @@ const waterMaterialSource = readFileSync(
   resolve(REPOSITORY_ROOT, "src/world/hydrology/WaterMaterialController.ts"),
   "utf8",
 );
+const waterSurfaceNodeSource = readFileSync(
+  resolve(REPOSITORY_ROOT, "src/world/hydrology/WaterSurfaceNodeMaterial.ts"),
+  "utf8",
+);
 assert(
   terrainChunkSource.includes("WATER_INTERACTION_STAGE") &&
     terrainChunkSource.includes("advanceWaterInteractions(deadline)") &&
@@ -62,8 +66,10 @@ assert(
   "The water sheet must carry real per-vertex normals rather than a flat-up placeholder.",
 );
 assert(
-  waterMaterialSource.includes("side: THREE.DoubleSide") &&
-    waterMaterialSource.includes("this.material.forceSinglePass = true"),
+  // Both properties moved into the node material with the migration. The
+  // contract is unchanged: one water sheet, drawn once, from both sides.
+  waterSurfaceNodeSource.includes("this.side = DoubleSide") &&
+    waterSurfaceNodeSource.includes("this.forceSinglePass = true"),
   "The open double-sided water sheet must remain single-pass to avoid duplicate transparent draws.",
 );
 

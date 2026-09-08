@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import { WorldNodeMaterialContext } from "../../render/WorldNodeMaterialContext";
 import { TerrainField } from "../TerrainField";
 import { WorldConfigLoader } from "../WorldConfigLoader";
 import { StoneField, type StoneInstance } from "./StoneField";
@@ -64,7 +65,11 @@ export function verifyStoneSystemPerformance(configSource: string): string {
   } as unknown as StoneField;
 
   const scene = new THREE.Scene();
-  const system = new WorldStoneSystem(scene, field, config, false, false);
+  // Batching and residency are what this measures; the lighting context only
+  // has to exist so the materials build.
+  const sun = new THREE.DirectionalLight(0xffffff, 1);
+  const context = new WorldNodeMaterialContext(sun, []);
+  const system = new WorldStoneSystem(scene, field, config, false, false, context);
   const focus = new THREE.Vector3(0, 0, 0);
   const expectedBatches = 49;
   for (let pass = 0; pass < expectedBatches + 4; pass += 1) {
@@ -97,8 +102,11 @@ export function verifyStoneSystemPerformance(configSource: string): string {
     ) {
       continue;
     }
+    // Counted by material name rather than class: the shipped stone materials
+    // are node materials, and what this measures is how many draws land on the
+    // detail shading versus the coarse one.
     const material = child.material;
-    if (!(material instanceof THREE.MeshLambertMaterial)) continue;
+    if (Array.isArray(material)) continue;
     if (material.name === "world-stone-detail-material") detailedDraws += 1;
     if (material.name === "world-stone-coarse-material") coarseDraws += 1;
   }

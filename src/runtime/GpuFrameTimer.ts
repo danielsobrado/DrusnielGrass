@@ -224,7 +224,11 @@ export class GpuFrameTimer {
   }
 }
 
-function percentile(sorted: readonly number[], fraction: number): number {
+/**
+ * The shipped percentile rule, exported so the portable adapter reports the
+ * same number rather than carrying a second definition that drifts from it.
+ */
+export function percentile(sorted: readonly number[], fraction: number): number {
   if (sorted.length === 0) {
     return 0;
   }

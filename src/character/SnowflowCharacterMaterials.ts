@@ -1,5 +1,6 @@
 import * as THREE from "three";
-import { applyActorEnvironmentResponse } from "../render/ActorEnvironmentResponse";
+import { applyActorEnvironmentNodeResponse } from "../render/ActorEnvironmentNodeResponse";
+import { MeshStandardNodeMaterial } from "three/webgpu";
 import { disposeResources } from "../render/ResourceDisposal";
 
 /**
@@ -27,29 +28,29 @@ const SKIN_SHEEN = 0x3a2945;
 const EYE_GLOW = 0xd62d4c;
 
 export interface SnowflowCharacterMaterialSet {
-  cloak: THREE.MeshStandardMaterial;
-  robe: THREE.MeshStandardMaterial;
-  mantle: THREE.MeshStandardMaterial;
-  tunic: THREE.MeshStandardMaterial;
-  leather: THREE.MeshStandardMaterial;
-  skin: THREE.MeshStandardMaterial;
-  trim: THREE.MeshStandardMaterial;
-  fur: THREE.MeshStandardMaterial;
-  metal: THREE.MeshStandardMaterial;
-  hair: THREE.MeshStandardMaterial;
-  eye: THREE.MeshStandardMaterial;
-  cloakShell: THREE.MeshStandardMaterial;
-  cloakLining: THREE.MeshStandardMaterial;
+  cloak: MeshStandardNodeMaterial;
+  robe: MeshStandardNodeMaterial;
+  mantle: MeshStandardNodeMaterial;
+  tunic: MeshStandardNodeMaterial;
+  leather: MeshStandardNodeMaterial;
+  skin: MeshStandardNodeMaterial;
+  trim: MeshStandardNodeMaterial;
+  fur: MeshStandardNodeMaterial;
+  metal: MeshStandardNodeMaterial;
+  hair: MeshStandardNodeMaterial;
+  eye: MeshStandardNodeMaterial;
+  cloakShell: MeshStandardNodeMaterial;
+  cloakLining: MeshStandardNodeMaterial;
 }
 
 export function createSnowflowCharacterMaterials(): SnowflowCharacterMaterialSet {
-  const owned: THREE.MeshStandardMaterial[] = [];
+  const owned: MeshStandardNodeMaterial[] = [];
   const create = (
     color: number,
     roughness: number,
     side: THREE.Side,
     metalness = 0,
-  ): THREE.MeshStandardMaterial => {
+  ): MeshStandardNodeMaterial => {
     const material = createMaterial(color, roughness, side, metalness);
     owned.push(material);
     return material;
@@ -97,15 +98,15 @@ function createMaterial(
   roughness: number,
   side: THREE.Side,
   metalness = 0,
-): THREE.MeshStandardMaterial {
-  const material = new THREE.MeshStandardMaterial({
+): MeshStandardNodeMaterial {
+  const material = new MeshStandardNodeMaterial({
     color,
     roughness,
     metalness,
     side,
   });
   try {
-    applyActorEnvironmentResponse(material);
+    applyActorEnvironmentNodeResponse(material);
     return material;
   } catch (error) {
     try {

@@ -58,6 +58,23 @@ function pack(geometry: BufferGeometry, fields: readonly (readonly [string, numb
  * assign the result, rather than calling this per tile.
  */
 export function prepareGrassNodeGeometry(geometry: BufferGeometry): void {
+  packGrassVertexFields(geometry);
+  packGrassInstanceFields(geometry);
+}
+
+/**
+ * Packs the per-vertex blade fields, on the shared source geometry.
+ *
+ * Call this once on the blade source rather than on each instanced geometry
+ * built from it: the instanced geometries copy the source's attribute objects,
+ * so packing there would give every tile a private copy of blade data that is
+ * identical across all of them.
+ */
+export function packGrassVertexFields(geometry: BufferGeometry): void {
   pack(geometry, VERTEX_FIELDS, false);
+}
+
+/** Packs the per-instance fields, which each instanced geometry owns. */
+export function packGrassInstanceFields(geometry: BufferGeometry): void {
   pack(geometry, INSTANCE_FIELDS, true);
 }

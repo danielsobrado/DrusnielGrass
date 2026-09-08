@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import { packGrassInstanceFields } from "../../grass/materials/GrassNodeGeometry";
 import {
   GRASS_ACCENT_SPECIES,
   packGrassAccent,
@@ -633,6 +634,11 @@ export class WorldDetailFoliageFactory {
       "instanceAccent",
       new THREE.InstancedBufferAttribute(accents, 1),
     );
+    // See GrassGeometryFactory: three leaves this Infinity, WebGL ignores it and
+    // the node renderer hands it to the draw call. The mesh's own count still
+    // drives how many are drawn per frame; this is the buffer's capacity.
+    geometry.instanceCount = coverages.length;
+    packGrassInstanceFields(geometry);
 
     const mesh = new THREE.InstancedMesh(geometry, this.material.material, 0);
     mesh.name = `${namePrefix}-${key}`;

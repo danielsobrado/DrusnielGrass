@@ -2,11 +2,11 @@ import * as THREE from "three";
 import type { GrassArtDirection } from "../grass/GrassArtDirection";
 import { WaterBedMaterialController } from "./hydrology/WaterBedMaterialController";
 import { WaterInteractionField } from "./hydrology/WaterInteractionField";
-import type { WaterRefractionArgs } from "./hydrology/WaterRefractionPass";
 import { WaterMaterialController } from "./hydrology/WaterMaterialController";
 import { TerrainChunk, TerrainChunkBuilder } from "./TerrainChunk";
+import { TerrainNodeMaterialController } from "./TerrainNodeMaterialController";
+import type { WaterRefractionArgs } from "./hydrology/WaterRefractionPass";
 import type { TerrainField } from "./TerrainField";
-import { TerrainMaterialController } from "./TerrainMaterialController";
 import type { WorldConfig } from "./WorldConfig";
 import { TerrainSurfaceField } from "./terrain/TerrainSurfaceField";
 import { WorldHorizonShell } from "./horizon/WorldHorizonShell";
@@ -36,7 +36,7 @@ export class TerrainStreamer {
   private readonly chunks = new Map<string, TerrainChunk>();
   private readonly queue: ChunkRequest[] = [];
   private readonly desired = new Map<string, ChunkRequest>();
-  private readonly materialController: TerrainMaterialController;
+  private readonly materialController: TerrainNodeMaterialController;
   private readonly waterMaterialController?: WaterMaterialController;
   private readonly waterBedMaterialController?: WaterBedMaterialController;
   private readonly surfaceField: TerrainSurfaceField;
@@ -61,30 +61,30 @@ export class TerrainStreamer {
     private readonly field: TerrainField,
     private readonly config: WorldConfig,
     private readonly compact: boolean,
-    shadows: boolean,
+    shadows: boolean, materialContext?: ConstructorParameters<typeof TerrainNodeMaterialController>[3],
   ) {
-    let materialController: TerrainMaterialController | undefined;
+    let materialController: TerrainNodeMaterialController | undefined;
     let waterMaterialController: WaterMaterialController | undefined;
     let waterBedMaterialController: WaterBedMaterialController | undefined;
     let horizon: WorldHorizonShell | undefined;
     let cascades: WorldCascadeSystem | undefined;
 
     try {
-      materialController = new TerrainMaterialController(config, shadows, compact);
+      materialController = new TerrainNodeMaterialController(config, shadows, compact, materialContext);
       this.materialController = materialController;
       waterMaterialController =
         config.waterEnabled >= 1
-          ? new WaterMaterialController(config, compact)
+          ? new WaterMaterialController(config, compact, materialContext)
           : undefined;
       this.waterMaterialController = waterMaterialController;
       waterBedMaterialController = config.waterEnabled >= 1
-        ? new WaterBedMaterialController(config, compact)
+        ? new WaterBedMaterialController(config, compact, materialContext)
         : undefined;
       this.waterBedMaterialController = waterBedMaterialController;
       this.surfaceField = new TerrainSurfaceField(config);
       this.waterInteractionField = new WaterInteractionField(config);
       horizon = config.horizonEnabled >= 1
-        ? new WorldHorizonShell(scene, field, config, compact)
+        ? new WorldHorizonShell(scene, field, config, compact, materialContext)
         : undefined;
       this.horizon = horizon;
       cascades =

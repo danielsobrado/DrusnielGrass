@@ -55,7 +55,11 @@ assert(
     world.includes('disposeConstructionSafely("Grass trail field", () => grassTrailField.dispose())') &&
     world.includes('disposeConstructionSafely("Terrain streamer", () => terrain?.dispose())') &&
     world.includes('disposeConstructionSafely("Environment", () => environment?.dispose())') &&
-    world.includes('disposeConstructionSafely("Renderer", () => this.renderer.dispose())'),
+    // The session owns the renderer now, and the world owns the session, so the
+    // rollback releases it through that owner. The contract under test is
+    // unchanged: a later constructor step failing must still release the
+    // renderer rather than leak a live GPU context.
+    world.includes('disposeConstructionSafely("Renderer", () => this.session.dispose())'),
   "World construction must include renderer setup, delay the reveal owner, and roll back every successfully-created runtime owner when a later constructor step fails.",
 );
 
@@ -68,7 +72,9 @@ assert(
 );
 
 assert(
-  terrainStreamer.includes("let materialController: TerrainMaterialController | undefined") &&
+  // The class name moved with the node migration; the contract is that the
+  // handle is declared before the try so a later failure can release it.
+  /let materialController: \w+ \| undefined/.test(terrainStreamer) &&
     terrainStreamer.includes("let waterMaterialController: WaterMaterialController | undefined") &&
     terrainStreamer.includes("let waterBedMaterialController: WaterBedMaterialController | undefined") &&
     terrainStreamer.includes('disposeTerrainResource(horizon, "Horizon shell")') &&
@@ -156,7 +162,7 @@ for (const [name, source, constructionCleanup, normalCleanup, cleanupLog] of [
 
 assert(
   horizon.includes("let coverage: WorldHorizonCoverage | undefined") &&
-    horizon.includes("let materialController: WorldHorizonMaterial | undefined") &&
+    /let materialController: \w+ \| undefined/.test(horizon) &&
     horizon.includes('disposeHorizonResource(materialController, "Horizon material")') &&
     horizon.includes('disposeHorizonResource(coverage, "Horizon coverage")') &&
     /private finalize\(\): void \{[\s\S]*?const geometry = new THREE\.BufferGeometry\(\);[\s\S]*?try \{[\s\S]*?this\.scene\.add\(mesh\);[\s\S]*?this\.mesh = mesh;[\s\S]*?\} catch \(error\) \{[\s\S]*?mesh\?\.removeFromParent\(\);[\s\S]*?geometry\.dispose\(\)/.test(
@@ -179,6 +185,14 @@ assert(
 );
 
 assert(
+  /if \(!\(renderer as PatchableRenderer\)\.isWebGLRenderer\) \{[\s\S]*?return undefined;/.test(
+    statsPanel,
+  ) && statsPanel.includes("gpuTiming=1"),
+  "The stats panel must decline a renderer stats-gl cannot patch rather than "
+    + "attaching a GPU row that reads zero, and must name the portable alternative.",
+);
+
+assert(
   visualMatrix.includes("private readonly abortController = new AbortController()") &&
     visualMatrix.includes("this.abortController.abort()") &&
     visualMatrix.includes("delete windowWithQa.__FLUFFY_WORLD_VISUAL_QA__") &&
@@ -198,7 +212,10 @@ assert(
 
 assert(
   diagnostics.includes("let probe: GrassWorkloadProbe | undefined") &&
-    diagnostics.includes("let gpuTimer: GpuFrameTimer | undefined") &&
+    // The timing mechanism is chosen by backend now, so the contract under
+    // test is that the handle is declared before the try block and therefore
+    // reachable from the catch — not which class fills it.
+    /let gpuTimer: \w+ \| undefined/.test(diagnostics) &&
     diagnostics.includes("let hud: WorldDiagnosticsHud | undefined") &&
     /catch \(error\) \{[\s\S]*?disposeSafely\(hud, "Diagnostics HUD"\);[\s\S]*?disposeSafely\(gpuTimer, "GPU frame timer"\);[\s\S]*?disposeSafely\(probe, "Grass workload probe"\)/.test(
       diagnostics,
@@ -214,7 +231,7 @@ for (const [name, source] of [
   ["Villager assets", villagerAssets],
 ]) {
   assert(
-    /try \{[\s\S]*?applyActorEnvironmentResponse\(material\);[\s\S]*?return material;[\s\S]*?\} catch \(error\) \{[\s\S]*?material\.dispose\(\);[\s\S]*?throw error;/.test(
+    /try \{[\s\S]*?applyActorEnvironmentNodeResponse\(material\);[\s\S]*?return material;[\s\S]*?\} catch \(error\) \{[\s\S]*?material\.dispose\(\);[\s\S]*?throw error;/.test(
       source,
     ) &&
       /try \{[\s\S]*?slots\.set\(slot, mergeActorParts\(list\)\);[\s\S]*?\} finally \{[\s\S]*?part\.geometry\.dispose\(\)/.test(

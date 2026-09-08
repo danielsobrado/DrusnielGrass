@@ -230,6 +230,22 @@ Maximum performance is a measured objective, not a promise that WebGPU wins ever
 
 **Acceptance:** both applications default to a usable WebGPU renderer and reliably fall back to the same TSL implementation on WebGL 2. All destination pre-existing features survive. Migration performance is measured, all required checks pass, and the old renderer is no longer the production fallback.
 
+**Destination status (2026-09-08): met, with two items of bookkeeping owed.**
+Items 1, 2, 3, 6 and the destination half of 4 are done and evidenced:
+`check-renderer-matrix.mjs` passes 13/13 across both scenes, both profiles and
+both backends plus resize, BFCache, teardown, a failed adapter and automatic
+fallback; all 14 harness fixtures pass on both backends; `npm run build` passes
+with every verifier, and `verify-built-site.mjs` fails if any legacy shader
+route reaches a bundle. Verifier assertions were updated, not deleted — each
+kept the property it tested and changed only where that property now lives.
+
+Still owed: the third performance baseline in item 4 (the pre-migration
+`WebGLRenderer`, which must be measured from the archived revision because this
+tree no longer contains that route), and the stabilized revisions in item 7.
+Item 5 is source-side. See `grass-test-integration-progress.md` for the
+measurements and `webgpu-node-renderer-notes.md` for the three WebGPU-only
+defects the production switch exposed.
+
 ## 5. Changes to later feature work
 
 - T02 wind: reuse/adapt source TSL and CPU functions; keep one common wind field. No new GLSL-only material.

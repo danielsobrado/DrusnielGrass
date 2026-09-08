@@ -460,6 +460,9 @@ function createBiomeShadeRows(
   );
 }
 
+import { WorldDetailFoliageNodeMaterial } from "./WorldDetailFoliageNodeMaterial";
+import type { WorldNodeMaterialContext } from "../../render/WorldNodeMaterialContext";
+
 export interface WorldDetailFoliageMaterialOptions {
   fadeDistance: number;
   fadeTransition: number;
@@ -471,7 +474,7 @@ export interface WorldDetailFoliageMaterialOptions {
 }
 
 export class WorldDetailFoliageMaterial {
-  readonly material: THREE.ShaderMaterial;
+  readonly material: WorldDetailFoliageNodeMaterial;
 
   private readonly uniforms: ShaderUniforms;
   /**
@@ -495,6 +498,7 @@ export class WorldDetailFoliageMaterial {
     materialConfig: GrassMaterialConfig,
     windConfig: GrassWindConfig,
     options: WorldDetailFoliageMaterialOptions,
+    context: WorldNodeMaterialContext,
   ) {
     this.baseWindStrength = windConfig.strength;
     this.artRootDarkening = materialConfig.rootDarkening;
@@ -549,7 +553,20 @@ export class WorldDetailFoliageMaterial {
       materialConfig.dryColor,
     );
 
-    this.material = new THREE.ShaderMaterial({
+    this.material = new WorldDetailFoliageNodeMaterial("world-grass-detail-foliage",
+      this.uniforms as unknown as Record<string, THREE.IUniform>, this.nodeFeatures,
+      speciesWind, context);
+  }
+
+  /**
+   * The shipped GLSL card, for the numerical comparison only.
+   *
+   * Built over this object's own uniform table so the reference and the node
+   * material the world draws cannot be measured while holding different state.
+   * Production never calls this; `src/dev` does.
+   */
+  createLegacyMaterial(): THREE.ShaderMaterial {
+    const material = new THREE.ShaderMaterial({
       uniforms: this.uniforms,
       vertexShader: VERTEX_SHADER,
       fragmentShader: FRAGMENT_SHADER,
@@ -560,9 +577,10 @@ export class WorldDetailFoliageMaterial {
       fog: true,
       lights: true,
       toneMapped: true,
-      defines: options.noiseWind ? { GRASS_NOISE_WIND: 1 } : {},
+      defines: this.nodeFeatures.noiseWind ? { GRASS_NOISE_WIND: 1 } : {},
     });
-    this.material.name = "world-grass-detail-foliage";
+    material.name = "world-grass-detail-foliage";
+    return material;
   }
 
   applyArtDirection(direction: GrassArtDirection): void {

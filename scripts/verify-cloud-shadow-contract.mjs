@@ -187,10 +187,12 @@ assert(
 );
 assert(
   environment.includes("new WorldCloudShadowController(") &&
-    controller.includes("new WorldCloudShadowMap(renderer, profile)") &&
-    controller.includes("new WorldCloudShadowSceneIntegrator(") &&
+    controller.includes("new WorldCloudShadowNodeMap(renderer, profile, capabilities)") &&
     controller.includes("this.map.update(focus, elapsedSeconds)") &&
-    controller.includes("this.integrator.update(deltaSeconds)") &&
+    // The integrator's job — getting the field into every world material —
+    // is done at material construction on the node route. See the
+    // integrator-coverage assertion below for how that reach is now held.
+    controller.includes("get nodes()") &&
     controller.includes('disposeSafely(this.map, "Cloud shadow map")') &&
     lighting.includes("sampleCloudPointDirectTransmittance(") &&
     lighting.includes("focus.x,") &&

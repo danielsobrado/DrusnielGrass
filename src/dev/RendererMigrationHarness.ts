@@ -51,7 +51,7 @@ export class RendererMigrationHarness {
         // material selection, not a device capability, and a desktop-only check
         // would leave the sine gust and the vertex palette unverified.
         for (const compared of ["desktop", "compact", "islandNear", "islandMid"] as const) {
-          for (const mode of ["deformation", "albedo", "ambient"] as const) {
+          for (const mode of ["deformation", "albedo", "ambient", "directional"] as const) {
             reports.push(await compareGrassNearMaterial(session.renderer, compared, mode));
           }
         }
@@ -107,12 +107,15 @@ export class RendererMigrationHarness {
         const { compareStoneSurface } = await import("./StoneSurfaceComparison");
         const reports = [];
         for (const variant of ["detail", "coarse"] as const) {
-          for (const mode of ["albedo", "normal"] as const) {
+          for (const mode of ["albedo", "normal", "lit"] as const) {
             if (variant === "coarse" && mode === "normal") continue;
             reports.push(await compareStoneSurface(session.renderer, worldConfig, variant, mode));
           }
         }
         session.renderer.domElement.dataset.stoneComparison = JSON.stringify(reports);
+        const { verifyStoneNodeShaderPerformance } = await import("./StoneShaderNodeVerification");
+        session.renderer.domElement.dataset.stoneShader =
+          JSON.stringify(await verifyStoneNodeShaderPerformance(session.renderer, worldConfig));
       }
       if (params.get("materialFixture") === "actor") {
         const { compareActorEnvironment } = await import("./ActorEnvironmentComparison");

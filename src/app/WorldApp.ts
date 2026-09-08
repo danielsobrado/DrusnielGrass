@@ -1,11 +1,11 @@
 import * as THREE from "three";
-import type Stats from "stats-gl";
 import {
   GRASS_ART_DIRECTIONS,
   resolveGrassArtDirectionKey,
   type GrassArtDirection,
 } from "../grass/GrassArtDirection";
 import { grassTrailField } from "../grass/interaction/GrassTrailField";
+import { WorldDevelopmentHooks } from "./WorldDevelopmentHooks";
 import { FlyWorldController } from "../controls/FlyWorldController";
 import { ThirdPersonController } from "../controls/ThirdPersonController";
 import type { WorldController } from "../controls/WorldController";
@@ -13,6 +13,8 @@ import type { SnowflowCharacter } from "../character/SnowflowCharacter";
 import type { RuntimeProfile } from "../runtime/RuntimeConfig";
 import { resolvePixelRatio, resolveViewportSize } from "../runtime/ViewportSizing";
 import { WORLD_TONE_MAPPING } from "./WorldEnvironmentTuning";
+import { createGrassTrailNodePass } from "../grass/interaction/GrassTrailNodePass";
+import type { RendererSession } from "../render/RendererSession";
 import { APP_VERSION } from "../version";
 import { DenseSpawnLocator } from "../world/DenseSpawnLocator";
 import { StoneField } from "../world/stones/StoneField";
@@ -23,14 +25,11 @@ import type { WorldConfig } from "../world/WorldConfig";
 import { setGrassPaletteDesaturation } from "../grass/materials/GrassPaletteShader";
 import { WorldConfigLoader } from "../world/WorldConfigLoader";
 import { WorldGrassSystem } from "../world/WorldGrassSystem";
-import { GrassArtMenu } from "./GrassArtMenu";
-import { DetailFoliageTuningMenu } from "./DetailFoliageTuningMenu";
 import { WorldEnvironmentController } from "./WorldEnvironmentController";
 import { WorldMinimap } from "./WorldMinimap";
 import { WorldFrameMetrics, type WorldFrameSubsystem } from "./WorldFrameMetrics";
 import { WorldRuntimeGuard } from "./WorldRuntimeGuard";
 import { WorldStatusHud } from "./WorldStatusHud";
-import { attachWorldStatsPanel } from "./WorldStatsPanel";
 import type { WorldActorProofContext } from "./WorldActorProofContext";
 import type { WorldVisualMatrixContext } from "./WorldVisualMatrixContext";
 import { WorldRevealController } from "../runtime/WorldRevealController";
@@ -50,12 +49,9 @@ import {
 export class WorldApp {
   private readonly scene = new THREE.Scene();
   private readonly camera: THREE.PerspectiveCamera;
-  private readonly renderer: THREE.WebGLRenderer;
+  private readonly renderer: RendererSession["renderer"];
   private readonly clock = new THREE.Clock();
-  private stats?: Stats;
-  private artMenu?: GrassArtMenu;
-  private detailFoliageMenu?: DetailFoliageTuningMenu;
-  private riverArtMenu?: { dispose(): void };
+  private development!: WorldDevelopmentHooks;
   private readonly field: TerrainField;
   private readonly frameObservers = new Set<(deltaSeconds: number) => void>();
   private readonly terrain: TerrainStreamer;
@@ -91,7 +87,7 @@ export class WorldApp {
   private grassInitializationError?: string;
 
   private constructor(
-    canvas: HTMLCanvasElement,
+    private readonly session: RendererSession,
     private readonly profile: RuntimeProfile,
     private readonly worldConfig: WorldConfig,
   ) {
@@ -103,13 +99,10 @@ export class WorldApp {
       5000,
     );
 
-    this.renderer = new THREE.WebGLRenderer({
-      canvas,
-      antialias: false,
-      alpha: false,
-      precision: "highp",
-      powerPreference: "high-performance",
-    });
+    // The session owns the renderer; this app owns the session. The canvas
+    // comes from the renderer because a fallback retry may have replaced it.
+    this.renderer = session.renderer;
+    const canvas = this.renderer.domElement;
 
     let environment: WorldEnvironmentController | undefined;
     let terrain: TerrainStreamer | undefined;
@@ -140,12 +133,8 @@ export class WorldApp {
         spawn.pitch = THREE.MathUtils.degToRad(-34);
       }
 
-      environment = new WorldEnvironmentController(
-        this.scene,
-        this.renderer,
-        profile,
-        profile.shadows && !useFlyControls,
-      );
+      environment = new WorldEnvironmentController(this.scene, this.renderer,
+        profile, profile.shadows && !useFlyControls, session.capabilities);
       this.environment = environment;
       terrain = new TerrainStreamer(
         this.scene,
@@ -153,6 +142,7 @@ export class WorldApp {
         config,
         profile.compact,
         profile.shadows && !useFlyControls,
+        environment.materialContext,
       );
       this.terrain = terrain;
       stones = new WorldStoneSystem(
@@ -161,9 +151,11 @@ export class WorldApp {
         config,
         profile.compact,
         profile.shadows && !useFlyControls,
+        environment.materialContext,
       );
       this.stones = stones;
-      grass = new WorldGrassSystem(this.scene, this.field, config, profile);
+      grass = new WorldGrassSystem(this.scene, this.field, config, profile,
+        environment.materialContext);
       this.grass = grass;
 
       const tierOverride = params.get("tier");
@@ -178,16 +170,13 @@ export class WorldApp {
         freshnessRate: config.grassTrailFreshnessRate,
       });
       if (!useFlyControls) {
-        grassTrailField.attach(this.renderer);
+        // The field keeps owning the targets and the uniform table.
+        grassTrailField.attachNodePass((uniforms, size) =>
+          createGrassTrailNodePass(this.renderer, session.capabilities, uniforms, size),
+        );
       }
       const artKey = resolveGrassArtDirectionKey(params.get("grassArt"));
       this.applyGrassArtDirection(GRASS_ART_DIRECTIONS[artKey]);
-      if (profile.showGui && params.get("diagnostics") === "1") {
-        this.artMenu = new GrassArtMenu(artKey, this.applyGrassArtDirection);
-        this.detailFoliageMenu = new DetailFoliageTuningMenu(
-          this.grass.getDetailFoliageTuning(),
-          (tuning) => this.grass.setDetailFoliageTuning(tuning));
-      }
 
       controls = useFlyControls
         ? new FlyWorldController(
@@ -208,6 +197,22 @@ export class WorldApp {
             spawn,
           );
       this.controls = controls;
+      // Built here because the development tools reach the controls; every
+      // query-parameter-only attachment lives behind this one owner.
+      this.development = new WorldDevelopmentHooks({
+        scene: this.scene, camera: this.camera, renderer: this.renderer,
+        field: this.field, profile, worldConfig: config, controls,
+        addFrameObserver: (observer) => this.addFrameObserver(observer),
+        setGrassQualityTierOverride: (tier) => this.grass.setQualityTierOverride(tier),
+        isGrassReady: () => !this.grassInitializing && this.grassEnabled,
+        getDetailFoliageTuning: () => this.grass.getDetailFoliageTuning(),
+        setDetailFoliageTuning: (tuning) => this.grass.setDetailFoliageTuning(tuning),
+        applyGrassArtDirection: this.applyGrassArtDirection,
+        setLiveWaterVisuals: (visuals) => this.terrain.setLiveWaterVisuals(visuals),
+      });
+      if (params.get("diagnostics") === "1") {
+        this.development.attachTuningMenus(artKey, GRASS_ART_DIRECTIONS[artKey]);
+      }
       minimap = new WorldMinimap(this.field, config, this.controls);
       this.minimap = minimap;
       scenic = new WorldScenicLayer(
@@ -245,21 +250,22 @@ export class WorldApp {
       disposeConstructionSafely("Scenic layer", () => scenic?.dispose());
       disposeConstructionSafely("Minimap", () => minimap?.dispose());
       disposeConstructionSafely("World controls", () => controls?.dispose());
-      disposeConstructionSafely("Detail foliage menu", () => this.detailFoliageMenu?.dispose());
-      disposeConstructionSafely("Grass art menu", () => this.artMenu?.dispose());
+      disposeConstructionSafely("Development hooks", () => this.development.dispose());
       disposeConstructionSafely("Grass trail field", () => grassTrailField.dispose());
       disposeConstructionSafely("Grass system", () => grass?.dispose());
       disposeConstructionSafely("Stone system", () => stones?.dispose());
       disposeConstructionSafely("Terrain streamer", () => terrain?.dispose());
       disposeConstructionSafely("Environment", () => environment?.dispose());
-      disposeConstructionSafely("Renderer", () => this.renderer.dispose());
+      disposeConstructionSafely("Renderer", () => this.session.dispose());
       throw error;
     }
   }
 
+  /** The session is created by the bootstrap, which owns backend recovery. */
   static async create(
-    canvas: HTMLCanvasElement,
+    session: RendererSession,
     profile: RuntimeProfile,
+    signal?: AbortSignal,
   ): Promise<WorldApp> {
     const params = new URLSearchParams(window.location.search);
     const loaded = await new WorldConfigLoader().load(
@@ -275,8 +281,13 @@ export class WorldApp {
     // rows in its own constructor and the grass materials do the same at build,
     // so a lever applied after this point would reach some LODs and not others
     // — which is the one failure a global saturation control must not have.
+    signal?.throwIfAborted();
     setGrassPaletteDesaturation(config.grassPaletteDesaturation);
-    const app = new WorldApp(canvas, profile, config);
+    // The constructor's own rollback releases the session once it owns it; this
+    // covers the throw that happens before that transfer completes.
+    let app: WorldApp;
+    try { app = new WorldApp(session, profile, config); }
+    catch (error) { session.dispose(); throw error; }
     if (profile.showGui && params.get("riverTuning") === "1") {
       try {
         await app.attachRiverArtMenu();
@@ -284,16 +295,8 @@ export class WorldApp {
         console.warn("[Drusniel World] Optional river tuning unavailable.", error);
       }
     }
-    if (
-      !profile.compact &&
-      params.get("stats") === "1"
-    ) {
-      const stats = await attachWorldStatsPanel(app.renderer);
-      if (app.disposed) {
-        stats?.dom.remove();
-      } else {
-        app.stats = stats;
-      }
+    if (params.get("stats") === "1") {
+      await app.development.attachStatsPanel();
     }
     void app.initializeGrass();
     return app;
@@ -319,6 +322,9 @@ export class WorldApp {
       : undefined;
   }
 
+  captureRecoveryState = () => this.controls.captureRecoveryState();
+  restoreRecoveryState = (state: ReturnType<WorldController["captureRecoveryState"]>) => this.controls.restoreRecoveryState(state);
+
   addFrameObserver(observer: (deltaSeconds: number) => void): () => void {
     this.frameObservers.add(observer);
     return () => {
@@ -336,46 +342,17 @@ export class WorldApp {
   attachActorProof(
     observer: (deltaSeconds: number) => void,
   ): WorldActorProofContext {
-    this.frameObservers.add(observer);
-    return {
-      scene: this.scene,
-      field: this.field,
-      detach: (): void => {
-        this.frameObservers.delete(observer);
-      },
-    };
+    return this.development.attachActorProof(observer);
   }
 
   /** Development-only hook for `?qa=visual-matrix`. */
   attachVisualMatrix(): WorldVisualMatrixContext {
-    this.grass.setQualityTierOverride(1);
-    return {
-      camera: this.camera,
-      renderer: this.renderer,
-      field: this.field,
-      profile: this.profile,
-      controls: this.controls,
-      isReady: () => !this.grassInitializing && this.grassEnabled,
-    };
+    return this.development.attachVisualMatrix();
   }
 
   /** Development-only hook for `?riverTuning=1`. */
-  async attachRiverArtMenu(): Promise<void> {
-    if (this.disposed || this.riverArtMenu || !this.profile.showGui) {
-      return;
-    }
-    const { RiverArtMenu } = await import("./RiverArtMenu");
-    if (this.disposed || this.riverArtMenu) {
-      return;
-    }
-    this.riverArtMenu = new RiverArtMenu({
-      worldConfig: this.worldConfig,
-      field: this.field,
-      controls: this.controls,
-      applyLiveWaterVisuals: (visuals) => {
-        this.terrain.setLiveWaterVisuals(visuals);
-      },
-    });
+  attachRiverArtMenu(): Promise<void> {
+    return this.development.attachRiverArtMenu();
   }
 
   dispose(): void {
@@ -396,16 +373,9 @@ export class WorldApp {
     this.disposeSafely("Terrain streamer", () => this.terrain.dispose());
     this.disposeSafely("Stone system", () => this.stones.dispose());
     this.disposeGrassResources();
-    this.disposeSafely("Stats panel", () => this.stats?.dom.remove());
-    this.stats = undefined;
-    this.disposeSafely("Grass art menu", () => this.artMenu?.dispose());
-    this.disposeSafely("Detail foliage menu", () => this.detailFoliageMenu?.dispose());
-    this.disposeSafely("River art menu", () => this.riverArtMenu?.dispose());
-    this.artMenu = undefined;
-    this.detailFoliageMenu = undefined;
-    this.riverArtMenu = undefined;
+    this.disposeSafely("Development hooks", () => this.development.dispose());
     this.disposeSafely("Environment", () => this.environment.dispose());
-    this.disposeSafely("Renderer", () => this.renderer.dispose());
+    this.disposeSafely("Renderer", () => this.session.dispose());
   }
 
   private readonly applyGrassArtDirection = (
@@ -571,9 +541,10 @@ export class WorldApp {
   };
 
   private readonly renderScene = (): void => {
+    this.environment.prepareFrame(this.camera);
     this.terrain.renderWaterRefraction(this.renderer, this.scene, this.camera);
     this.renderer.render(this.scene, this.camera);
-    this.stats?.update();
+    this.development.update();
   };
 
   private readonly checkFrameHeartbeat = (): void => {

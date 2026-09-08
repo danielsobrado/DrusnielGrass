@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import './verify-production-node-wiring.mjs';
 import { verifyNodePortLifecycle } from './verify-node-port-lifecycle.mjs';
 import { verifyRecoveryFailures } from './renderer-recovery-review-contract.mjs';
 import { createServer } from 'vite';

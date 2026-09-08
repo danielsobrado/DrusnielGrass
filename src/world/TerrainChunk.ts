@@ -352,6 +352,54 @@ export class TerrainChunkBuilder {
     return processed;
   }
 
+  /**
+   * Publishes the eight per-vertex terrain fields from one vertex buffer.
+   *
+   * WebGPU allows a pipeline eight vertex buffers; these fields plus position,
+   * normal and colour are eleven, so one attribute per buffer cannot be bound
+   * at all — the pipeline fails to create and the draw call receives an
+   * infinite index count. WebGL 2 allows sixteen, which is why this only
+   * appeared once the world ran on a WebGPU backend.
+   *
+   * Interleaving is the fix that costs nothing anywhere else: the attribute
+   * names, component counts and order are exactly what they were, so neither
+   * the node graph nor the GLSL reference changes and the comparison between
+   * them stays a comparison of shading. The generation stages keep writing
+   * their own flat arrays, which are packed once here rather than being
+   * written through a stride — the copy is a few hundred kilobytes per chunk
+   * in the stage that already allocates the geometry, and it keeps the vertex
+   * loops readable.
+   */
+  private setTerrainAttributes(geometry: THREE.BufferGeometry): void {
+    const fields: [name: string, source: Float32Array, size: number][] = [
+      ["terrainPath", this.paths, 4],
+      ["terrainEcology", this.ecologies, 4],
+      ["terrainEnvironment", this.environments, 4],
+      ["terrainBiome", this.biomes, 4],
+      ["terrainCommunityGround", this.communities, 4],
+      ["terrainStoneInfluence", this.stoneContacts, 4],
+      ["terrainStoneOcclusionCenter", this.stoneOcclusionCenters, 2],
+      ["terrainStoneOcclusion", this.stoneOcclusions, 1],
+    ];
+    const stride = fields.reduce((total, [, , size]) => total + size, 0);
+    const vertexCount = this.positions.length / 3;
+    const packed = new Float32Array(vertexCount * stride);
+    let offset = 0;
+    const buffer = new THREE.InterleavedBuffer(packed, stride);
+    for (const [name, source, size] of fields) {
+      for (let vertex = 0; vertex < vertexCount; vertex++) {
+        const target = vertex * stride + offset;
+        const origin = vertex * size;
+        for (let component = 0; component < size; component++) {
+          packed[target + component] = source[origin + component];
+        }
+      }
+      geometry.setAttribute(name,
+        new THREE.InterleavedBufferAttribute(buffer, size, offset));
+      offset += size;
+    }
+  }
+
   private finalize(): TerrainChunk {
     const geometry = new THREE.BufferGeometry();
     let waterGeometry: THREE.BufferGeometry | undefined;
@@ -365,38 +413,7 @@ export class TerrainChunkBuilder {
         new THREE.BufferAttribute(this.normals, 3),
       );
       geometry.setAttribute("color", new THREE.BufferAttribute(this.colors, 3));
-      geometry.setAttribute(
-        "terrainPath",
-        new THREE.BufferAttribute(this.paths, 4),
-      );
-      geometry.setAttribute(
-        "terrainEcology",
-        new THREE.BufferAttribute(this.ecologies, 4),
-      );
-      geometry.setAttribute(
-        "terrainEnvironment",
-        new THREE.BufferAttribute(this.environments, 4),
-      );
-      geometry.setAttribute(
-        "terrainBiome",
-        new THREE.BufferAttribute(this.biomes, 4),
-      );
-      geometry.setAttribute(
-        "terrainCommunityGround",
-        new THREE.BufferAttribute(this.communities, 4),
-      );
-      geometry.setAttribute(
-        "terrainStoneInfluence",
-        new THREE.BufferAttribute(this.stoneContacts, 4),
-      );
-      geometry.setAttribute(
-        "terrainStoneOcclusionCenter",
-        new THREE.BufferAttribute(this.stoneOcclusionCenters, 2),
-      );
-      geometry.setAttribute(
-        "terrainStoneOcclusion",
-        new THREE.BufferAttribute(this.stoneOcclusions, 1),
-      );
+      this.setTerrainAttributes(geometry);
       geometry.setIndex(new THREE.BufferAttribute(this.indices, 1));
       geometry.computeBoundingBox();
       geometry.computeBoundingSphere();

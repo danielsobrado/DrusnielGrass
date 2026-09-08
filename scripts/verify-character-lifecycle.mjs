@@ -30,10 +30,12 @@ const actorProof = read("src/dev/ActorExtensibilityProof.ts");
 
 assert(
   materials.includes('import { disposeResources } from "../render/ResourceDisposal"') &&
-    materials.includes("const owned: THREE.MeshStandardMaterial[] = []") &&
+    // The actors' materials are node materials now; the ownership contract that
+  // every created material is tracked for disposal is unchanged.
+  /const owned: \w+\[\] = \[\]/.test(materials) &&
     materials.includes("owned.push(material)") &&
     materials.includes("disposeResources(owned)") &&
-    /function createMaterial\([\s\S]*?try \{[\s\S]*?applyActorEnvironmentResponse\(material\);[\s\S]*?return material;[\s\S]*?\} catch \(error\) \{[\s\S]*?disposeResources\(\[material\]\)/.test(
+    /function createMaterial\([\s\S]*?try \{[\s\S]*?applyActorEnvironmentNodeResponse\(material\);[\s\S]*?return material;[\s\S]*?\} catch \(error\) \{[\s\S]*?disposeResources\(\[material\]\)/.test(
       materials,
     ),
   "Character material construction must own every created material and release partial sets without masking the setup failure.",

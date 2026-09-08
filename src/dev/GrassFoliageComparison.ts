@@ -41,7 +41,6 @@ export async function compareGrassFoliageMaterial(renderer: WebGPURenderer,
   variant: GrassFoliageVariant, singlePass: boolean) {
   const width = 288, height = 192;
   const atlas = createFoliageAtlas();
-  const state = createFoliageState(atlas, variant);
   const mesh = createFoliageField();
   const legacyMesh = createFoliageField();
   const { sun, ambient, hemisphere } = createLights();
@@ -49,15 +48,19 @@ export async function compareGrassFoliageMaterial(renderer: WebGPURenderer,
   scene.background = new Color(0);
   scene.add(sun, ambient, hemisphere);
   const context = new WorldNodeMaterialContext(sun, [ambient, hemisphere]);
+  const state = createFoliageState(atlas, variant, context);
   const nodeMaterial = new WorldDetailFoliageNodeMaterial(`grass-foliage-node-${variant}`,
     state.shaderUniforms, state.nodeFeatures, createFoliageSpeciesWind(), context);
+  // The shipped GLSL card, built over the same uniform table the node material
+  // reads. Production draws only the node one.
+  const legacyMaterial = state.createLegacyMaterial();
   if (singlePass) {
     // Compare the material, not the renderer. Three's node renderer honours the
     // two-pass back/front order for double-sided transparent materials where
     // the WebGL renderer here draws once, so with both passes live the two
     // renders can resolve a different overlapping card at the same pixel. The
     // caller measures that separately; this mode isolates the shading.
-    for (const material of [nodeMaterial, state.material]) material.forceSinglePass = true;
+    for (const material of [nodeMaterial, legacyMaterial]) material.forceSinglePass = true;
   }
   mesh.material = nodeMaterial;
   scene.add(mesh);
@@ -66,7 +69,7 @@ export async function compareGrassFoliageMaterial(renderer: WebGPURenderer,
   legacyScene.background = new Color(0);
   const legacyLights = createLights();
   legacyScene.add(legacyLights.sun, legacyLights.ambient, legacyLights.hemisphere);
-  legacyMesh.material = state.material;
+  legacyMesh.material = legacyMaterial;
   legacyScene.add(legacyMesh);
 
   const camera = new PerspectiveCamera(50, width / height, 0.05, 60);
@@ -111,7 +114,7 @@ export async function compareGrassFoliageMaterial(renderer: WebGPURenderer,
       differing, nonzero, legacyNonzero, shared, coverageMismatch, flippedRows: flip };
   } finally {
     renderer.setRenderTarget(previous);
-    disposeResources([nodeMaterial, state, mesh.geometry, legacyMesh.geometry, mesh, legacyMesh,
-      target, legacyTarget, legacy]);
+    disposeResources([nodeMaterial, legacyMaterial, state, mesh.geometry, legacyMesh.geometry,
+      mesh, legacyMesh, target, legacyTarget, legacy]);
   }
 }

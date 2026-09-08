@@ -144,82 +144,7 @@ export class OctahedralImpostorBaker {
     result: ImpostorBakeResult,
     filePrefix: string,
   ): ImpostorDownloadPanel {
-    const panel = document.createElement("div");
-    const objectUrls = new Set<string>();
-    const timeoutHandles = new Set<number>();
-    let disposed = false;
-
-    const revokeObjectUrl = (objectUrl: string): void => {
-      if (!objectUrls.delete(objectUrl)) {
-        return;
-      }
-      URL.revokeObjectURL(objectUrl);
-    };
-    const createDownloadLink = (
-      blob: Blob,
-      fileName: string,
-      label: string,
-    ): HTMLAnchorElement => {
-      const link = document.createElement("a");
-      const objectUrl = URL.createObjectURL(blob);
-      objectUrls.add(objectUrl);
-      link.href = objectUrl;
-      link.download = fileName;
-      link.textContent = label;
-      link.style.color = "#fff";
-      link.addEventListener(
-        "click",
-        () => {
-          if (disposed || !objectUrls.has(objectUrl)) {
-            return;
-          }
-          const handle = window.setTimeout(() => {
-            timeoutHandles.delete(handle);
-            revokeObjectUrl(objectUrl);
-          }, DOWNLOAD_REVOKE_DELAY_MS);
-          timeoutHandles.add(handle);
-        },
-        { once: true },
-      );
-      return link;
-    };
-
-    panel.style.cssText =
-      "position:fixed;left:12px;bottom:12px;z-index:10000;padding:12px;background:#111d;color:#fff;font:13px sans-serif;border-radius:8px;display:flex;gap:10px";
-    panel.append(
-      createDownloadLink(
-        result.atlas,
-        `${filePrefix}-albedo.png`,
-        "Download atlas",
-      ),
-      createDownloadLink(
-        new Blob([JSON.stringify(result.metadata, null, 2)], {
-          type: "application/json",
-        }),
-        `${filePrefix}.json`,
-        "Download metadata",
-      ),
-    );
-    document.body.appendChild(panel);
-
-    return {
-      element: panel,
-      dispose: (): void => {
-        if (disposed) {
-          return;
-        }
-        disposed = true;
-        for (const handle of timeoutHandles) {
-          window.clearTimeout(handle);
-        }
-        timeoutHandles.clear();
-        for (const objectUrl of objectUrls) {
-          URL.revokeObjectURL(objectUrl);
-        }
-        objectUrls.clear();
-        panel.remove();
-      },
-    };
+    return createImpostorDownloadLinks(result, filePrefix);
   }
 
   private createCamera(
@@ -394,3 +319,91 @@ export function createImpostorBakeMetadata(
     pendingPasses: ["normal-roughness", "linear-depth-thickness"],
   };
 }
+
+/**
+ * Builds the bake's download panel.
+ *
+ * Pure DOM: it touches no renderer, so both bakers share this one rather than
+ * each carrying a copy of it.
+ */
+export function createImpostorDownloadLinks(
+  result: ImpostorBakeResult,
+  filePrefix: string,
+): ImpostorDownloadPanel {
+    const panel = document.createElement("div");
+    const objectUrls = new Set<string>();
+    const timeoutHandles = new Set<number>();
+    let disposed = false;
+
+    const revokeObjectUrl = (objectUrl: string): void => {
+      if (!objectUrls.delete(objectUrl)) {
+        return;
+      }
+      URL.revokeObjectURL(objectUrl);
+    };
+    const createDownloadLink = (
+      blob: Blob,
+      fileName: string,
+      label: string,
+    ): HTMLAnchorElement => {
+      const link = document.createElement("a");
+      const objectUrl = URL.createObjectURL(blob);
+      objectUrls.add(objectUrl);
+      link.href = objectUrl;
+      link.download = fileName;
+      link.textContent = label;
+      link.style.color = "#fff";
+      link.addEventListener(
+        "click",
+        () => {
+          if (disposed || !objectUrls.has(objectUrl)) {
+            return;
+          }
+          const handle = window.setTimeout(() => {
+            timeoutHandles.delete(handle);
+            revokeObjectUrl(objectUrl);
+          }, DOWNLOAD_REVOKE_DELAY_MS);
+          timeoutHandles.add(handle);
+        },
+        { once: true },
+      );
+      return link;
+    };
+
+    panel.style.cssText =
+      "position:fixed;left:12px;bottom:12px;z-index:10000;padding:12px;background:#111d;color:#fff;font:13px sans-serif;border-radius:8px;display:flex;gap:10px";
+    panel.append(
+      createDownloadLink(
+        result.atlas,
+        `${filePrefix}-albedo.png`,
+        "Download atlas",
+      ),
+      createDownloadLink(
+        new Blob([JSON.stringify(result.metadata, null, 2)], {
+          type: "application/json",
+        }),
+        `${filePrefix}.json`,
+        "Download metadata",
+      ),
+    );
+    document.body.appendChild(panel);
+
+    return {
+      element: panel,
+      dispose: (): void => {
+        if (disposed) {
+          return;
+        }
+        disposed = true;
+        for (const handle of timeoutHandles) {
+          window.clearTimeout(handle);
+        }
+        timeoutHandles.clear();
+        for (const objectUrl of objectUrls) {
+          URL.revokeObjectURL(objectUrl);
+        }
+        objectUrls.clear();
+        panel.remove();
+      },
+    };
+  }

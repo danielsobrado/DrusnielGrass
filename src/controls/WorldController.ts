@@ -1,8 +1,13 @@
 import type * as THREE from "three";
 
 export type WorldControlMode = "fly" | "third-person";
+export type ControllerRecoveryState =
+  | { mode: "fly"; position: [number, number, number]; yaw: number; pitch: number; speed: number }
+  | { mode: "third-person"; x: number; z: number; facing: number; yaw: number; elevation: number; distance: number };
 
 export interface WorldController {
+  captureRecoveryState(): ControllerRecoveryState;
+  restoreRecoveryState(state: ControllerRecoveryState): void;
   update(deltaSeconds: number): void;
   dispose(): void;
   getSpeed(): number;

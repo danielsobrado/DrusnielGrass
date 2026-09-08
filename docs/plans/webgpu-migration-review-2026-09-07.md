@@ -60,19 +60,37 @@ means a counterpart and named check exist; it does not mean production uses it.
 
 The remaining acceptance work includes:
 
-1. Wire `WorldApp` and `IslandApp` to initialized node sessions and portable
-   material/pass factories. Finish environment/cloud controller integration
-   and the deferred actor call sites with equivalent lifecycle verifiers.
-2. Replace production `GpuFrameTimer` consumers with `GpuTimingAdapter`, and
+1. ~~Wire `WorldApp` and `IslandApp` to initialized node sessions and portable
+   material/pass factories.~~ Done. Both apps run on a `RendererSession` created
+   by the bootstrap, every material is its node counterpart, the cloud-shadow
+   scene integrator is replaced by construction-time injection through one
+   `WorldNodeMaterialContext`, and the actor call sites are converted.
+2. ~~Replace production `GpuFrameTimer` consumers with `GpuTimingAdapter`, and
    migrate remaining stats, workload and diagnostics contexts. Replace the
-   legacy string-based stone shader performance check with a node equivalent.
-3. Add numerical coverage for directional grass transmission/sheen and stone
-   custom lighting. Existing albedo/normal/deformation comparisons and visible
-   lit fixtures do not independently establish those lighting terms' parity.
-4. Complete G06's actual world/island backend/fallback/recovery/resize/BFCache
-   matrix and matched legacy/WebGPU/TSL-WebGL performance measurements.
-5. Remove reachable legacy production shader routes only after those checks
-   pass, then record stabilized revisions in both repositories.
+   legacy string-based stone shader performance check with a node equivalent.~~
+   Done. `createFrameTimingSource` picks the mechanism by backend and is held by
+   `verify-gpu-timing-parity.mjs`, which found and fixed a p95 disagreement
+   between the two timers. The workload probe, diagnostics controller and visual
+   matrix context no longer name a renderer class; the stats panel declines a
+   renderer stats-gl cannot patch; the stone check now reads the generated
+   program. See the 2026-09-07 entry in `grass-test-integration-progress.md`.
+3. ~~Add numerical coverage for directional grass transmission/sheen and stone
+   custom lighting.~~ Done. The grass `directional` and stone `lit` modes now
+   compare those terms; the grass run found and held a real defect, an assigned
+   `normalNode` never receiving the double-sided `faceDirection` flip. See the
+   2026-09-07 entry in `grass-test-integration-progress.md`.
+4. ~~Complete G06's actual world/island backend/fallback/recovery/resize/BFCache
+   matrix and matched performance measurements.~~ Done for the two shipped
+   backends: `check-renderer-matrix.mjs` runs 13 checks and all pass. The third
+   baseline (the pre-migration `WebGLRenderer`) has to be measured from the
+   archived revision recorded below rather than from this tree, which no longer
+   contains that route.
+5. ~~Remove reachable legacy production shader routes.~~ Done. No legacy
+   shader route is reachable from production and none of its text reaches a
+   bundle; `verify-built-site.mjs` fails if one returns. The stabilized
+   revisions still need recording in both repositories.
 
-G05 acceptance is therefore still open and G06 is not complete. No commit or
-deployment was made under the user's condition that the G tasks be finished.
+All five items are closed. What remains before the G tickets can be called
+finished is bookkeeping rather than engineering: recording the stabilized
+revision in both repositories, and measuring the pre-migration WebGLRenderer
+baseline from the archived revision for the three-way performance comparison. No commit or deployment has been made.

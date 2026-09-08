@@ -1,5 +1,6 @@
 import type StatsPanelClass from "stats-gl";
 import type { WebGLRenderer } from "three";
+import type { WebGPURenderer } from "three/webgpu";
 
 /**
  * stats-gl 2.0.1 ships no `dispose`, so the panel has no teardown of its own.
@@ -8,9 +9,38 @@ import type { WebGLRenderer } from "three";
  */
 type Stats = StatsPanelClass & { dispose: () => void };
 
+/**
+ * stats-gl recognises the classic renderer by this flag and patches its
+ * `render` to bracket each frame with a timer query. The node renderer does not
+ * carry it.
+ */
+interface PatchableRenderer {
+  isWebGLRenderer?: boolean;
+}
+
+/**
+ * Attaches the profiler where it can actually measure, and declines elsewhere.
+ *
+ * stats-gl 2.0.1 reaches the GPU exactly one way: it tests `isWebGLRenderer`,
+ * patches that renderer's `render`, and pulls the disjoint-timer extension off
+ * the context behind it. The node renderer fails that test, and a WebGPU canvas
+ * has no WebGL 2 context to fall back to, so nothing would patch the frame. The
+ * library would still add a GPU row and it would read zero forever.
+ *
+ * Declining is the honest outcome: the caller already treats `undefined` as an
+ * unavailable panel, and the diagnostics HUD behind `?gpuTiming=1` measures GPU
+ * frame time on both backends through `createFrameTimingSource`.
+ */
 export async function attachWorldStatsPanel(
-  renderer: WebGLRenderer,
+  renderer: WebGLRenderer | WebGPURenderer,
 ): Promise<Stats | undefined> {
+  if (!(renderer as PatchableRenderer).isWebGLRenderer) {
+    console.warn(
+      "[Drusniel World] The stats panel can only time the classic WebGL renderer; " +
+        "use ?gpuTiming=1 for the portable diagnostics HUD.",
+    );
+    return undefined;
+  }
   let stats: Stats | undefined;
   try {
     const { default: StatsPanel } = await import("stats-gl");
@@ -21,7 +51,7 @@ export async function attachWorldStatsPanel(
     stats = Object.assign(new StatsPanel({ minimal: true }), {
       dispose: (): void => {},
     });
-    stats.init(renderer);
+    stats.init(renderer as WebGLRenderer);
     bindStatsLifetime(stats);
     document.body.appendChild(stats.dom);
     return stats;

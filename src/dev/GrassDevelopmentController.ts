@@ -2,13 +2,13 @@ import * as THREE from "three";
 import type { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import type { GrassSystem } from "../grass/GrassSystem";
 import {
-  OctahedralImpostorBaker,
-  type ImpostorDownloadPanel,
+  createImpostorDownloadLinks, type ImpostorDownloadPanel,
 } from "../grass/impostors/OctahedralImpostorBaker";
+import { OctahedralImpostorNodeBaker } from "../grass/impostors/OctahedralImpostorNodeBaker";
 import { GrassQaRunner } from "../qa/GrassQaRunner";
 
 interface GrassDevelopmentDependencies {
-  renderer: THREE.WebGLRenderer;
+  renderer: import("three/webgpu").WebGPURenderer;
   scene: THREE.Scene;
   camera: THREE.PerspectiveCamera;
   controls: OrbitControls;
@@ -104,7 +104,7 @@ export class GrassDevelopmentController {
     this.dependencies.grassSystem.setLodBakeOverride(true);
 
     try {
-      const baker = new OctahedralImpostorBaker(this.dependencies.renderer);
+      const baker = new OctahedralImpostorNodeBaker(this.dependencies.renderer);
       const result = await baker.bake({
         scene: this.dependencies.scene,
         source: target.object,
@@ -115,7 +115,7 @@ export class GrassDevelopmentController {
         return;
       }
       this.bakePanel?.dispose();
-      this.bakePanel = baker.createDownloadLinks(
+      this.bakePanel = createImpostorDownloadLinks(
         result,
         `grass-impostor-${target.patchId}`,
       );

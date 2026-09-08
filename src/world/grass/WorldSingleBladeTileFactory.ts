@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import { packGrassVertexFields } from "../../grass/materials/GrassNodeGeometry";
 import type { GrassConfig } from "../../grass/GrassConfig";
 import {
   resolveGrassCanopyAo,
@@ -1689,6 +1690,8 @@ export class WorldSingleBladeTileFactory {
       new THREE.Float32BufferAttribute(shades, 1),
     );
     geometry.setIndex(indices);
+    // Packed on this shared blade source; see GrassNodeGeometry.
+    packGrassVertexFields(geometry);
     geometry.computeVertexNormals();
     geometry.computeBoundingBox();
     geometry.computeBoundingSphere();

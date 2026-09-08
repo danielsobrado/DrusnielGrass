@@ -44,7 +44,11 @@ function readYamlNumber(source, key) {
 
 const worldConfigSource = read("public/config/world.yaml");
 const allocationSource = read("src/world/WorldGrassAllocationValidator.ts");
-const nearMaterialSource = read("src/grass/materials/GrassNearMaterial.ts");
+// The blade's shading is split between the state owner and the GLSL
+// reference the comparison measures against, so the shader contract is
+// read from both halves rather than from whichever half a line lives in.
+const nearMaterialSource = read("src/grass/materials/GrassNearMaterial.ts")
+  + read("src/grass/materials/GrassNearLegacyMaterial.ts");
 const factorySource = read("src/world/grass/WorldSingleBladeTileFactory.ts");
 const profileSource = read("src/world/grass/GrassClusterProfile.ts");
 const patchFactorySource = read(

@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import { WorldNodeMaterialContext } from "../../src/render/WorldNodeMaterialContext";
 import { WorldConfigLoader } from "../../src/world/WorldConfigLoader";
 import { validateWorldConfig } from "../../src/world/WorldConfigValidator";
 import { TerrainField } from "../../src/world/TerrainField";
@@ -290,7 +291,9 @@ camera.position.set(
 camera.lookAt(focusX, groundHeight + 2, focusZ);
 
 let stoneField = applyGrowth(new StoneField(field, config));
-let stones = new WorldStoneSystem(scene, stoneField, config, false, false);
+const stoneMaterialContext = new WorldNodeMaterialContext(sun, []);
+let stones = new WorldStoneSystem(scene, stoneField, config, false, false,
+  stoneMaterialContext);
 const focus = new THREE.Vector3(focusX, 0, focusZ);
 
 function drainStoneBuild(system: WorldStoneSystem): void {
@@ -387,7 +390,8 @@ refreshDiagnostics();
 function rebuildStones(nextConfig: WorldConfig): void {
   stones.dispose();
   stoneField = applyGrowth(new StoneField(field, nextConfig));
-  stones = new WorldStoneSystem(scene, stoneField, nextConfig, false, false);
+  stones = new WorldStoneSystem(scene, stoneField, nextConfig, false, false,
+    stoneMaterialContext);
   drainStoneBuild(stones);
   applyStoneContactSoil(stoneField);
   refreshDiagnostics();

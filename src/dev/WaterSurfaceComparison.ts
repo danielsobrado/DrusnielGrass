@@ -6,6 +6,7 @@ import {
 import { WebGLRenderer, WebGLRenderTarget } from "three";
 import { diffuseColor, normalView, roughness, vec3, vec4 } from "three/tsl";
 import { WaterMaterialController } from "../world/hydrology/WaterMaterialController";
+import { createWaterSurfaceLegacyMaterial } from "../world/hydrology/WaterSurfaceLegacyMaterial";
 import { WaterSurfaceNodeMaterial } from "../world/hydrology/WaterSurfaceNodeMaterial";
 import { WorldNodeMaterialContext } from "../render/WorldNodeMaterialContext";
 import type { WorldConfig } from "../world/WorldConfig";
@@ -141,7 +142,10 @@ export async function compareWaterSurface(renderer: WebGPURenderer, config: Worl
   const legacySun = new DirectionalLight(0xfff0d8, 2.1);
   legacySun.position.set(6, 9, 4);
   legacyScene.add(legacySun, new AmbientLight(0x9fb4c8, 0.5));
-  const legacyMaterial = controller.material;
+  // Built from the controller's own table, so both sides still read one piece
+  // of state; production no longer constructs this material at all.
+  const legacyMaterial = createWaterSurfaceLegacyMaterial(controller.shaderUniforms,
+    controller.shaderUniforms.uWaterRoughness.value as number);
   legacyMaterial.dithering = false;
   legacyMaterial.transparent = false;
   legacyMaterial.depthWrite = true;
@@ -249,7 +253,7 @@ export async function compareWaterSurface(renderer: WebGPURenderer, config: Worl
     renderer.setRenderTarget(previous);
     renderer.setPixelRatio(previousPixelRatio);
     renderer.setSize(previousSize.x, previousSize.y, false);
-    disposeResources([node, controller, geometry, target, legacyTarget, legacy,
-      capture, legacyCapture, captureGeometry, ...captureMaterials]);
+    disposeResources([node, legacyMaterial, controller, geometry, target, legacyTarget,
+      legacy, capture, legacyCapture, captureGeometry, ...captureMaterials]);
   }
 }

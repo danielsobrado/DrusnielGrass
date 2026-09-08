@@ -83,6 +83,29 @@ const ported = new Map([
     replacement: 'src/world/sky/WorldCloudFieldNodes.ts, WorldCloudVolumeNodes.ts',
     check: 'check-renderer-harness.mjs scenery (cloud field) and volume (raymarch)',
   }],
+  ['src/render/RendererDebugInfo.ts', {
+    replacement: 'the portable route itself; it names the WebGL context only to read the '
+      + 'fields a WebGL backend can answer and reports the rest as unavailable',
+    check: 'verify-renderer-session.mjs (both backends report honestly; nothing is '
+      + 'fabricated for the backend that has no such concept)',
+  }],
+  ['src/render/FrameTimingSource.ts', {
+    replacement: 'the portable route itself; it names the WebGL renderer only to construct '
+      + 'the shipped timer for a renderer that has no node backend',
+    check: 'verify-gpu-timing-parity.mjs (same statistics as the shipped timer, and '
+      + 'timing reported only where the renderer can deliver it)',
+  }],
+  ['src/app/WorldStatsPanel.ts', {
+    replacement: 'src/render/FrameTimingSource.ts via the diagnostics HUD; stats-gl 2.0.1 can '
+      + 'only patch a classic WebGLRenderer, so the panel declines any other renderer',
+    check: 'verify-session-lifecycle.mjs (declines rather than attaching a GPU row that reads zero)',
+  }],
+  ['src/world/stones/StoneShaderPerformanceVerification.ts', {
+    replacement: 'src/dev/StoneShaderNodeVerification.ts (the generated program, since TSL '
+      + 'emits none of the marker strings the GLSL check greps for)',
+    check: 'check-renderer-harness.mjs stone (coarse program runs no derivatives, samples no '
+      + 'grain, and stays a fraction of the detail program on both backends)',
+  }],
   ['src/world/sky/WorldCloudShadowMap.ts', {
     replacement: 'src/world/sky/WorldCloudShadowNodeMap.ts',
     check: 'check-renderer-harness.mjs scenery and volume (shadow map, focus and origin)',
@@ -140,6 +163,23 @@ const notCouplings = new Map([
     'a 2D canvas used to author an atlas on the CPU, not a renderer coupling'],
   ['src/world/grass/WorldGrassImpostorAtlasFactory.ts',
     'a 2D canvas used to author an atlas on the CPU, not a renderer coupling'],
+  ['src/app/WorldCloudShadowDebugPanel.ts',
+    'a 2D canvas that draws the shadow preview, unrelated to the 3D renderer'],
+]);
+
+/**
+ * The shipped GLSL, kept as the comparison reference.
+ *
+ * These modules exist to be measured against, not to ship: nothing in the
+ * production route imports them, and `verify-built-site.mjs` fails if their
+ * shader text reaches a bundle. They are listed apart from pending work because
+ * they are finished, not unmigrated.
+ */
+const comparisonReferences = new Map([
+  ['src/grass/materials/GrassNearLegacyMaterial.ts', 'check-renderer-harness.mjs grass'],
+  ['src/world/hydrology/WaterSurfaceLegacyMaterial.ts', 'check-renderer-harness.mjs water'],
+  ['src/world/hydrology/WaterBedLegacyMaterial.ts', 'check-renderer-harness.mjs water'],
+  ['src/world/hydrology/WaterCascadeLegacyMaterial.ts', 'check-renderer-harness.mjs water'],
 ]);
 
 const inventory = [];
@@ -158,12 +198,16 @@ async function scan(directory) {
           : /water|hydrology|stone|ActorEnvironment/i.test(path) ? 'G05' : 'G02/G05';
         const migration = ported.get(path);
         const exempt = notCouplings.get(path);
+        const reference = comparisonReferences.get(path);
         const status = path === 'src/render/RendererCapabilities.ts' ? 'isolated backend probe'
           : exempt ? 'not a renderer coupling'
-            : isComparison(path) ? 'comparison harness, development only'
-              : migration ? 'ported, comparison-gated' : 'pending';
+            : reference ? 'shipped GLSL kept as the comparison reference'
+              : isComparison(path) ? 'comparison harness, development only'
+                : migration ? 'ported, comparison-gated' : 'pending';
         inventory.push({ file: path, line: index + 1, symbols: matches, owner, status,
-          ...(exempt ? { reason: exempt } : {}), ...(migration ?? {}), source: line.trim() });
+          ...(exempt ? { reason: exempt } : {}),
+          ...(reference ? { check: reference } : {}),
+          ...(migration ?? {}), source: line.trim() });
       });
     }
   }

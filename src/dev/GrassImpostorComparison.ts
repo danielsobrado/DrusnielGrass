@@ -5,6 +5,8 @@ import {
 import { WebGLRenderer, WebGLRenderTarget } from "three";
 import { WorldGrassImpostorNodeMaterial } from "../world/grass/WorldGrassImpostorNodeMaterial";
 import { WorldNodeMaterialContext } from "../render/WorldNodeMaterialContext";
+import { createImpostorLegacyMaterial } from "../world/grass/WorldGrassImpostorMaterial";
+import type { IUniform } from "three";
 import { readRenderTargetRgba8 } from "../render/RenderTargetReadback";
 import { disposeResources } from "../render/ResourceDisposal";
 import {
@@ -40,7 +42,7 @@ export async function compareGrassImpostorMaterial(renderer: WebGPURenderer,
   variant: GrassImpostorVariant) {
   const width = 288, height = 192;
   const atlas = createImpostorAtlas();
-  const state = createImpostorState(atlas, variant);
+
   const mesh = createImpostorField(atlas);
   const legacyMesh = createImpostorField(atlas);
   const { sun, ambient, hemisphere } = createLights();
@@ -49,6 +51,11 @@ export async function compareGrassImpostorMaterial(renderer: WebGPURenderer,
   scene.add(sun, ambient, hemisphere);
   scene.updateMatrixWorld(true);
   const context = new WorldNodeMaterialContext(sun, [ambient, hemisphere]);
+  const state = createImpostorState(atlas, variant, context);
+  // The shipped GLSL card, over the same uniform table the node material reads.
+  const legacyMaterial = createImpostorLegacyMaterial(
+    state.shaderUniforms as unknown as Record<string, IUniform>,
+    state.nodeFeatures.noiseWind);
   const nodeMaterial = new WorldGrassImpostorNodeMaterial(`grass-impostor-node-${variant}`,
     state.shaderUniforms, state.nodeFeatures, context);
   mesh.material = nodeMaterial;
@@ -58,7 +65,7 @@ export async function compareGrassImpostorMaterial(renderer: WebGPURenderer,
   legacyScene.background = new Color(0);
   const legacyLights = createLights();
   legacyScene.add(legacyLights.sun, legacyLights.ambient, legacyLights.hemisphere);
-  legacyMesh.material = state.material;
+  legacyMesh.material = legacyMaterial;
   legacyScene.add(legacyMesh);
 
   const camera = new PerspectiveCamera(50, width / height, 0.1, 200);

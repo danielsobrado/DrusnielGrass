@@ -211,7 +211,156 @@ Compact analytic sky and shadow-map noise still use two octaves.
 The grass comparison additionally exercises the real material under ambient
 light with no directional context. Its always-on albedo/Lambert mix must run
 even when transmission and sheen cannot: all four variants now match exactly.
-Directional grass and custom stone lighting still need dedicated comparisons.
+
+## An assigned `normalNode` is not flipped for a double-sided material
+
+Ambient light does not depend on the shading normal, so the ambient grass run
+above could pass with the normal wrong. A directional run cannot. Adding a sun
+to the grass comparison put all four variants out by maximum 14 and mean 0.12
+over about 40% of the covered pixels, identically on both backends — the shape
+of a material difference, not a backend one.
+
+Zeroing the shared `uGrassBacklightStrength` barely moved the residual, which
+ruled out the transmission lobe and pointed at the diffuse term itself. The
+cause is that the shipped GLSL writes the blade's view normal into `vNormal`,
+so `normal_fragment_begin` applies `normal *= faceDirection` on this
+double-sided material, while `NodeMaterial.setupNormal` returns an assigned
+`normalNode` verbatim and applies no such flip. Every back-facing blade
+fragment was therefore lit from the opposite hemisphere.
+`GrassNearNodeMaterial` now multiplies the graph normal by `faceDirection`,
+and all sixteen grass runs — four variants x deformation/albedo/ambient/
+directional — are exact on both backends.
+
+The other three materials that assign a custom `normalNode` were checked
+against the same rule. Stone and terrain are single-sided, so three defines no
+`DOUBLE_SIDED` and there is no flip to mirror. The water surface is
+double-sided, but both routes force the normal upward themselves — the GLSL at
+`WATER_SURFACE_FRAGMENT` and the node graph at `WaterSurfaceNodes.ts` — so
+that rule replaces sidedness on both sides and they agree.
+
+## Stone custom lighting is now compared, not inferred
+
+The stone albedo and normal runs both cut the output before `setupLighting`,
+so the sky-side fill, the contact floor and the wet and dry sheen lobes were
+unmeasured. A `lit` mode leaves both sides unpatched. Same-API it is nearly
+exact: the coarse body matches, and the detail body differs on 9 subpixels of
+22769 by one to two steps, which are the same threshold-edge pixels its albedo
+run already carries into the lighting that consumes it. Across the API
+boundary it inherits a fraction of the spread the derivative-built normal
+already shows there (mean 0.47 against that run's 2.29). Both bounds are new
+and set from measurement; no existing tolerance was loosened.
 
 See `webgpu-migration-review-2026-09-07.md` for ownership/recovery findings,
 verification and the remaining production acceptance work.
+
+## The two frame timers did not report the same p95
+
+Both timing implementations are pure once samples land, so they can be compared
+directly rather than inferred from a HUD. `verify-gpu-timing-parity.mjs`
+transpiles both from source, drives the shipped WebGL timer through a fake
+disjoint-timer context and the adapter through a resolving renderer, and
+compares `getStats()` over nineteen sample counts.
+
+The medians agreed everywhere. The p95 did not: the shipped timer indexes at
+`ceil(n * 0.95) - 1` and the adapter used `ceil((n - 1) * 0.95)`, which is one
+sample higher for seven of the nineteen counts — including 120, the ring size
+the HUD settles at, where the two disagreed on every reported frame. The
+adapter now calls the shipped `percentile` rather than carrying a second rule.
+
+## Timing capability is not the same question as timing being on
+
+`trackTimestamp` is a *backend construction* parameter in three r185, not a
+settable renderer property. A node renderer built without it answers
+`resolveTimestampsAsync` with nothing, forever, while still reporting the
+`timestamp-query` feature that `readRendererCapabilities` probes. Reading the
+capability alone would leave the HUD showing "active" against zero samples for
+the whole session, which is the failure mode this panel exists to not have.
+`createFrameTimingSource` ANDs the two, so an untracked renderer reports
+"unsupported" — the truth. The parity check holds all four combinations, and
+fails if the conjunction is weakened to the capability alone.
+
+## The stats panel cannot follow, and says so
+
+stats-gl 2.0.1 reaches the GPU exactly one way: it tests `isWebGLRenderer`,
+patches that renderer's `render`, and pulls the disjoint-timer extension off
+the context behind it. The node renderer fails that test, and a WebGPU canvas
+has no WebGL 2 context to fall back to, so nothing would bracket the frame —
+the library would still add a GPU row, and it would read zero forever. Passing
+a node-WebGL backend's raw context would produce the same dead row. The panel
+now declines any renderer stats-gl cannot patch and names `?gpuTiming=1`, whose
+HUD measures GPU frame time on both backends through the adapter above.
+
+## Porting the stone shader performance check meant changing what it reads
+
+`verifyStoneShaderPerformance` greps generated GLSL for `stoneGrowthNoise`,
+`stoneBedDistance` and friends to prove the far stone material never grows the
+near procedural work. That cannot be ported as written: TSL names nothing in
+its output, so those strings do not appear in generated WGSL or GLSL at all and
+a direct port would pass by never matching anything — the worst kind of green.
+
+What survives code generation is the cost. The near path is the only one that
+takes screen-space derivatives and the only one that samples the grain texture,
+and both emit instructions with stable spellings on both backends. So the node
+check compiles both materials through `renderer.debug.getShaderAsync` and reads
+the real program: the detail program runs both, the coarse program runs
+neither, and the coarse program measures about 0.17 of the detail one's length
+on WebGL 2 and WebGPU alike.
+
+## Three defects that only a WebGPU backend can show
+
+The material comparisons ran on both backends throughout G02–G05 and were
+exact, and the world still could not draw a frame on WebGPU. All three causes
+are limits or defaults that the WebGL renderer either does not have or does not
+read, so no amount of isolated material testing could reach them — they need
+the real geometry, in the real scene, on a node backend.
+
+**A pipeline cannot bind eleven vertex buffers.** WebGPU's floor is eight;
+WebGL 2 allows sixteen. `TerrainChunk` set eleven attributes, so the pipeline
+failed to create and the draw call then received an infinite index count. The
+components do not fit in eight *attributes* either — 36 components at four
+components each needs nine — but the limit is on buffers, and interleaved
+attributes share one. Packing them into a single interleaved buffer keeps every
+attribute's name, size and order, so neither the node graph nor the GLSL
+reference changed and the comparison between them stayed a comparison of
+shading.
+
+**`InstancedBufferGeometry.instanceCount` defaults to `Infinity`.** The WebGL
+renderer never reads it — it derives the instance count from the instanced
+attributes — so nothing in the project ever set it. The node renderer passes it
+straight to `drawIndexed`, which rejects an infinite instance count and loses
+the frame. Both instanced geometry factories now set it from the attribute the
+other counts already come from.
+
+**The fix for the grass case was already written and never called.**
+`prepareGrassNodeGeometry` was built during G04, with a comment describing this
+exact eight-buffer problem, and only the development fixtures ever used it. The
+production factories built their geometry the old way. Packing the blade fields
+on the shared source geometry — once, not per tile, or every tile gets a private
+copy of identical data — and the instance fields per geometry brings a blade
+from twelve buffers to six.
+
+The lesson for the rest of the migration is narrow and worth keeping: a
+material comparison proves shading, not that the geometry it is fed can be
+bound. Those are different claims and they need different checks.
+
+## Where the shipped GLSL lives now, and why it still exists
+
+Every legacy shader route moved into a module that only `src/dev` and the
+verifiers import: `GrassNearLegacyMaterial`, `WaterSurfaceLegacyMaterial`,
+`WaterBedLegacyMaterial`, `WaterCascadeLegacyMaterial`, and the foliage and
+impostor factories on their owning classes.
+
+Deleting it outright would have been easier and worse. The numerical
+comparisons are the whole basis for believing the port, and a comparison
+against a quotation in a document is not a comparison — the reference has to be
+code that still runs. Keeping it also keeps the shader contract checks
+meaningful: a large body of verifiers asserts properties of the grass, water and
+stone shading by reading its text, and those assertions still hold against the
+reference while the harness proves the shipped node material matches it.
+
+What must not happen is the text shipping. `verify-built-site.mjs` fails if a
+legacy GLSL function, varying or chunk name appears in any bundle chunk.
+Uniform names are deliberately not used as markers: both implementations read
+one shared uniform table, so a uniform name proves nothing about which shading
+path shipped. Removing the text took the `WorldApp` chunk from 645.92 kB to
+559.51 kB, and 190.80 kB to 171.49 kB gzipped.

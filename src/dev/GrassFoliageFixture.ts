@@ -4,6 +4,7 @@ import {
   RGBAFormat, UnsignedByteType, Vector3, type CanvasTexture,
 } from "three/webgpu";
 import { WorldDetailFoliageMaterial } from "../world/grass/WorldDetailFoliageMaterial";
+import type { WorldNodeMaterialContext } from "../render/WorldNodeMaterialContext";
 import type { WorldDetailFoliageAtlas } from "../world/grass/WorldDetailFoliageAtlasFactory";
 import { GRASS_ACCENT_SPECIES, GRASS_MAX_ACCENT_TINTS } from "../grass/biome/GrassAccentSpecies";
 import { GRASS_MAX_BIOMES } from "../grass/biome/GrassBiomeProfile";
@@ -152,14 +153,16 @@ export function createFoliageField(): InstancedMesh {
 }
 
 export function createFoliageState(atlas: WorldDetailFoliageAtlas,
-  variant: GrassFoliageVariant): WorldDetailFoliageMaterial {
+  variant: GrassFoliageVariant,
+  context: WorldNodeMaterialContext): WorldDetailFoliageMaterial {
   const material = new WorldDetailFoliageMaterial(atlas,
     { baseColor: "#273f22", tipColor: "#83a96b", dryColor: "#a8a06a", rootDarkening: 0.55,
       normalUp: 0.45, ambientBoost: 0.12, backlightStrength: 0.16 },
     { directionX: 0.8, directionZ: 0.35, strength: 0.14, gustScale: 0.08, gustSpeed: 0.65,
       flutterStrength: 0.035, flutterSpeed: 3.4 },
     { fadeDistance: 7, fadeTransition: 2, fadeStagger: 3, lodBandJitterRatio: 0.5,
-      noiseWind: variant === "desktop" });
+      noiseWind: variant === "desktop" },
+    context);
   const uniforms = material.shaderUniforms;
   uniforms.uTime.value = 5.75;
   uniforms.uWindNoise.value = getGrassWindNoiseTexture();

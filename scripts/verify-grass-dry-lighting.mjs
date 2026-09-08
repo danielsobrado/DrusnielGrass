@@ -24,7 +24,11 @@ function assert(condition, message) {
 
 const tuning = JSON.parse(read("src/grass/materials/GrassPaletteTuning.json"));
 const presets = JSON.parse(read("src/grass/GrassArtPresets.json"));
-const nearMaterial = read("src/grass/materials/GrassNearMaterial.ts");
+// The blade's shading is split between the state owner and the GLSL
+// reference the comparison measures against, so the shader contract is
+// read from both halves rather than from whichever half a line lives in.
+const nearMaterial = read("src/grass/materials/GrassNearMaterial.ts")
+  + read("src/grass/materials/GrassNearLegacyMaterial.ts");
 
 assert(
   tuning.dryLuminanceScale < 1 && tuning.dryLuminanceScale >= 0.75,

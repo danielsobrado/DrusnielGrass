@@ -252,10 +252,15 @@ assert(
     environment.includes("new WorldCloudShadowController(") &&
     environment.includes("this.cloudLighting.update(safeDelta, focus, this.elapsedSeconds)") &&
     environment.includes("this.cloudShadow.update(safeDelta, focus, this.elapsedSeconds)") &&
-    cloudShadowController.includes("new WorldCloudShadowMap(renderer, profile)") &&
-    cloudShadowController.includes("new WorldCloudShadowSceneIntegrator(") &&
+    cloudShadowController.includes("new WorldCloudShadowNodeMap(renderer, profile, capabilities)") &&
     cloudShadowController.includes("this.map.update(focus, elapsedSeconds)") &&
-    cloudShadowController.includes("this.integrator.update(deltaSeconds)") &&
+    // The scene-walking integrator is gone by design: a node material receives
+    // the shadow field when it is constructed, so the contract that replaced it
+    // is that the controller publishes the field and the environment hands it
+    // to every world material through one context.
+    cloudShadowController.includes("get nodes()") &&
+    environment.includes("new WorldNodeMaterialContext(") &&
+    environment.includes("this.cloudShadow.nodes") &&
     cloudShadowController.includes("WorldCloudShadowDebugPanel.createIfRequested") &&
     cloudLighting.includes("getAppliedDirectTransmittance(): number") &&
     cloudLighting.includes("this.hemisphere.intensity = WORLD_DEFAULT_HEMISPHERE_INTENSITY") &&
@@ -277,7 +282,10 @@ assert(
 
 assert(
   environment.includes("private readonly shadowMapSize: number") &&
-    /this\.shadowMapSize = Math\.max\([\s\S]*?Math\.min\([\s\S]*?this\.profile\.shadowMapSize,[\s\S]*?this\.renderer\.capabilities\.maxTextureSize/.test(
+    // Still clamped to what the device can allocate; the limit is read from the
+    // session's capability probe rather than a WebGL capabilities object,
+    // because the node renderer reports its limits through the backend.
+    /this\.shadowMapSize = Math\.max\([\s\S]*?Math\.min\([\s\S]*?this\.profile\.shadowMapSize,[\s\S]*?this\.capabilities\.maxTextureSize/.test(
       environment,
     ) &&
     environment.includes("(2 * WORLD_SUN_SHADOW_HALF_EXTENT) / this.shadowMapSize") &&
@@ -286,7 +294,7 @@ assert(
 );
 assert(
   environment.includes("private disposed = false") &&
-    /sky = new WorldSky\([\s\S]*?this\.sky = sky;[\s\S]*?this\.scene\.add\(this\.hemisphere, this\.sun, this\.sun\.target\)/.test(
+    /sky = new WorldSkyNode\([\s\S]*?this\.sky = sky;[\s\S]*?this\.scene\.add\(this\.hemisphere, this\.sun, this\.sun\.target\)/.test(
       environment,
     ) &&
     /catch \(error\) \{[\s\S]*?disposeSafely\(sky, "Sky"\);[\s\S]*?disposeSafely\(this\.cloudShadow, "Cloud shadow system"\);[\s\S]*?disposeSafely\(this\.cloudLighting, "Cloud lighting"\);[\s\S]*?disposeSafely\(this\.sun\.shadow, "Sun shadow"\);[\s\S]*?this\.scene\.remove\(this\.hemisphere, this\.sun, this\.sun\.target\);[\s\S]*?throw error;/.test(
@@ -299,7 +307,8 @@ assert(
     environment,
   ) &&
     cloudShadowController.includes('disposeSafely(this.debug, "Cloud shadow diagnostics")') &&
-    cloudShadowController.includes('disposeSafely(this.integrator, "Cloud shadow integration")') &&
+    // No integrator to release: the node route injects the field at material
+    // construction, so the map is the controller's only render owner.
     cloudShadowController.includes('disposeSafely(this.map, "Cloud shadow map")'),
   "Environment teardown must release every cloud/debug/shadow owner and remain idempotent.",
 );

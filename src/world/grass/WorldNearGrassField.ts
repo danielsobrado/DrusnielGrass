@@ -24,6 +24,7 @@ import {
   type WorldDetailFoliageAtlas,
 } from "./WorldDetailFoliageAtlasFactory";
 import { WorldDetailFoliageMaterial } from "./WorldDetailFoliageMaterial";
+import type { WorldNodeMaterialContext } from "../../render/WorldNodeMaterialContext";
 import {
   createDetailFoliageTuning,
   detailFoliageTuningEquals,
@@ -111,8 +112,9 @@ export class WorldNearGrassField {
     private readonly field: TerrainField,
     private readonly worldConfig: WorldConfig,
     private readonly profile: RuntimeProfile,
+    private readonly materialContext: WorldNodeMaterialContext,
   ) {
-    const resources = createNearGrassResources(profile, worldConfig);
+    const resources = createNearGrassResources(profile, worldConfig, materialContext);
     this.baseMaterial = resources.baseMaterial;
     this.bridgeMaterial = resources.bridgeMaterial;
     this.baseDetailMaterial = resources.baseDetailMaterial;
@@ -421,6 +423,7 @@ export class WorldNearGrassField {
           lodBandJitterRatio: this.worldConfig.lodBandJitterRatio,
           noiseWind: !this.profile.compact,
         },
+        this.materialContext,
       );
       material.applyArtDirection(this.artDirection);
       if (!this.profile.compact) {
@@ -870,11 +873,13 @@ export class WorldNearGrassField {
 function createNearGrassResources(
   profile: RuntimeProfile,
   worldConfig: WorldConfig,
+  context: WorldNodeMaterialContext,
 ): NearGrassResources {
   const created: GrassNearMaterial[] = [];
   try {
     const windMode = profile.compact ? "sine" : "noise";
     const baseMaterial = new GrassNearMaterial({
+      context,
       name: "world-grass-single-blade-material",
       cacheKey: `grass-near-material-v28-shape-base-vertex-palette-${windMode}`,
       detailMode: 1,
@@ -888,6 +893,7 @@ function createNearGrassResources(
     });
     created.push(baseMaterial);
     const bridgeMaterial = new GrassNearMaterial({
+      context,
       name: "world-grass-near-bridge-material",
       cacheKey: `grass-near-material-v28-shape-bridge-vertex-palette-${windMode}`,
       detailMode: 1,
@@ -902,6 +908,7 @@ function createNearGrassResources(
     });
     created.push(bridgeMaterial);
     const baseDetailMaterial = new GrassNearMaterial({
+      context,
       name: "world-grass-base-detail-material",
       cacheKey: `grass-near-material-v28-shape-detail-${windMode}`,
       detailMode: 2,
@@ -913,6 +920,7 @@ function createNearGrassResources(
     });
     created.push(baseDetailMaterial);
     const ultraNearMaterial = new GrassNearMaterial({
+      context,
       name: "world-grass-ultra-near-single-blade-material",
       cacheKey: `grass-near-material-v28-shape-ultra-${windMode}`,
       detailMode: 0,
@@ -928,6 +936,7 @@ function createNearGrassResources(
     // blade over the same band. Only the dither seed differs, and it must match
     // the placement salt its field is built from.
     const densityBoostMaterial = new GrassNearMaterial({
+      context,
       name: "world-grass-near-density-boost-material",
       cacheKey: `grass-near-material-v28-shape-density-boost-${windMode}`,
       detailMode: 1,

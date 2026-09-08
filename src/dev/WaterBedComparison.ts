@@ -5,6 +5,7 @@ import {
 import { WebGLRenderer, WebGLRenderTarget } from "three";
 import { diffuseColor, vec4 } from "three/tsl";
 import { WaterBedMaterialController } from "../world/hydrology/WaterBedMaterialController";
+import { createWaterBedLegacyMaterial } from "../world/hydrology/WaterBedLegacyMaterial";
 import { WaterBedNodeMaterial } from "../world/hydrology/WaterBedNodeMaterial";
 import { WorldNodeMaterialContext } from "../render/WorldNodeMaterialContext";
 import type { WorldConfig } from "../world/WorldConfig";
@@ -97,7 +98,8 @@ export async function compareWaterBed(renderer: WebGPURenderer, config: WorldCon
   const legacySun = new DirectionalLight(0xfff0d8, 2.1);
   legacySun.position.set(6, 9, 4);
   legacyScene.add(legacySun, new AmbientLight(0x9fb4c8, 0.5));
-  const legacyMaterial = controller.material;
+  // Built from the controller's own table; production draws the node material.
+  const legacyMaterial = createWaterBedLegacyMaterial(controller.shaderUniforms);
   legacyMaterial.dithering = false;
   const compile = legacyMaterial.onBeforeCompile;
   legacyMaterial.onBeforeCompile = (shader, gl) => {
@@ -146,6 +148,6 @@ export async function compareWaterBed(renderer: WebGPURenderer, config: WorldCon
       nonzero, legacyNonzero, shared, coverageMismatch, flippedRows: flip };
   } finally {
     renderer.setRenderTarget(previous);
-    disposeResources([node, controller, geometry, target, legacyTarget, legacy]);
+    disposeResources([node, legacyMaterial, controller, geometry, target, legacyTarget, legacy]);
   }
 }

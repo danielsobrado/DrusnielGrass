@@ -26,8 +26,10 @@ const waterOptics = read("src/world/hydrology/WaterOpticsShader.ts");
 // surface must therefore read the composed source, not a single file.
 const waterSurfaceProgram = `${waterShader}\n${waterOptics}`;
 const waterMaterial = read("src/world/hydrology/WaterMaterialController.ts");
+const waterSurfaceNode = read("src/world/hydrology/WaterSurfaceNodeMaterial.ts");
 const bedShader = read("src/world/hydrology/WaterBedMaterialShader.ts");
 const bedMaterial = read("src/world/hydrology/WaterBedMaterialController.ts");
+const bedNodeMaterial = read("src/world/hydrology/WaterBedNodeMaterial.ts");
 const bedFunctions = read("src/world/hydrology/WaterBedShader.ts");
 const tuning = read("src/world/hydrology/WaterMaterialTuning.ts");
 const regimeShader = read("src/world/hydrology/WaterRegimeShader.ts");
@@ -59,8 +61,10 @@ assert(
   "Sun glints must come from the physical sun response, with noise only as breakup.",
 );
 assert(
-  waterMaterial.includes("depthWrite: false") &&
-    waterMaterial.includes("transparent: true") &&
+  // The sheet's blend state lives in the node material; the compact detail
+  // scaling stays with the controller that owns the uniform table.
+  waterSurfaceNode.includes("this.depthWrite = false") &&
+    waterSurfaceNode.includes("this.transparent = true") &&
     waterMaterial.includes("WATER_COMPACT_DETAIL_SCALE"),
   "Water surface must stay transparent without depth writes and scale compact detail.",
 );
@@ -87,17 +91,18 @@ assert(
   "The bed pass must own cobbles, algae, caustics, and depth-driven composition.",
 );
 assert(
-  bedMaterial.includes("transparent: false") &&
-    bedMaterial.includes("depthWrite: true") &&
-    bedMaterial.includes("depthTest: true") &&
-    bedMaterial.includes("alphaTest: 0.01") &&
+  // The bed's opaque masked blend state moved into the node material.
+  bedNodeMaterial.includes("this.transparent = false") &&
+    bedNodeMaterial.includes("this.depthWrite = true") &&
+    bedNodeMaterial.includes("this.depthTest = true") &&
+    bedNodeMaterial.includes("this.alphaTest = 0.01") &&
     bedShader.includes("diffuseColor.a = 1.0") &&
     bedShader.includes("discard"),
   "The bed must depth-test and depth-write as opaque masked geometry.",
 );
 assert(
-  streamer.includes("new WaterMaterialController(config, compact)") &&
-    streamer.includes("new WaterBedMaterialController(config, compact)"),
+  streamer.includes("new WaterMaterialController(config, compact, materialContext)") &&
+    streamer.includes("new WaterBedMaterialController(config, compact, materialContext)"),
   "Water quality must follow the streamer compact profile rather than user-agent checks.",
 );
 assert(
@@ -124,7 +129,7 @@ assert(
     waterShader.includes("uWaterShoreFoamWeight") &&
     waterShader.includes("waterPoolTint") &&
     waterMaterial.includes("uWaterRiverReferenceDepth") &&
-    waterMaterial.includes("forceSinglePass = true"),
+    waterSurfaceNode.includes("forceSinglePass = true"),
   "Local river energy, foam hierarchy, and restrained tint must stay on the existing surface pass.",
 );
 /**

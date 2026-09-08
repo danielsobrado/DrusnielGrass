@@ -3,10 +3,16 @@ import { installMobileGpuCompatibility } from "./runtime/MobileGpuCompatibility"
 import { UiVisibilityController } from "./runtime/UiVisibilityController";
 import { resolveRuntimeProfile } from "./runtime/ViewportProfile";
 import { APP_VERSION, BUILD_LABEL } from "./version";
+import { resolveRendererRequest, type RendererSession } from "./render/RendererSession";
+import { RendererRecovery } from "./render/RendererRecovery";
+import { createWorldRendererSession } from "./app/WorldRendererSession";
+import type { RuntimeRecoveryState } from "./app/RuntimeRecoveryState";
 
 interface RunnableApp {
   start(): void;
   dispose(): void;
+  captureRecoveryState?(): RuntimeRecoveryState;
+  restoreRecoveryState?(state: RuntimeRecoveryState): void;
 }
 
 interface Disposable {
@@ -20,7 +26,7 @@ const FLY_HELP =
   "Click to look · WASD move · Q/E altitude · Shift boost · F reset";
 
 async function bootstrap(): Promise<void> {
-  const canvas = document.querySelector<HTMLCanvasElement>("#canvas");
+  let canvas = document.querySelector<HTMLCanvasElement>("#canvas");
   if (!canvas) {
     throw new Error("Canvas element #canvas was not found.");
   }
@@ -28,14 +34,34 @@ async function bootstrap(): Promise<void> {
   const params = new URLSearchParams(window.location.search);
   const uiController = new UiVisibilityController();
   let app: RunnableApp | undefined;
+  let session: RendererSession | undefined;
   let diagnostics: Disposable | undefined;
   let actorProof: Disposable | undefined;
   let animationHud: Disposable | undefined;
   let visualMatrix: Disposable | undefined;
   let isolationHarness: Disposable | undefined;
   let disposed = false;
+  const lifetime = new AbortController();
+  let recovery: RendererRecovery<RuntimeRecoveryState | undefined> | undefined;
+
+  const releaseApp = (): void => {
+    disposeSafely("Animation HUD", () => animationHud?.dispose());
+    disposeSafely("Actor proof", () => actorProof?.dispose());
+    disposeSafely("Visual matrix", () => visualMatrix?.dispose());
+    disposeSafely("Diagnostics", () => diagnostics?.dispose());
+    animationHud = actorProof = visualMatrix = diagnostics = undefined;
+    const previousApp = app, previousSession = session;
+    app = undefined;
+    session = undefined;
+    disposeSafely("Application", () => previousApp?.dispose());
+    // Covers sessions initialized before an app has accepted ownership.
+    disposeSafely("Renderer session", () => previousSession?.dispose());
+  };
 
   const disposeRuntime = (): void => {
+    lifetime.abort();
+    recovery?.dispose();
+    releaseApp();
     disposeRuntimeSafely(
       app,
       uiController,
@@ -126,12 +152,24 @@ async function bootstrap(): Promise<void> {
         : `${WORLD_NAME} · Island Regression`;
 
     uiController.initialize();
+    // The bootstrap owns the renderer session because it owns recovery: a lost
+    // device is repaired by building a fresh session on a forced backend and
+    // reconstructing the scene over it, which the app itself cannot do while it
+    // is the thing being replaced.
+    const rendererRequest = resolveRendererRequest(window.location.search);
+    session = await createWorldRendererSession(canvas, rendererRequest,
+      window.location.search, lifetime.signal);
+    if (disposed) { session.dispose(); session = undefined; return; }
+    publishRendererDiagnostics(canvas, session);
+    // Reuse the entire application setup on recovery, including diagnostics
+    // and frame observers, so none retain the disposed world.
+    const initializeApp = async (session: RendererSession): Promise<void> => {
     if (sceneMode === "island") {
       const { IslandApp } = await import("./app/IslandApp");
       if (disposed) {
         return;
       }
-      const island = new IslandApp(canvas, profile);
+      const island = IslandApp.create(session, profile);
       app = island;
       await island.initialize();
       if (disposed) {
@@ -142,7 +180,7 @@ async function bootstrap(): Promise<void> {
       if (disposed) {
         return;
       }
-      const world = await WorldApp.create(canvas, profile);
+      const world = await WorldApp.create(session, profile, lifetime.signal);
       app = world;
       if (disposed) {
         disposeRuntime();
@@ -206,16 +244,63 @@ async function bootstrap(): Promise<void> {
         actorProof = ActorExtensibilityProof.attach(world);
       }
     }
+    };
+    await initializeApp(session);
 
     if (disposed) {
       disposeRuntime();
       return;
     }
+    if (!app) throw new Error("Application initialization did not produce a runtime.");
     app.start();
+
+    // A lost device is not a crash the page has to survive as-is: the session
+    // reports it, the scene is released, and a fresh session on a forced
+    // backend rebuilds a playable world. `RendererRecovery` bounds this to two
+    // attempts and reports both failures rather than looping.
+    recovery = new RendererRecovery<RuntimeRecoveryState | undefined>({
+      capture: () => app?.captureRecoveryState?.(),
+      release: releaseApp,
+      restart: async (backend, state) => {
+        if (disposed) return;
+        // A canvas retains its context type after disposal. A WebGPU canvas
+        // cannot become a WebGL canvas; each retry must get a fresh element.
+        const replacement = canvas!.cloneNode(false) as HTMLCanvasElement;
+        canvas!.replaceWith(replacement);
+        canvas = replacement;
+        const next = await createWorldRendererSession(canvas, backend,
+          window.location.search, lifetime.signal);
+        if (disposed) { next.dispose(); return; }
+        session = next;
+        publishRendererDiagnostics(canvas, next);
+        await initializeApp(next);
+        if (disposed) { releaseApp(); return; }
+        if (state) app?.restoreRecoveryState?.(state);
+        app!.start();
+        attachDeviceLoss();
+      },
+      onFailure: (error) => {
+        console.error("[Drusniel World] Renderer recovery failed.", error);
+        presentFatalError(error);
+      },
+    });
+    const attachDeviceLoss = (): void => {
+      const current = session;
+      if (!current) return;
+      current.subscribeDeviceLoss(() => {
+        if (disposed) return;
+        void recovery!.recover(rendererRequest, current.diagnostics.actual).catch((error) => {
+          if (!disposed) presentFatalError(error);
+        });
+      });
+    };
+    attachDeviceLoss();
   } catch (error) {
+    const abandoned = disposed;
     disposed = true;
     window.removeEventListener("pagehide", handlePageHide);
     disposeRuntime();
+    if (abandoned) return;
     throw error;
   }
 }
@@ -258,12 +343,35 @@ function resolveSceneLabel(
     : `${WORLD_NAME} · 2× Ultra-Near Grass · Drow Jump Rig`;
 }
 
-bootstrap().catch((error) => {
-  console.error(`[${WORLD_NAME}] Startup failed.`, error);
+/**
+ * Publishes which backend actually initialized, and why.
+ *
+ * Selection is allowed to fall back, so "what did we ask for" and "what are we
+ * running on" are different questions and a bug report that only answers the
+ * first is not actionable. Written onto the canvas so a person reading the
+ * page, and the browser matrix, read the same source.
+ */
+function publishRendererDiagnostics(canvas: HTMLCanvasElement,
+  session: RendererSession): void {
+  const { requested, actual, fallbackReason } = session.diagnostics;
+  canvas.dataset.rendererRequested = requested;
+  canvas.dataset.renderer = actual;
+  canvas.dataset.rendererGpuTiming = String(session.capabilities.gpuTiming);
+  if (fallbackReason) canvas.dataset.rendererFallback = fallbackReason;
+  else delete canvas.dataset.rendererFallback;
+}
+
+/** The one place a fatal renderer condition becomes visible to the player. */
+function presentFatalError(error: unknown): void {
   const output = document.createElement("pre");
   output.className = "startup-error";
   output.setAttribute("role", "alert");
   const message = error instanceof Error ? error.message : String(error);
   output.textContent = `Unable to start ${WORLD_NAME}. ${message}`;
   document.body.appendChild(output);
+}
+
+bootstrap().catch((error) => {
+  console.error(`[${WORLD_NAME}] Startup failed.`, error);
+  presentFatalError(error);
 });

@@ -32,10 +32,17 @@ const paletteShaderSource = readFileSync(
   resolve(REPOSITORY_ROOT, "src/grass/materials/GrassPaletteShader.ts"),
   "utf8",
 );
-const nearMaterialSource = readFileSync(
-  resolve(REPOSITORY_ROOT, "src/grass/materials/GrassNearMaterial.ts"),
-  "utf8",
-);
+// The blade's shading is split between the state owner and the GLSL reference
+// the comparison measures against, so read both halves.
+const nearMaterialSource =
+  readFileSync(
+    resolve(REPOSITORY_ROOT, "src/grass/materials/GrassNearMaterial.ts"),
+    "utf8",
+  ) +
+  readFileSync(
+    resolve(REPOSITORY_ROOT, "src/grass/materials/GrassNearLegacyMaterial.ts"),
+    "utf8",
+  );
 
 const MAX_AVERAGE_LUMINANCE_DELTA = 0.03;
 const MAX_AVERAGE_RGB_DELTA = 0.025;
