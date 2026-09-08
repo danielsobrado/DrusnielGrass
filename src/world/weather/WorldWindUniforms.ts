@@ -26,6 +26,8 @@ export class WorldWindUniforms {
   readonly directionDegrees = uniform(0);
   readonly intensity = uniform(1);
   readonly noiseScale = uniform(1);
+  /** Static preset lean; independent of the advancing gust phase. */
+  readonly restBendGain = uniform(0);
 
   /**
    * Publishes the field's state for this frame.
