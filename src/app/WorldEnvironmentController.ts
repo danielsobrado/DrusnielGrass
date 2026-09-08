@@ -1,41 +1,35 @@
 import * as THREE from "three";
 import type { GrassArtDirection } from "../grass/GrassArtDirection";
+import { grassGroundShadow } from "../grass/interaction/GrassGroundShadow";
 import type { RuntimeProfile } from "../runtime/RuntimeConfig";
 import { WORLD_CLOUD_TIME_WRAP_SECONDS } from "../world/sky/WorldCloudWeather";
 import { WorldSkyNode } from "../world/sky/WorldSkyNode";
 import type { RendererCapabilities } from "../render/RendererCapabilities";
+import type { WorldLightingState } from "../render/WorldLightingState";
 import type { WebGPURenderer } from "three/webgpu";
 import { WorldNodeMaterialContext } from "../render/WorldNodeMaterialContext";
 import { WorldCloudEnvironmentLighting } from "./WorldCloudEnvironmentLighting";
 import { WorldCloudShadowController } from "./WorldCloudShadowController";
 import {
-  WORLD_DEFAULT_COMPACT_FOG_DENSITY,
-  WORLD_DEFAULT_DESKTOP_FOG_DENSITY,
-  WORLD_DEFAULT_FOG,
-  WORLD_DEFAULT_HEMISPHERE_GROUND,
-  WORLD_DEFAULT_HEMISPHERE_INTENSITY,
-  WORLD_DEFAULT_HEMISPHERE_SKY,
-  WORLD_DEFAULT_SUN,
-  WORLD_DEFAULT_SUN_INTENSITY,
-  WORLD_SUN_DIRECTION,
   WORLD_SUN_SHADOW_DISTANCE,
   WORLD_SUN_SHADOW_HALF_EXTENT,
 } from "./WorldEnvironmentTuning";
 
-const SUN_DIRECTION = new THREE.Vector3(...WORLD_SUN_DIRECTION).normalize();
 const UP_AXIS = new THREE.Vector3(0, 1, 0);
-const SHADOW_AXIS_X = new THREE.Vector3().crossVectors(UP_AXIS, SUN_DIRECTION).normalize();
-const SHADOW_AXIS_Y = new THREE.Vector3().crossVectors(SUN_DIRECTION, SHADOW_AXIS_X).normalize();
+const FALLBACK_SHADOW_AXIS = new THREE.Vector3(1, 0, 0);
 const MAX_ENVIRONMENT_DELTA_SECONDS = 0.25;
 
 export class WorldEnvironmentController {
   private readonly sun: THREE.DirectionalLight;
   private readonly hemisphere: THREE.HemisphereLight;
+  private readonly ambient: THREE.AmbientLight;
   private readonly sky: WorldSkyNode;
   private readonly cloudLighting: WorldCloudEnvironmentLighting;
   private readonly cloudShadow: WorldCloudShadowController;
   private readonly shadowMapSize: number;
   private readonly shadowTexelSize: number;
+  private readonly shadowAxisX = new THREE.Vector3();
+  private readonly shadowAxisY = new THREE.Vector3();
   private shadowFocusX = Number.NaN;
   private shadowFocusY = Number.NaN;
   private shadowFocusZ = Number.NaN;
@@ -49,15 +43,20 @@ export class WorldEnvironmentController {
     private readonly profile: RuntimeProfile,
     shadowsEnabled: boolean,
     private readonly capabilities: RendererCapabilities,
+    private readonly lighting: WorldLightingState,
   ) {
     this.hemisphere = new THREE.HemisphereLight(
-      WORLD_DEFAULT_HEMISPHERE_SKY,
-      WORLD_DEFAULT_HEMISPHERE_GROUND,
-      WORLD_DEFAULT_HEMISPHERE_INTENSITY,
+      lighting.hemisphereSkyColor,
+      lighting.hemisphereGroundColor,
+      lighting.hemisphereIntensity,
+    );
+    this.ambient = new THREE.AmbientLight(
+      lighting.ambientColor,
+      lighting.ambientIntensity,
     );
     this.sun = new THREE.DirectionalLight(
-      WORLD_DEFAULT_SUN,
-      WORLD_DEFAULT_SUN_INTENSITY,
+      lighting.sunColor,
+      lighting.sunIntensity,
     );
     this.cloudLighting = new WorldCloudEnvironmentLighting(
       this.scene,
@@ -65,6 +64,8 @@ export class WorldEnvironmentController {
       this.profile,
       this.sun,
       this.hemisphere,
+      this.ambient,
+      this.lighting,
     );
     this.cloudShadow = new WorldCloudShadowController(
       this.scene,
@@ -74,51 +75,72 @@ export class WorldEnvironmentController {
       this.cloudLighting,
       shadowsEnabled,
       this.capabilities,
+      this.lighting,
     );
     this.shadowMapSize = Math.max(
       1,
       Math.min(
         this.profile.shadowMapSize,
-        // From the session's capability probe: the node renderer reports its
-        // limits through the backend, not through a WebGL capabilities object.
         this.capabilities.maxTextureSize,
       ),
     );
     this.shadowTexelSize =
       (2 * WORLD_SUN_SHADOW_HALF_EXTENT) / this.shadowMapSize;
-    this.sun.position
-      .copy(SUN_DIRECTION)
-      .multiplyScalar(WORLD_SUN_SHADOW_DISTANCE);
     this.sun.castShadow = shadowsEnabled;
     this.configureShadow();
+    this.rebuildShadowBasis();
 
     let sky: WorldSkyNode | undefined;
     try {
-      sky = new WorldSkyNode(this.scene, this.renderer, this.profile, this.capabilities);
+      this.scene.fog = new THREE.FogExp2(
+        this.lighting.fogColor,
+        this.lighting.fogDensity,
+      );
+      sky = new WorldSkyNode(
+        this.scene,
+        this.renderer,
+        this.profile,
+        this.capabilities,
+        this.lighting,
+      );
       this.sky = sky;
-      this.scene.add(this.hemisphere, this.sun, this.sun.target);
-      this.applyArtDirection();
+      this.scene.add(this.hemisphere, this.ambient, this.sun, this.sun.target);
+      this.cloudLighting.applyLightingState();
+      grassGroundShadow.setSunDirection(this.lighting.sunDirection);
     } catch (error) {
       disposeSafely(sky, "Sky");
       disposeSafely(this.cloudShadow, "Cloud shadow system");
       disposeSafely(this.cloudLighting, "Cloud lighting");
       disposeSafely(this.sun.shadow, "Sun shadow");
-      this.scene.remove(this.hemisphere, this.sun, this.sun.target);
+      this.scene.remove(this.hemisphere, this.ambient, this.sun, this.sun.target);
       throw error;
     }
   }
 
+  /**
+   * Weather owns lighting; art direction is allowed to re-apply it but never
+   * reset fog or sun to hard-coded baseline values.
+   */
   applyArtDirection(_direction?: GrassArtDirection): void {
-    if (this.disposed) {
-      return;
+    if (!this.disposed) this.cloudLighting.apply();
+  }
+
+  /** Apply one already-resolved preset atomically to every environment consumer. */
+  applyWeatherPreset(): void {
+    if (this.disposed) return;
+    if (!(this.scene.fog instanceof THREE.FogExp2)) {
+      this.scene.fog = new THREE.FogExp2(
+        this.lighting.fogColor,
+        this.lighting.fogDensity,
+      );
     }
-    this.scene.fog = new THREE.FogExp2(
-      WORLD_DEFAULT_FOG,
-      this.profile.compact
-        ? WORLD_DEFAULT_COMPACT_FOG_DENSITY
-        : WORLD_DEFAULT_DESKTOP_FOG_DENSITY,
-    );
-    this.cloudLighting.apply();
+    this.rebuildShadowBasis();
+    this.invalidateShadowFocus();
+    this.cloudLighting.applyLightingState();
+    this.cloudShadow.applyLightingState(this.lighting);
+    this.sky.applyLightingState();
+    grassGroundShadow.setSunDirection(this.lighting.sunDirection);
+    this.sun.shadow.needsUpdate = true;
   }
 
   update(deltaSeconds: number, focus: THREE.Vector3): void {
@@ -159,47 +181,37 @@ export class WorldEnvironmentController {
     this.shadowFocusY = focus.y;
     this.shadowFocusZ = focus.z;
 
+    const sunDirection = this.lighting.sunDirection;
     const snappedX =
-      Math.round(focus.dot(SHADOW_AXIS_X) / this.shadowTexelSize) *
+      Math.round(focus.dot(this.shadowAxisX) / this.shadowTexelSize) *
       this.shadowTexelSize;
     const snappedY =
-      Math.round(focus.dot(SHADOW_AXIS_Y) / this.shadowTexelSize) *
+      Math.round(focus.dot(this.shadowAxisY) / this.shadowTexelSize) *
       this.shadowTexelSize;
-    const alongLight = focus.dot(SUN_DIRECTION);
+    const alongLight = focus.dot(sunDirection);
 
     this.sun.target.position
-      .copy(SHADOW_AXIS_X)
+      .copy(this.shadowAxisX)
       .multiplyScalar(snappedX)
-      .addScaledVector(SHADOW_AXIS_Y, snappedY)
-      .addScaledVector(SUN_DIRECTION, alongLight);
+      .addScaledVector(this.shadowAxisY, snappedY)
+      .addScaledVector(sunDirection, alongLight);
     this.sun.position
       .copy(this.sun.target.position)
-      .addScaledVector(SUN_DIRECTION, WORLD_SUN_SHADOW_DISTANCE);
+      .addScaledVector(sunDirection, WORLD_SUN_SHADOW_DISTANCE);
     this.sun.target.updateMatrixWorld();
     this.sun.updateMatrixWorld();
   }
 
-  /**
-   * The lighting and cloud-shadow field every world material is built against.
-   *
-   * This replaces the scene-walking integrator the GLSL route used: a node
-   * material takes the field when it is constructed, so one built later cannot
-   * miss the injection and none can be patched twice. Created once, because the
-   * lights and shadow map it closes over live for the session.
-   */
   get materialContext(): WorldNodeMaterialContext {
     this.context ??= new WorldNodeMaterialContext(
-      this.sun, [this.hemisphere], this.cloudShadow.nodes,
+      this.sun,
+      [this.hemisphere, this.ambient],
+      this.cloudShadow.nodes,
+      this.lighting,
     );
     return this.context;
   }
 
-  /**
-   * Advances the sky's temporal history, exactly once per displayed frame.
-   *
-   * Offscreen water and atlas cameras must not advance it, so the frame owner
-   * calls this rather than a render callback.
-   */
   prepareFrame(camera: THREE.PerspectiveCamera): void {
     if (!this.disposed) this.sky.prepareFrame(camera);
   }
@@ -213,7 +225,25 @@ export class WorldEnvironmentController {
     disposeSafely(this.cloudShadow, "Cloud shadow system");
     disposeSafely(this.cloudLighting, "Cloud lighting");
     disposeSafely(this.sun.shadow, "Sun shadow");
-    this.scene.remove(this.hemisphere, this.sun, this.sun.target);
+    this.scene.remove(this.hemisphere, this.ambient, this.sun, this.sun.target);
+  }
+
+  private rebuildShadowBasis(): void {
+    this.shadowAxisX.crossVectors(UP_AXIS, this.lighting.sunDirection);
+    if (this.shadowAxisX.lengthSq() < 1e-8) {
+      this.shadowAxisX.copy(FALLBACK_SHADOW_AXIS);
+    } else {
+      this.shadowAxisX.normalize();
+    }
+    this.shadowAxisY
+      .crossVectors(this.lighting.sunDirection, this.shadowAxisX)
+      .normalize();
+  }
+
+  private invalidateShadowFocus(): void {
+    this.shadowFocusX = Number.NaN;
+    this.shadowFocusY = Number.NaN;
+    this.shadowFocusZ = Number.NaN;
   }
 
   private configureShadow(): void {
