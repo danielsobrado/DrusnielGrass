@@ -23,30 +23,17 @@ import { WORLD_WIND_RESPONSE } from "../../world/weather/WorldWindMath";
 import type { WorldWindUniforms } from "../../world/weather/WorldWindUniforms";
 
 const TAU = 6.28318530718;
+const DEG_TO_RAD = Math.PI / 180;
 const WORLD_UP = vec3(0, 1, 0);
-/**
- * The GLSL substitutes these two through `toFixed`, so the shader has always
- * used the rounded literal. The node port must round identically or the blade
- * shape and the vertex palette drift by a quantization step from the material
- * they are being compared against.
- */
 const SHAPE_BEND = Number(GRASS_SHAPE_BEND_FRACTION.toFixed(3));
 const PALETTE_ROOT_PROGRESS = Number(GRASS_VERTEX_PALETTE_ROOT_PROGRESS.toFixed(5));
 
-/**
- * Compile-time material features, mirroring `GrassNearMaterialOptions`.
- *
- * These select node branches exactly where the GLSL selected chunks: the layer
- * that never reaches the character compiles no trail sampling at all, rather
- * than branching over it per blade.
- */
 export interface GrassNearNodeFeatures {
   worldLod: boolean;
   vertexPalette: boolean;
   interactive: boolean;
   subPixelWidth: boolean;
   sheen: boolean;
-  /** Drives the blade from the world's shared wind field instead of its own. */
   cinematicWind: boolean;
   noiseWind: boolean;
   microWind: boolean;
@@ -54,20 +41,16 @@ export interface GrassNearNodeFeatures {
   shapeVariation: boolean;
 }
 
-/** Rodrigues rotation, the shared helper the vertex declarations carried. */
 const rotateAroundAxis = Fn(([value, axis, sine, cosine]:
   [Node<"vec3">, Node<"vec3">, Node<"float">, Node<"float">]) =>
   value.mul(cosine).add(cross(axis, value).mul(sine)).add(axis.mul(axis.dot(value)).mul(cosine.oneMinus()))
 );
 
-/** The bounded palette row, clamped exactly as `grassResolveBiomeRow` clamps it. */
 const biomeRow = (biome: Node<"float">) => int(biome.clamp(0, GRASS_MAX_BIOMES - 1).add(0.5));
 
 export function createGrassNearNodes(u: GrassNodeUniforms, features: GrassNearNodeFeatures,
   wind?: WorldWindUniforms) {
   const time = u.number("uGrassTime");
-  // The shared field replaces this material's own gust model when it is
-  // available. `uGrassWindDirection` remains the legacy baseline's direction.
   const cinematic = features.cinematicWind && wind ? wind : undefined;
   const windDirection = u.vector2("uGrassWindDirection");
   const progress = attribute<"float">("grassProgress", "float");
@@ -77,10 +60,8 @@ export function createGrassNearNodes(u: GrassNodeUniforms, features: GrassNearNo
   const instanceCoverage = attribute<"float">("instanceCoverage", "float");
   const instanceBiome = attribute<"float">("instanceBiome", "float");
 
-  // Packed to keep the interpolator count at the GLSL's level; the values and
-  // their order of evaluation are unchanged.
-  const vShading = varyingProperty("vec4", "vGrassShading");     // progress, shade, dryness, rootAo
-  const vField = varyingProperty("vec4", "vGrassField");         // biome, gust, ground shade, coverage
+  const vShading = varyingProperty("vec4", "vGrassShading");
+  const vField = varyingProperty("vec4", "vGrassField");
   const vSheen = varyingProperty("vec2", "vGrassSheen");
   const vViewNormal = varyingProperty("vec3", "vGrassViewNormal");
   const vColor = varyingProperty("vec3", "vGrassColor");
@@ -90,7 +71,6 @@ export function createGrassNearNodes(u: GrassNodeUniforms, features: GrassNearNo
   const dry = u.colorRows("uGrassBiomeDry");
   const shade = u.vector2Rows("uGrassBiomeShade");
 
-  /** Two crossing waves; compact profiles compile this instead of a fetch. */
   const compactGust = (world: Node<"vec2">) => float(0.5).add(float(0.5).mul(
     sin(world.dot(windDirection).mul(u.number("uGrassGustFrontScale"))
       .sub(time.mul(u.number("uGrassGustFrontSpeed")))).mul(GRASS_GUST_PRIMARY_WEIGHT)
@@ -108,16 +88,9 @@ export function createGrassNearNodes(u: GrassNodeUniforms, features: GrassNearNo
     const cameraDistance = cameraPosition.distance(worldRoot).toVar();
     const microFadeRange = u.vector2("uGrassMicroFadeRange");
     const microFade = smoothstep(microFadeRange.x, microFadeRange.y, cameraDistance).oneMinus().toVar();
-    // Force the shared model-view matrix to initialize here. It is a lazily
-    // declared variable, and the only places that read it are the wind and
-    // trail branches, so leaving it to them declares it inside their scope:
-    // every blade that skips those branches then projects through an
-    // uninitialized matrix and the whole field collapses onto the camera.
     const modelView = modelViewMatrix.toVar();
     modelView.append();
 
-    // --- beginnormal_vertex ---
-    // The width axis comes from the source normal, before the flattening below.
     const sourceNormal = normalGeometry.toVar();
     const widthAxisRaw = cross(WORLD_UP, sourceNormal).toVar();
     const widthAxisLength = widthAxisRaw.length().toVar();
@@ -130,7 +103,6 @@ export function createGrassNearNodes(u: GrassNodeUniforms, features: GrassNearNo
     const objectNormal = mix(sourceNormal, WORLD_UP, normalUpHere).normalize().toVar();
     bladePlaneNormal.assign(mix(bladePlaneNormal, WORLD_UP, normalUpHere).normalize());
 
-    // --- begin_vertex ---
     const transformed = positionGeometry.toVar();
     if (features.shapeVariation) {
       const shapeAttribute = attribute<"vec4">("instanceShape", "vec4");
@@ -142,7 +114,6 @@ export function createGrassNearNodes(u: GrassNodeUniforms, features: GrassNearNo
       const head = max(progress.oneMinus(), 0).toVar();
       const arm = widthAxis.mul(side).toVar();
       const center = transformed.sub(arm.mul(bladeWidth.mul(pow(head, 0.72)))).toVar();
-      // The new profile replaces the exponent baked into the source blade.
       const width = bladeWidth.mul(pow(head, taper)).toVar();
       width.assign(max(width, bladeWidth.mul(0.55).mul(damage).mul(smoothstep(0.5, 0.85, progress))));
       center.y.mulAssign(float(1).sub(float(0.1).mul(damage).mul(smoothstep(0.9, 1, progress))));
@@ -153,12 +124,9 @@ export function createGrassNearNodes(u: GrassNodeUniforms, features: GrassNearNo
       transformed.assign(center.add(arm.mul(width)));
     }
 
-    // --- wind chunk ---
     const ditherInstance = features.instanceFreeDither ? float(0) : variation.x;
     const dither = fract(bladeShade.mul(0.754877666).add(phase.mul(0.569840296))
       .add(ditherInstance).add(u.number("uGrassDitherSeed"))).toVar();
-    // The baked field where one exists: one texture fetch instead of the
-    // twenty-eight a full evaluation costs per vertex.
     const field = !cinematic ? undefined
       : cinematic.bakedField && cinematic.bakedOriginXZ
         ? createBakedWorldWindNodes({
@@ -176,9 +144,6 @@ export function createGrassNearNodes(u: GrassNodeUniforms, features: GrassNearNo
           intensity: cinematic.intensity,
           noiseScale: cinematic.noiseScale,
         });
-    // The shared field replaces the material's own gust-front texture rather
-    // than joining it. Sampling both would pay for two gust sources per vertex
-    // and let the colour disagree with the motion about where the gust is.
     const gustNoise = (field ? field.gust
       : features.noiseWind
         ? u.texture("uGrassWindNoise").sample(worldRoot.xz.mul(u.number("uGrassWindNoiseScale"))
@@ -186,16 +151,12 @@ export function createGrassNearNodes(u: GrassNodeUniforms, features: GrassNearNo
         : compactGust(worldRoot.xz)).toVar();
     const fieldDither = fract(bladeShade.mul(0.438289).add(phase.mul(0.819173))
       .add(variation.x.mul(0.347193)).add(u.number("uGrassDitherSeed").mul(1.618034))).toVar();
-    // Motion phase stays independent of both dithers: the mid layer's CPU draw
-    // truncation reproduces grassDither exactly.
     const motionPhase = fract(phase.add(variation.x)).toVar();
     const scaleSquared = vec3(column0.dot(column0), column1.dot(column1), column2.dot(column2));
     const viewNormal = transformNormalToView(transformNormal(objectNormal, instance)).toVar();
     const widthAxisView = transformNormalToView(basis.mul(widthAxis)).toVar();
     const bladePlaneNormalView = transformNormalToView(
       basis.mul(bladePlaneNormal.div(max(scaleSquared, vec3(1e-8))))).toVar();
-    // Trough curvature is micro detail: removed with distance without erasing
-    // the direction the blade plane faces.
     viewNormal.assign(viewNormal.add(widthAxisView
       .mul(side.mul(u.number("uGrassBladeCurvature")).mul(microFade))).normalize());
 
@@ -237,8 +198,6 @@ export function createGrassNearNodes(u: GrassNodeUniforms, features: GrassNearNo
     });
     const keepBlade = keepLod.and(keepDetail).and(fieldDither.lessThanEqual(
       min(instanceCoverage.mul(u.number("uGrassArtDensityScale")), 1))).toVar();
-    // A rejected blade collapses to a zero-area triangle and is dropped at
-    // primitive assembly; the fragment stage keeps its early-Z friendliness.
     If(keepBlade.not(), () => { transformed.assign(vec3(0)); });
 
     vSheen.assign(features.sheen
@@ -252,9 +211,6 @@ export function createGrassNearNodes(u: GrassNodeUniforms, features: GrassNearNo
       If(keepBlade, () => {
         const widthScale = max(column0.length(), 0.0001).toVar();
         const sourceHalfWidth = u.number("uGrassBladeHalfWidth").mul(widthScale).toVar();
-        // inversesqrt(falloff) is the width a survivor needs to cover the ground
-        // its dropped neighbours used to; the colour payback below keeps the
-        // field's average brightness where the LOD parity gate expects it.
         const targetHalfWidth = min(cameraDistance.mul(u.number("uGrassPixelWorldScale"))
           .mul(u.number("uGrassMinPixelWidth")).mul(0.5).mul(inverseSqrt(max(densityFalloff, 0.04))),
         u.number("uGrassMaxWidenDistance"));
@@ -273,13 +229,6 @@ export function createGrassNearNodes(u: GrassNodeUniforms, features: GrassNearNo
       const tuftPhase = fract(floor(worldRoot.xz.mul(GRASS_TUFT_WIND_CELL_SCALE))
         .dot(vec2(0.1731, 0.4197))).toVar();
       const gustEnvelope = mix(u.number("uGrassGustFrontDepth").oneMinus(), 1, gustNoise).mul(weather).toVar();
-      // Evaluated at the stationary root, never a deformed vertex: a blade that
-      // sampled the wind where its bent tip currently is would drive itself.
-      // The baked field where one exists: one texture fetch instead of the
-      // twenty-eight a full evaluation costs per vertex.
-      // One broad gust for every layer. The per-blade offsets that follow are a
-      // response to it, not a second field: near, bridge and mid must lean
-      // together or the LOD boundary shows as a seam in the gust front.
       const gust = (field
         ? field.gust.mul(2).sub(1).mul(WORLD_WIND_RESPONSE.blade.bendScale * 4)
           .add(sin(tuftPhase.mul(TAU).add(variation.x.mul(0.42))).mul(0.12))
@@ -295,16 +244,12 @@ export function createGrassNearNodes(u: GrassNodeUniforms, features: GrassNearNo
         : float(0)).toVar();
       const stiffness = mix(0.76, 1.12, fract(tuftPhase.mul(1.61803398875).add(variation.x.mul(0.31))))
         .mul(mix(float(1), float(0.72), variation.w)).toVar();
-      // The field's own envelope drives the bend when it is present, so a gust
-      // front arriving is what makes the grass lean rather than a clock.
       const bendAngle = gust.mul(field ? field.strength : u.number("uGrassWindStrength"))
         .add(flutter.mul(u.number("uGrassFlutterStrength")).mul(microFade))
         .mul(variation.y).mul(stiffness).mul(pow(progress, 1.65))
         .mul(u.number("uGrassWindLodScale")).mul(gustEnvelope).toVar();
       const localDirection = field ? field.direction : windDirection;
       const worldWind = vec3(localDirection.x, 0, localDirection.y);
-      // Rotate about the root instead of translating: translation makes a bent
-      // blade longer than a straight one.
       const windLocal = vec2(worldWind.dot(column0.div(horizontalScale)),
         worldWind.dot(column2.div(depthScale))).toVar();
       const windSin = sin(bendAngle).toVar();
@@ -322,16 +267,43 @@ export function createGrassNearNodes(u: GrassNodeUniforms, features: GrassNearNo
           rotateAroundAxis(bladePlaneNormalView, windAxisView, windSin, windCos).normalize());
       });
 
+      if (cinematic) {
+        If(cinematic.restBendGain.greaterThan(0.0001), () => {
+          const restRadians = cinematic.directionDegrees.mul(DEG_TO_RAD);
+          const restWorld = vec3(cos(restRadians), 0, sin(restRadians));
+          const restLocal = vec2(restWorld.dot(column0.div(horizontalScale)),
+            restWorld.dot(column2.div(depthScale))).toVar();
+          const restAngle = cinematic.restBendGain.mul(pow(progress, 1.2)).toVar();
+          const restSin = sin(restAngle).toVar();
+          const restCos = cos(restAngle).toVar();
+          const restHeight = transformed.y.toVar();
+          transformed.x.addAssign(restLocal.x.mul(restHeight).mul(restSin)
+            .mul(verticalScale.div(horizontalScale)));
+          transformed.z.addAssign(restLocal.y.mul(restHeight).mul(restSin)
+            .mul(verticalScale.div(depthScale)));
+          transformed.y.mulAssign(restCos);
+          const restAxis = vec3(restLocal.y, 0, restLocal.x.negate()).toVar();
+          const restAxisLength = restAxis.length().toVar();
+          If(restAxisLength.greaterThan(0.0001), () => {
+            const restAxisView = modelView
+              .mul(vec4(basis.mul(restAxis.div(restAxisLength)), 0)).xyz.normalize();
+            viewNormal.assign(
+              rotateAroundAxis(viewNormal, restAxisView, restSin, restCos).normalize(),
+            );
+            bladePlaneNormalView.assign(
+              rotateAroundAxis(bladePlaneNormalView, restAxisView, restSin, restCos).normalize(),
+            );
+          });
+        });
+      }
+
       if (features.interactive) {
-        // Contact occlusion under the character: grass takes no part in the
-        // shadow map, so without this the field stays fully lit up to the feet.
         If(u.number("uGrassGroundShadowStrength").greaterThan(0), () => {
           const disc = u.vector4("uGrassGroundShadowDisc");
           const groundOffset = worldRoot.xz.sub(disc.xz).toVar();
           const groundRadius = max(disc.w, 0.0001).toVar();
           const groundFalloff = groundOffset.length().div(groundRadius).clamp(0, 1).oneMinus().toVar();
           If(groundFalloff.greaterThan(0), () => {
-            // Grass on a bank above the character must not darken as if it were underfoot.
             const groundLift = abs(worldRoot.y.sub(disc.y)).mul(0.6).clamp(0, 1).oneMinus();
             groundShade.assign(float(1).sub(groundFalloff.mul(groundFalloff).mul(groundLift)
               .mul(u.number("uGrassGroundShadowStrength")).mul(progress.mul(0.72).oneMinus())));
@@ -357,8 +329,6 @@ export function createGrassNearNodes(u: GrassNodeUniforms, features: GrassNearNo
                 .mul(variation.w.mul(0.48).oneMinus());
               const trailAngle = u.number("uGrassTrailMaxAngle").mul(u.number("uGrassTrailStrength"))
                 .mul(response).mul(wobble).mul(habitatBend).clamp(0, 1.48).toVar();
-              // The angle grows towards the tip, so the blade curves instead of
-              // tilting rigidly out of the ground.
               const theta = trailAngle.mul(pow(progress, 0.85)).toVar();
               const trailSin = sin(theta).toVar();
               const trailCos = cos(theta).toVar();
@@ -387,8 +357,6 @@ export function createGrassNearNodes(u: GrassNodeUniforms, features: GrassNearNo
     });
 
     If(keepBlade, () => {
-      // The far end of the micro fade keeps the wind-oriented blade plane
-      // rather than collapsing every blade toward world up.
       viewNormal.assign(mix(viewNormal, bladePlaneNormalView, microFade.oneMinus()).normalize());
     });
     vViewNormal.assign(viewNormal);
@@ -397,9 +365,6 @@ export function createGrassNearNodes(u: GrassNodeUniforms, features: GrassNearNo
     vShading.assign(vec4(progress, bladeShadeFaded, variation.w, variation.z));
     vField.assign(vec4(instanceBiome, gustNoise, groundShade, coverage));
     if (features.vertexPalette) {
-      // The palette is resolved at a progress lifted off the root: a
-      // one-triangle blade only offers 0 and 1, so the chord under a concave
-      // curve has to carry the correct area-weighted mean.
       const row = biomeRow(instanceBiome);
       const rowBase = base.element(row).rgb;
       const rowTip = tip.element(row).rgb;
@@ -416,7 +381,6 @@ export function createGrassNearNodes(u: GrassNodeUniforms, features: GrassNearNo
     return instance.mul(vec4(transformed, 1)).xyz;
   })();
 
-  /** Blade albedo, including the character's contact shading. */
   const color = Fn(() => {
     const resolved = (features.vertexPalette
       ? vColor
@@ -435,7 +399,6 @@ export function createGrassNearNodes(u: GrassNodeUniforms, features: GrassNearNo
 
   return {
     position,
-    /** The vertex stage owns the wind- and trail-rotated normal. */
     normal: vViewNormal.normalize(),
     color,
     progress: vShading.x,
@@ -446,16 +409,6 @@ export function createGrassNearNodes(u: GrassNodeUniforms, features: GrassNearNo
 
 export type GrassNearNodeGraph = ReturnType<typeof createGrassNearNodes>;
 
-/**
- * The position setup a grass node material must use.
- *
- * The blade applies the instance transform inside its own position node, so
- * three's built-in instancing must not emit a second instance matrix: the two
- * together exceed both WebGPU's vertex buffer floor and WebGL 2's attribute
- * locations. Morph targets, skinning, batching and displacement maps are not
- * part of any grass representation and are rejected rather than silently
- * dropped here.
- */
 export function setupGrassPosition(builder: NodeBuilder, node: Node<"vec3">): Node<"vec3"> {
   const { geometry } = builder;
   const object = builder.object as { isSkinnedMesh?: boolean; isBatchedMesh?: boolean };
