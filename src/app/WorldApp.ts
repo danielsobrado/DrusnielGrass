@@ -6,6 +6,11 @@ import {
 } from "../grass/GrassArtDirection";
 import { grassTrailField } from "../grass/interaction/GrassTrailField";
 import { WorldDevelopmentHooks } from "./WorldDevelopmentHooks";
+import { WorldExperience } from "./WorldExperience";
+import { WorldFrameSubsystems } from "./WorldFrameSubsystems";
+import { WorldExperienceConfigLoader } from "../world/experience/WorldExperienceConfigLoader";
+import { WorldViewState } from "../runtime/WorldViewState";
+import type { WorldExperienceConfig } from "../world/experience/WorldExperienceConfig";
 import { FlyWorldController } from "../controls/FlyWorldController";
 import { ThirdPersonController } from "../controls/ThirdPersonController";
 import type { WorldController } from "../controls/WorldController";
@@ -27,7 +32,7 @@ import { WorldConfigLoader } from "../world/WorldConfigLoader";
 import { WorldGrassSystem } from "../world/WorldGrassSystem";
 import { WorldEnvironmentController } from "./WorldEnvironmentController";
 import { WorldMinimap } from "./WorldMinimap";
-import { WorldFrameMetrics, type WorldFrameSubsystem } from "./WorldFrameMetrics";
+import { WorldFrameMetrics } from "./WorldFrameMetrics";
 import { WorldRuntimeGuard } from "./WorldRuntimeGuard";
 import { WorldStatusHud } from "./WorldStatusHud";
 import type { WorldActorProofContext } from "./WorldActorProofContext";
@@ -77,12 +82,11 @@ export class WorldApp {
   private sampledGroundHeight = 0;
   private running = false;
   private disposed = false;
-  private controlsEnabled = true;
-  private terrainEnabled = true;
-  private stonesEnabled = true;
   private grassEnabled = true;
-  private rendererEnabled = true;
-  private hudEnabled = true;
+  private experience?: WorldExperience;
+  private rendererPaused = false;
+  private subsystems!: WorldFrameSubsystems;
+  private viewState?: WorldViewState;
   private grassInitializing = true;
   private grassInitializationError?: string;
 
@@ -90,6 +94,7 @@ export class WorldApp {
     private readonly session: RendererSession,
     private readonly profile: RuntimeProfile,
     private readonly worldConfig: WorldConfig,
+    experienceConfig: WorldExperienceConfig,
   ) {
     const config = this.worldConfig;
     this.camera = new THREE.PerspectiveCamera(
@@ -197,6 +202,10 @@ export class WorldApp {
             spawn,
           );
       this.controls = controls;
+      this.viewState = new WorldViewState(controls, useFlyControls ? "fly" : "play");
+      // Optional systems are owned apart from the world's own: they are filled
+      // by their feature tickets, and an empty slot allocates nothing.
+      this.experience = new WorldExperience(experienceConfig, profile.compact);
       // Built here because the development tools reach the controls; every
       // query-parameter-only attachment lives behind this one owner.
       this.development = new WorldDevelopmentHooks({
@@ -235,7 +244,9 @@ export class WorldApp {
         canvas,
         this.handleResize,
         (enabled) => {
-          this.rendererEnabled = enabled;
+          // A lost context is a pause, not a failure: the guard re-enables it
+          // when the context comes back, where a retired phase never returns.
+          this.rendererPaused = !enabled;
           if (enabled && !useFlyControls) {
             this.disposeSafely("Grass trail context restore", () =>
               grassTrailField.configure({}),
@@ -244,12 +255,15 @@ export class WorldApp {
         },
       );
       this.runtimeGuard = runtimeGuard;
+      this.subsystems = new WorldFrameSubsystems(this.frameMetrics, runtimeGuard);
+      this.registerFrameSubsystems();
     } catch (error) {
       disposeConstructionSafely("Runtime guard", () => runtimeGuard?.dispose());
       disposeConstructionSafely("World reveal", () => reveal?.dispose());
       disposeConstructionSafely("Scenic layer", () => scenic?.dispose());
       disposeConstructionSafely("Minimap", () => minimap?.dispose());
       disposeConstructionSafely("World controls", () => controls?.dispose());
+      disposeConstructionSafely("Experience", () => this.experience?.dispose());
       disposeConstructionSafely("Development hooks", () => this.development.dispose());
       disposeConstructionSafely("Grass trail field", () => grassTrailField.dispose());
       disposeConstructionSafely("Grass system", () => grass?.dispose());
@@ -285,8 +299,13 @@ export class WorldApp {
     setGrassPaletteDesaturation(config.grassPaletteDesaturation);
     // The constructor's own rollback releases the session once it owns it; this
     // covers the throw that happens before that transfer completes.
+    // Loaded before the world is constructed: which optional systems exist is a
+    // construction-time decision, and a malformed budget must fail before any
+    // of them allocates.
+    const experienceConfig = await new WorldExperienceConfigLoader().load();
+    signal?.throwIfAborted();
     let app: WorldApp;
-    try { app = new WorldApp(session, profile, config); }
+    try { app = new WorldApp(session, profile, config, experienceConfig); }
     catch (error) { session.dispose(); throw error; }
     if (profile.showGui && params.get("riverTuning") === "1") {
       try {
@@ -373,6 +392,9 @@ export class WorldApp {
     this.disposeSafely("Terrain streamer", () => this.terrain.dispose());
     this.disposeSafely("Stone system", () => this.stones.dispose());
     this.disposeGrassResources();
+    this.disposeSafely("Experience", () => this.experience?.dispose());
+    this.experience = undefined;
+    this.disposeSafely("View state", () => this.viewState?.dispose());
     this.disposeSafely("Development hooks", () => this.development.dispose());
     this.disposeSafely("Environment", () => this.environment.dispose());
     this.disposeSafely("Renderer", () => this.session.dispose());
@@ -456,31 +478,13 @@ export class WorldApp {
     this.streamingBuildDeadline = performance.now() + streamingBudgetMs;
     this.frameMetrics.beginFrame(deltaSeconds);
 
-    if (this.controlsEnabled) {
-      this.runFrameSubsystem("controls", this.updateControls, deltaSeconds);
-    }
-
-    this.notifyFrameObservers(deltaSeconds);
-
-    if (this.terrainEnabled) {
-      this.runFrameSubsystem("terrain", this.updateTerrain, deltaSeconds);
-    }
-
-    if (this.stonesEnabled) {
-      this.runFrameSubsystem("stones", this.updateStones, deltaSeconds);
-    }
-
-    if (this.grassEnabled) {
-      this.runFrameSubsystem("grass", this.updateGrass, deltaSeconds);
-    }
-
-    if (this.rendererEnabled) {
-      this.runFrameSubsystem("renderer", this.renderScene, deltaSeconds);
-    }
-
-    if (this.hudEnabled) {
-      this.runFrameSubsystem("hud", this.updateHud, deltaSeconds);
-    }
+    // Phase order and failure policy live in the subsystem runner; the frame
+    // observers keep their documented slot immediately after controls.
+    this.subsystems.run(deltaSeconds, (name) => {
+      if (name === "controls") {
+        this.notifyFrameObservers(deltaSeconds);
+      }
+    });
   }
 
   private notifyFrameObservers(deltaSeconds: number): void {
@@ -498,6 +502,18 @@ export class WorldApp {
     if (!this.minimap.isOpen()) {
       this.controls.update(deltaSeconds);
     }
+  };
+
+  /**
+   * Weather, scenery and reveal readiness, in their own fault domain.
+   *
+   * These used to run inside the controls phase, which meant a controls failure
+   * — or simply opening the minimap — stopped the clouds and froze the reveal.
+   * Nothing here depends on the player driving, so nothing here is disabled
+   * when the player cannot. The focus is read from the controller rather than
+   * updated by it, so it stays valid even after controls are switched off.
+   */
+  private readonly updateEnvironment = (deltaSeconds: number): void => {
     const focus = this.controls.getStreamingPosition();
     this.environment.update(deltaSeconds, focus);
     this.scenic.update(deltaSeconds, focus);
@@ -505,6 +521,11 @@ export class WorldApp {
       !this.grassInitializing && this.grassEnabled,
       this.grassEnabled && this.grass.isHeroRingReady() ? 4 : 0,
     );
+  };
+
+  /** The optional presentation, audio and authoring systems, if any are on. */
+  private readonly updateExperience = (deltaSeconds: number): void => {
+    this.experience?.update(deltaSeconds);
   };
 
   private readonly updateTerrain = (): void => {
@@ -568,31 +589,48 @@ export class WorldApp {
     this.frameHandle = requestAnimationFrame(this.render);
   };
 
-  private runFrameSubsystem(
-    subsystem: WorldFrameSubsystem,
-    callback: (deltaSeconds: number) => void,
-    deltaSeconds: number,
-  ): void {
-    try {
-      this.frameMetrics.measure(subsystem, callback, deltaSeconds);
-    } catch (error) {
-      this.runtimeGuard.recordSubsystemFailure(subsystem, error);
-      if (subsystem === "controls") {
-        this.controlsEnabled = false;
-      } else if (subsystem === "terrain") {
-        this.terrainEnabled = false;
-      } else if (subsystem === "stones") {
-        this.stonesEnabled = false;
-        this.disposeSafely("Stone system", () => this.stones.dispose());
-      } else if (subsystem === "grass") {
-        this.grassEnabled = false;
-        this.disposeGrassResources();
-      } else if (subsystem === "renderer") {
-        this.rendererEnabled = false;
-      } else {
-        this.hudEnabled = false;
-      }
-    }
+  /**
+   * The frame's phases, in order, each with what its failure costs.
+   *
+   * Registered once rather than branched every frame: the policy sits beside
+   * the phase, so adding a system cannot leave it with someone else's failure
+   * behaviour — which is what the old fallback branch did by disabling the HUD.
+   */
+  private registerFrameSubsystems(): void {
+    const runner = this.subsystems;
+    runner.register({ name: "controls", run: this.updateControls, onFailure: () => {} });
+    runner.register({ name: "terrain", run: this.updateTerrain, onFailure: () => {} });
+    runner.register({ name: "environment", run: this.updateEnvironment, onFailure: () => {} });
+    runner.register({
+      name: "stones",
+      run: this.updateStones,
+      onFailure: () => this.disposeSafely("Stone system", () => this.stones.dispose()),
+    });
+    runner.register({
+      name: "grass",
+      run: this.updateGrass,
+      onFailure: () => this.disposeGrassResources(),
+    });
+    runner.register({
+      name: "renderer",
+      run: () => {
+        if (!this.rendererPaused) {
+          this.renderScene();
+        }
+      },
+      onFailure: () => {},
+    });
+    runner.register({
+      name: "experience",
+      // Optional systems are optional: releasing them costs an effect, not the
+      // frame.
+      run: this.updateExperience,
+      onFailure: () => {
+        this.disposeSafely("Experience", () => this.experience?.dispose());
+        this.experience = undefined;
+      },
+    });
+    runner.register({ name: "hud", run: this.updateHud, onFailure: () => {} });
   }
 
   private disposeGrassResources(): void {
