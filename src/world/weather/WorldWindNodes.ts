@@ -24,11 +24,30 @@ import { WIND_LATTICE_PERIOD, getWindGradientTexture } from "./WorldWindLattice"
  * blade vertex on the desktop world that costs 15.6 ms median against 7.6 ms
  * for the per-material gust model it replaces.
  *
- * That is a failed budget, and the integration plan's answer to a failed budget
- * is to bake the composite field into a texture at reduced cadence and sample
- * that from every representation, preserving one mapping and one CPU-query
- * contract. Until that exists, `?windModel=legacy` is the way back to the old
- * cost, and the shared field is correct but expensive.
+ * That is a failed budget, and the plan's answer is to bake the composite field
+ * at reduced cadence and sample that everywhere, which `WorldWindBake` now
+ * does. **It did not help, and three hypotheses about why were each falsified
+ * by measurement:**
+ *
+ * | change | median |
+ * | ------ | ------ |
+ * | per-material gust model (the baseline) | 7.6 ms |
+ * | full field evaluated per vertex, 28 fetches | 15.6 ms |
+ * | baked field, 1 fetch + noise flutter, 5 fetches | 15.4 ms |
+ * | baked field, wave flutter, 1 fetch | 15.4 ms |
+ * | baked field, gust-front texture removed, 1 fetch | 15.5 ms |
+ *
+ * Going from twenty-eight vertex-stage texture fetches to one changed nothing
+ * measurable, so the cost is not the fetches and not the arithmetic around
+ * them. Whatever it is, it is shared by both the analytic and baked paths and
+ * absent from the per-material one, and it has not been found. The bake was
+ * verified to compile — the branch was probed in the browser, not assumed.
+ *
+ * So the shared field is opt-in behind `?windModel=cinematic` rather than the
+ * default. It is correct: bit-identical to the model it was ported from, and
+ * agreeing between CPU and GPU to the readback's quantisation floor. It is the
+ * cost that is unexplained, and defaulting to something nobody has measured as
+ * affordable would be the wrong way round.
  */
 
 const DEG_TO_RAD = Math.PI / 180;
@@ -178,6 +197,60 @@ export function createWorldWindFieldNodes(
     strength: envelope.mul(inputs.intensity.max(0)),
     gust,
     turbulence: medium,
+    flutter,
+  };
+}
+
+/**
+ * Reads the baked field, with flutter still computed locally.
+ *
+ * One texture fetch replaces the twenty-eight the full evaluation costs. The
+ * three quantities that must be coherent across LODs — direction, envelope and
+ * broad gust — come from the bake, so every representation is reading the same
+ * numbers by construction rather than by agreeing to recompute them the same
+ * way. Flutter stays analytic because it is fine detail the texture's four
+ * metres per texel cannot hold, and because a card should have less of it than
+ * a near blade anyway.
+ *
+ * Outside the baked region the sampler clamps, which holds the field at the
+ * edge value rather than wrapping to the far side of the world. Grass is only
+ * drawn well inside the region; the clamp is what keeps something briefly
+ * outside it from snapping to unrelated wind.
+ */
+export function createBakedWorldWindNodes(inputs: {
+  readonly positionXZ: Node<"vec2">;
+  readonly bakedField: Parameters<typeof texture>[0];
+  readonly originXZ: Node<"vec2">;
+  readonly worldSize: number;
+  readonly time: Node<"float">;
+  readonly noiseScale: Node<"float">;
+  readonly config?: WorldWindConfig;
+}): WorldWindFieldNodes {
+  const config = inputs.config ?? WORLD_WIND_DEFAULTS;
+  const uvNode = inputs.positionXZ.sub(inputs.originXZ).div(inputs.worldSize).add(0.5);
+  const baked = texture(inputs.bakedField, uvNode.clamp(0, 1));
+  const direction = baked.xy.toVar();
+  // Flutter is a cheap travelling wave rather than another noise lookup.
+  //
+  // Measured: a noise-based flutter here left the baked path costing the same
+  // as the full evaluation, because the expense is the vertex-stage texture
+  // fetch itself — four random reads of the lattice per vertex over a very
+  // large amount of grass — and not the arithmetic around it. A wave advected
+  // along the baked direction gives per-blade high-frequency motion for a sine,
+  // and the structure a person actually reads as wind is in the baked gust.
+  const along = inputs.positionXZ.dot(direction).mul(config.flutter.scale)
+    .sub(inputs.time.mul(config.flutter.speed));
+  const across = inputs.positionXZ.dot(vec2(direction.y.negate(), direction.x))
+    .mul(config.flutter.scale * 0.61);
+  const flutter = sin(along.mul(6.2831853).add(across.mul(4.1)));
+  return {
+    direction,
+    strength: baked.z,
+    gust: baked.w,
+    // Medium turbulence is folded into the baked envelope; a consumer that
+    // wants it separately should sample the full field rather than be handed a
+    // value this does not have.
+    turbulence: float(0),
     flutter,
   };
 }

@@ -1,4 +1,6 @@
 import { uniform } from "three/tsl";
+import type { Texture } from "three/webgpu";
+import type { WindBakeOrigin } from "./WorldWindBake";
 import type { WorldWindField } from "./WorldWindField";
 
 /**
@@ -11,6 +13,16 @@ import type { WorldWindField } from "./WorldWindField";
  */
 export class WorldWindUniforms {
   readonly time = uniform(0);
+  /**
+   * The baked field, when one exists.
+   *
+   * A material built while this is set samples the bake; one built without it
+   * evaluates the field directly. Both are the same field — see `WorldWindBake`
+   * for what the bake keeps and what it leaves analytic.
+   */
+  bakedField?: Texture;
+  bakedOriginXZ?: WindBakeOrigin;
+  bakedWorldSize = 0;
   readonly directionDegrees = uniform(0);
   readonly intensity = uniform(1);
   readonly noiseScale = uniform(1);

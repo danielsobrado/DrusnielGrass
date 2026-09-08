@@ -42,8 +42,7 @@ export class WorldEnvironmentController {
   private shadowFocusZ = Number.NaN;
   private elapsedSeconds = 0;
   private context?: WorldNodeMaterialContext;
-  /** Advanced with the rest of the weather; see `WorldWindSystem`. */
-  private readonly wind = new WorldWindSystem();
+  private readonly wind: WorldWindSystem;
   private disposed = false;
 
   constructor(
@@ -53,6 +52,7 @@ export class WorldEnvironmentController {
     shadowsEnabled: boolean,
     private readonly capabilities: RendererCapabilities,
   ) {
+    this.wind = new WorldWindSystem(renderer);
     this.hemisphere = new THREE.HemisphereLight(
       WORLD_DEFAULT_HEMISPHERE_SKY,
       WORLD_DEFAULT_HEMISPHERE_GROUND,
@@ -136,7 +136,7 @@ export class WorldEnvironmentController {
     );
     this.elapsedSeconds =
       (this.elapsedSeconds + safeDelta) % WORLD_CLOUD_TIME_WRAP_SECONDS;
-    this.wind.update(safeDelta);
+    this.wind.update(safeDelta, focus);
     this.cloudLighting.update(safeDelta, focus, this.elapsedSeconds);
     this.cloudShadow.update(safeDelta, focus, this.elapsedSeconds);
     this.sky.update(this.elapsedSeconds, focus);

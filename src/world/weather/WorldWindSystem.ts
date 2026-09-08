@@ -1,6 +1,8 @@
 import { WorldWindField } from "./WorldWindField";
 import { WorldWindUniforms } from "./WorldWindUniforms";
 import { disposeWindGradientTexture } from "./WorldWindLattice";
+import { WorldWindBake, WIND_BAKE_WORLD_SIZE } from "./WorldWindBake";
+import type { Vector3, WebGPURenderer } from "three/webgpu";
 
 /**
  * The world's wind: one field, advanced once, published once.
@@ -18,11 +20,31 @@ import { disposeWindGradientTexture } from "./WorldWindLattice";
  */
 export class WorldWindSystem {
   private readonly field = new WorldWindField();
+  private readonly bake?: WorldWindBake;
   readonly uniforms = new WorldWindUniforms();
 
-  update(deltaSeconds: number): void {
+  /**
+   * The bake is optional so the field can still be evaluated directly.
+   *
+   * Without a renderer there is nothing to bake into, which is the case in the
+   * node verifiers; materials then evaluate the field per vertex, which is
+   * correct and slow rather than wrong.
+   */
+  constructor(renderer?: WebGPURenderer) {
+    if (renderer) {
+      this.bake = new WorldWindBake(renderer);
+      this.uniforms.bakedField = this.bake.texture;
+      this.uniforms.bakedOriginXZ = this.bake.originUniform;
+      this.uniforms.bakedWorldSize = WIND_BAKE_WORLD_SIZE;
+    }
+  }
+
+  update(deltaSeconds: number, focus?: Vector3): void {
     this.field.update(deltaSeconds);
     this.uniforms.syncFrom(this.field);
+    if (focus) {
+      this.bake?.update(deltaSeconds, focus, this.field);
+    }
   }
 
   /** For anything that needs to ask where the wind is on the CPU. */
@@ -37,6 +59,7 @@ export class WorldWindSystem {
    * samples it, so it is released here rather than by any one of them.
    */
   dispose(): void {
+    this.bake?.dispose();
     disposeWindGradientTexture();
   }
 }

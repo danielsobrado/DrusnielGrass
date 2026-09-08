@@ -160,11 +160,11 @@ export class WorldApp {
         environment.materialContext,
       );
       this.stones = stones;
-      // `?windModel=legacy` leaves every material on its own gust model, the
-      // baseline the shared field is measured against.
-      const legacyWind = resolveCatalogId(WIND_MODEL_IDS, params.get("windModel")) === "legacy";
+      // Opt-in via `?windModel=cinematic` until its cost is understood; the
+      // measurement and what was ruled out are recorded in WorldWindNodes.
+      const sharedWind = resolveCatalogId(WIND_MODEL_IDS, params.get("windModel")) === "cinematic";
       grass = new WorldGrassSystem(this.scene, this.field, config, profile,
-        environment.materialContext, legacyWind ? undefined : environment.windUniforms);
+        environment.materialContext, sharedWind ? environment.windUniforms : undefined);
       this.grass = grass;
 
       const tierOverride = params.get("tier");

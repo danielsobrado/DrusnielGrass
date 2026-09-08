@@ -16,7 +16,9 @@ import {
 import { GRASS_VERTEX_PALETTE_ROOT_PROGRESS } from "./GrassPaletteShader";
 import { grassResolvePaletteNode } from "./GrassPaletteNodes";
 import type { GrassNodeUniforms } from "./GrassNearNodeInputs";
-import { createWorldWindFieldNodes } from "../../world/weather/WorldWindNodes";
+import {
+  createBakedWorldWindNodes, createWorldWindFieldNodes,
+} from "../../world/weather/WorldWindNodes";
 import { WORLD_WIND_RESPONSE } from "../../world/weather/WorldWindMath";
 import type { WorldWindUniforms } from "../../world/weather/WorldWindUniforms";
 
@@ -155,10 +157,33 @@ export function createGrassNearNodes(u: GrassNodeUniforms, features: GrassNearNo
     const ditherInstance = features.instanceFreeDither ? float(0) : variation.x;
     const dither = fract(bladeShade.mul(0.754877666).add(phase.mul(0.569840296))
       .add(ditherInstance).add(u.number("uGrassDitherSeed"))).toVar();
-    const gustNoise = (features.noiseWind
-      ? u.texture("uGrassWindNoise").sample(worldRoot.xz.mul(u.number("uGrassWindNoiseScale"))
-        .sub(windDirection.mul(time.mul(u.number("uGrassWindNoiseSpeed"))))).level(float(0)).r
-      : compactGust(worldRoot.xz)).toVar();
+    // The baked field where one exists: one texture fetch instead of the
+    // twenty-eight a full evaluation costs per vertex.
+    const field = !cinematic ? undefined
+      : cinematic.bakedField && cinematic.bakedOriginXZ
+        ? createBakedWorldWindNodes({
+          positionXZ: worldRoot.xz,
+          bakedField: cinematic.bakedField,
+          originXZ: cinematic.bakedOriginXZ,
+          worldSize: cinematic.bakedWorldSize,
+          time: cinematic.time,
+          noiseScale: cinematic.noiseScale,
+        })
+        : createWorldWindFieldNodes({
+          positionXZ: worldRoot.xz,
+          time: cinematic.time,
+          directionDegrees: cinematic.directionDegrees,
+          intensity: cinematic.intensity,
+          noiseScale: cinematic.noiseScale,
+        });
+    // The shared field replaces the material's own gust-front texture rather
+    // than joining it. Sampling both would pay for two gust sources per vertex
+    // and let the colour disagree with the motion about where the gust is.
+    const gustNoise = (field ? field.gust
+      : features.noiseWind
+        ? u.texture("uGrassWindNoise").sample(worldRoot.xz.mul(u.number("uGrassWindNoiseScale"))
+          .sub(windDirection.mul(time.mul(u.number("uGrassWindNoiseSpeed"))))).level(float(0)).r
+        : compactGust(worldRoot.xz)).toVar();
     const fieldDither = fract(bladeShade.mul(0.438289).add(phase.mul(0.819173))
       .add(variation.x.mul(0.347193)).add(u.number("uGrassDitherSeed").mul(1.618034))).toVar();
     // Motion phase stays independent of both dithers: the mid layer's CPU draw
@@ -250,15 +275,8 @@ export function createGrassNearNodes(u: GrassNodeUniforms, features: GrassNearNo
       const gustEnvelope = mix(u.number("uGrassGustFrontDepth").oneMinus(), 1, gustNoise).mul(weather).toVar();
       // Evaluated at the stationary root, never a deformed vertex: a blade that
       // sampled the wind where its bent tip currently is would drive itself.
-      const field = cinematic
-        ? createWorldWindFieldNodes({
-          positionXZ: worldRoot.xz,
-          time: cinematic.time,
-          directionDegrees: cinematic.directionDegrees,
-          intensity: cinematic.intensity,
-          noiseScale: cinematic.noiseScale,
-        })
-        : undefined;
+      // The baked field where one exists: one texture fetch instead of the
+      // twenty-eight a full evaluation costs per vertex.
       // One broad gust for every layer. The per-blade offsets that follow are a
       // response to it, not a second field: near, bridge and mid must lean
       // together or the LOD boundary shows as a seam in the gust front.
