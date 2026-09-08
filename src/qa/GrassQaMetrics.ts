@@ -115,7 +115,7 @@ export class GrassQaMetrics {
   readRendererStats(renderer: RendererWithFrameInfo): GrassRendererStats {
     const render = renderer.info.render;
     return {
-      calls: render.calls,
+      calls: render.drawCalls,
       triangles: render.triangles,
       points: render.points,
       lines: render.lines,

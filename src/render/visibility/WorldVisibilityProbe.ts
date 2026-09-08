@@ -131,7 +131,7 @@ export class WorldVisibilityProbe {
       frustumRejected,
       boundsPending,
       submittedInstances,
-      drawCalls: info.render.calls,
+      drawCalls: info.render.drawCalls,
       triangles: info.render.triangles,
       sampleMicroseconds: (performance.now() - started) * 1000,
     };

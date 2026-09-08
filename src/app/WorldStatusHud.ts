@@ -42,7 +42,10 @@ interface GrassSnapshot {
 }
 
 interface RenderSnapshot {
-  calls: number;
+  /** Draw calls this frame — not `info.render.calls`, which is cumulative. */
+  drawCalls: number;
+  /** Render passes this frame; refraction draws before the scene. */
+  frameCalls: number;
   triangles: number;
 }
 
@@ -113,7 +116,7 @@ export class WorldStatusHud {
       snapshot.grass.ready
         ? `Grass ${snapshot.grass.clumps.toLocaleString()} patches · ${snapshot.grass.blades.toLocaleString()} blades · ${snapshot.grass.impostors.toLocaleString()} impostors`
         : grassStatus,
-      `Draws ${snapshot.render.calls} · Triangles ${snapshot.render.triangles.toLocaleString()} · Scale ${snapshot.pixelRatio.toFixed(2)} · Build ${snapshot.grass.lastBuildMs.toFixed(1)} / peak ${snapshot.grass.maxBuildMs.toFixed(1)} ms`,
+      `Draws ${snapshot.render.drawCalls} in ${snapshot.render.frameCalls} passes · Triangles ${snapshot.render.triangles.toLocaleString()} · Scale ${snapshot.pixelRatio.toFixed(2)} · Build ${snapshot.grass.lastBuildMs.toFixed(1)} / peak ${snapshot.grass.maxBuildMs.toFixed(1)} ms`,
       `Grass submit mid ${snapshot.grass.submittedMidVertices.toLocaleString()} verts · far ${snapshot.grass.submittedFarInstances.toLocaleString()} inst · quality T${snapshot.grass.qualityTier} ${snapshot.grass.qualityTierSeconds.toFixed(1)}s (${snapshot.grass.qualityDensityScale.toFixed(2)})`,
       `Frame ctrl ${snapshot.frameTimings.controls.toFixed(2)} · terr ${snapshot.frameTimings.terrain.toFixed(2)} · stone ${snapshot.frameTimings.stones.toFixed(2)} · grass ${snapshot.frameTimings.grass.toFixed(2)} · draw ${snapshot.frameTimings.renderer.toFixed(2)} ms`,
       `Near tiles ${snapshot.grass.nearTiles.toLocaleString()} · Tile build ${snapshot.grass.nearTileBuildMs.toFixed(1)} / peak ${snapshot.grass.maxNearTileBuildMs.toFixed(1)} ms`,

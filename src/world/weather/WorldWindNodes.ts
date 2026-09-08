@@ -17,43 +17,44 @@ import { WIND_LATTICE_PERIOD, getWindGradientTexture } from "./WorldWindLattice"
  * only coherent if the near blades, the mid layer and the far cards are reading
  * one field rather than three that happen to look similar.
  *
- * **Cost: there is no regression. Four measurements said otherwise and all four
- * were wrong.**
+ * **Cost: there is no regression, on either backend.**
  *
- * The field was reported as costing 14 ms against 5 ms for the per-material
- * gust model it replaces. It does not. Measured with `check-wind-cost.mjs`,
- * three interleaved runs of each on a settled world:
+ * Measured by `check-wind-cost.mjs` with the world converged, the tier pinned,
+ * vsync unlocked and cases interleaved in one browser process:
  *
- * | run | fps | GPU scene | draw (CPU) | draws |
- * | --- | --- | --------- | ---------- | ----- |
- * | legacy | 78.3 | 0.20 ms | 11.29 ms | 58,397 |
- * | cinematic | 78.6 | 0.20 ms | 11.42 ms | 58,394 |
- * | legacy | 78.3 | 0.20 ms | 11.33 ms | 58,457 |
- * | cinematic | 79.8 | 0.20 ms | 11.07 ms | 59,461 |
+ * | model | fps | GPU scene | draw (CPU) | draw calls | triangles |
+ * | ----- | --- | --------- | ---------- | ---------- | --------- |
+ * | legacy, WebGPU | 62.3 | 0.20 ms | 10.85 ms | 622 | 1.71M |
+ * | cinematic, WebGPU | 61.8 | 0.33 ms | 10.66 ms | 623 | 1.70M |
+ * | legacy, WebGL 2 | 50.3 | 0.79 ms | 13.95 ms | 621 | 1.70M |
+ * | cinematic, WebGL 2 | 54.5 | 0.53 ms | 13.87 ms | 665 | 1.78M |
  *
- * Indistinguishable. The GPU cost of the field is around 0.07 ms and its CPU
- * cost is not measurable above run-to-run noise.
+ * Matched draw calls and triangle counts, so this is the same world drawn the
+ * same way, and the wind model is not distinguishable in it.
  *
- * Four ways an aggregate frame time lied, each worth knowing before trusting
- * one again:
+ * Five ways an aggregate frame time lied on the way to that, each worth knowing
+ * before trusting one again:
  *
  * 1. Headless Chrome quantises frame time to vsync multiples — 7.6 and 15.1 ms
  *    at 131 Hz. Anything between them is invisible. Launch unlocked.
  * 2. The grass quality governor targets 60 FPS by adapting density, so it
  *    equalises any two configurations that both miss it. Pin the tier.
  * 3. Near-grass streaming has a 2.5 ms per-frame build budget, and a run
- *    sampled before its tiles settle reports that budget as grass CPU. The
- *    reported 2.43 ms "wind" cost was 2.43 ms of streaming against a 2.5 ms
- *    budget.
- * 4. Both models were given the same twenty seconds to settle, which was long
- *    enough for one and not the other. The comparison was a settled world
- *    against a loading one, and that is the whole of the reported regression.
+ *    sampled before its tiles settle reports that budget as grass CPU. A
+ *    reported 2.43 ms of "wind" was 2.43 ms of streaming against that budget.
+ * 4. Giving both models the same wall-clock delay to settle gave one enough
+ *    time and the other not, so a settled world was compared against a loading
+ *    one. That alone was the whole of the reported regression.
+ * 5. `renderer.info.render.calls` counts render calls since startup, not per
+ *    frame. Read as a draw count it made a faster run appear to draw twice as
+ *    much — 125,000 against 58,000, when both were drawing about 640. The
+ *    per-frame counter is `drawCalls`, and the diagnostics now use it.
  *
- * One real difference survives and is not understood: the world occasionally
- * settles into a second state at roughly 176 fps and 125,000 draws instead of
- * 78 fps and 58,000. It appeared once in six runs, in a legacy run, and affects
- * the benchmark rather than the wind — both models measure the same within
- * whichever state they land in.
+ * One effect is still unexplained and belongs to the machine rather than the
+ * world: a run occasionally reaches roughly 156 fps where its neighbours reach
+ * 62, at identical draw calls and triangles. It has only been seen in the first
+ * case measured after a browser launch, which is why cases are interleaved and
+ * repeated — a single run of each is not evidence.
  */
 
 const DEG_TO_RAD = Math.PI / 180;

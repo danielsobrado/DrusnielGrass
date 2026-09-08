@@ -16,10 +16,23 @@ import type { Camera, Scene } from "three";
  * type check is what stops that.
  */
 
-/** The per-frame counters both renderers publish under `info.render`. */
+/**
+ * The counters both renderers publish under `info.render`.
+ *
+ * `drawCalls`, `frameCalls`, `triangles`, `points` and `lines` are per frame.
+ * `calls` is **not**: three counts it since the application started, and a
+ * diagnostic that reports it as a frame's draw count shows a number that only
+ * ever rises — which is exactly the mistake that made a faster run look like it
+ * was drawing more. It is named here so it cannot be reached for by accident.
+ */
 export interface RendererFrameInfo {
   readonly render: {
+    /** Render calls since startup. Not a frame count. */
     readonly calls: number;
+    /** Draw calls issued this frame. This is what a HUD means by "draws". */
+    readonly drawCalls: number;
+    /** Render passes this frame; the world draws refraction before the scene. */
+    readonly frameCalls: number;
     readonly triangles: number;
     readonly points: number;
     readonly lines: number;
