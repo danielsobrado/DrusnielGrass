@@ -189,6 +189,7 @@ try {
   assertContains(app, [
     "setGrassWeatherPaletteMultiplier(preset.paletteMultiplier)",
     "environment?.applyWeatherPreset()",
+    "environment.materialContext.setWorldWindUniforms(this.weather?.windUniforms)",
     "terrain?.setGrassArtDirection(direction)",
     "grass?.setArtDirection(direction)",
     "this.weather?.windUniforms",
@@ -219,7 +220,8 @@ try {
     "this.ambient.color.copy(this.lighting.ambientColor)",
     "fog.color.copy(this.lighting.fogColor)",
     "this.sampleTargets(this.lastFocus, this.lastElapsedSeconds)",
-  ], "Cloud lighting must cut to the active preset instead of easing from stale state.");
+    "!hadFocus && !this.lighting.baseline",
+  ], "Cloud lighting must cut to the active preset without a stale or clear-frame flash.");
 
   const sky = read("src/world/sky/WorldSkyNode.ts");
   assertContains(sky, [
@@ -239,10 +241,8 @@ try {
   assert.ok(read("src/grass/interaction/GrassGroundShadow.ts")
     .includes("setSunDirection(direction: THREE.Vector3)"));
 
-  const nearMaterial = read("src/grass/materials/GrassNearNodeMaterial.ts");
   const context = read("src/render/WorldNodeMaterialContext.ts");
   const farMaterial = read("src/world/grass/WorldGrassImpostorNodeMaterial.ts");
-  assert.ok(nearMaterial.includes("context.setWorldWindUniforms(wind)"));
   assert.ok(context.includes("worldWindUniforms(): WorldWindUniforms | undefined"));
   assert.ok(farMaterial.includes("context.worldWindUniforms()"));
 
