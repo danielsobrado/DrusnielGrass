@@ -7,6 +7,40 @@
   clip-path: circle(var(--world-iris-radius, 120vmax) at 50% 50%);
 }
 
+.world-loading-presentation {
+  background: radial-gradient(circle at 50% 35%, #263a2b 0%, #101812 48%, #070a08 100%);
+  color: #f1f4ed;
+  letter-spacing: normal;
+}
+.world-loading-card {
+  display: grid;
+  width: min(440px, calc(100vw - 40px));
+  gap: 14px;
+  padding: 28px;
+  border: 1px solid rgba(255,255,255,.14);
+  border-radius: 20px;
+  background: rgba(7,10,8,.72);
+  box-shadow: 0 28px 80px rgba(0,0,0,.42);
+  backdrop-filter: blur(16px);
+}
+.world-loading-eyebrow { color: #a9c8ad; font-size: 11px; font-weight: 700; letter-spacing: .14em; }
+.world-loading-card h1 { font-size: clamp(24px, 5vw, 38px); line-height: 1.05; }
+.world-loading-progress { width: 100%; height: 8px; accent-color: #a8d48b; }
+.world-loading-status { min-height: 20px; color: #c4cec2; }
+.world-loading-sound { display: flex; align-items: center; gap: 10px; min-height: 44px; color: #cbd5c9; }
+.world-loading-sound input { width: 22px; height: 22px; }
+.world-loading-start {
+  min-height: 48px;
+  border: 1px solid rgba(255,255,255,.2);
+  border-radius: 12px;
+  background: #73945e;
+  color: #fff;
+  font-weight: 700;
+  cursor: pointer;
+}
+.world-loading-start:disabled { opacity: .42; cursor: wait; }
+.world-loading-start:focus-visible { outline: 2px solid #eef9c9; outline-offset: 3px; }
+
 .world-experience-root {
   position: fixed;
   right: max(16px, env(safe-area-inset-right));
@@ -18,9 +52,7 @@
 .world-experience-toggle,
 .world-experience-panel button,
 .world-experience-panel select,
-.world-experience-panel input {
-  min-height: 44px;
-}
+.world-experience-panel input { min-height: 44px; }
 
 .world-experience-toggle {
   min-width: 92px;
@@ -46,18 +78,8 @@
   box-shadow: 0 24px 70px rgba(0,0,0,.45);
   backdrop-filter: blur(20px);
 }
-
 .world-experience-panel[hidden] { display: none; }
-
-.world-experience-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 16px;
-  padding: 18px 18px 12px;
-  border-bottom: 1px solid rgba(255,255,255,.1);
-}
-
+.world-experience-header { display: flex; justify-content: space-between; align-items: center; gap: 16px; padding: 18px 18px 12px; border-bottom: 1px solid rgba(255,255,255,.1); }
 .world-experience-header span { color: #9cb6a0; font-size: 11px; letter-spacing: .13em; }
 .world-experience-header h2 { margin: 2px 0 0; font-size: 20px; }
 .world-experience-close { width: 44px; border: 0; background: transparent; color: inherit; font-size: 28px; cursor: pointer; }
@@ -66,17 +88,8 @@
 .world-experience-panel legend { margin-bottom: 9px; color: #a9c8ad; font-size: 12px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
 .world-experience-panel label { display: grid; gap: 6px; margin-bottom: 10px; }
 .world-experience-panel select,
-.world-experience-panel input[type="range"] {
-  width: 100%;
-}
-.world-experience-panel select {
-  box-sizing: border-box;
-  padding: 0 12px;
-  border: 1px solid rgba(255,255,255,.16);
-  border-radius: 10px;
-  background: #151c25;
-  color: inherit;
-}
+.world-experience-panel input[type="range"] { width: 100%; }
+.world-experience-panel select { box-sizing: border-box; padding: 0 12px; border: 1px solid rgba(255,255,255,.16); border-radius: 10px; background: #151c25; color: inherit; }
 .world-experience-range { display: grid; grid-template-columns: 1fr 48px; align-items: center; gap: 10px; }
 .world-experience-range output { text-align: right; font-variant-numeric: tabular-nums; color: #c9d7c6; }
 .world-experience-check { grid-template-columns: 1fr 44px; align-items: center; min-height: 44px; }
@@ -94,6 +107,7 @@
   .world-experience-root { top: auto; bottom: max(16px, env(safe-area-inset-bottom)); }
   .world-experience-panel { inset: max(12px, env(safe-area-inset-top)) 12px max(12px, env(safe-area-inset-bottom)); width: auto; max-height: none; }
   .world-experience-scroll { max-height: calc(100dvh - 92px); }
+  .world-loading-card { padding: 22px; }
 }
 
 @media (prefers-reduced-motion: reduce) {
