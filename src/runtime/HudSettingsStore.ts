@@ -12,6 +12,8 @@ export interface HudSettings {
   /** Absent means "let the runtime profile decide", which is not a quality. */
   quality?: QualityId;
   renderScale: number;
+  interactionEnabled: boolean;
+  soundEnabled: boolean;
   masterVolume: number;
   ambientVolume: number;
   effectsVolume: number;
@@ -38,84 +40,49 @@ const DEFAULT_SETTINGS: Readonly<HudSettings> = Object.freeze({
   character: DEFAULT_CHARACTER,
   quality: undefined,
   renderScale: 1,
+  interactionEnabled: true,
+  soundEnabled: true,
   masterVolume: 0.8,
   ambientVolume: 0.7,
   effectsVolume: 0.9,
 });
 
-/**
- * The user's persisted preferences.
- *
- * Every field is validated on the way in. Stored settings are the one input
- * that arrives from a previous version of the software, so a value that no
- * longer exists — a weather preset that was renamed, a quality tier that was
- * removed — has to fall back rather than propagate into a system that will do
- * something undefined with it. Unknown stored fields are ignored rather than
- * rejected, so a document written by a newer build still loads here.
- */
+/** The user's validated persisted preferences. */
 class HudSettingsStore {
   private settings = readStoredSettings();
 
-  getInvertHorizontalMovement(): boolean {
-    return this.settings.invertHorizontalMovement;
-  }
-
+  getInvertHorizontalMovement(): boolean { return this.settings.invertHorizontalMovement; }
   setInvertHorizontalMovement(enabled: boolean): void {
     this.update({ invertHorizontalMovement: enabled });
   }
 
-  getWeather(): WeatherPresetId {
-    return this.settings.weather;
-  }
+  getWeather(): WeatherPresetId { return this.settings.weather; }
+  setWeather(weather: WeatherPresetId): void { this.update({ weather }); }
 
-  setWeather(weather: WeatherPresetId): void {
-    this.update({ weather });
-  }
+  getShape(): GrassSilhouetteId { return this.settings.shape; }
+  setShape(shape: GrassSilhouetteId): void { this.update({ shape }); }
 
-  getShape(): GrassSilhouetteId {
-    return this.settings.shape;
-  }
-
-  setShape(shape: GrassSilhouetteId): void {
-    this.update({ shape });
-  }
-
-  getCharacter(): CharacterId {
-    return this.settings.character;
-  }
-
-  setCharacter(character: CharacterId): void {
-    this.update({ character });
-  }
+  getCharacter(): CharacterId { return this.settings.character; }
+  setCharacter(character: CharacterId): void { this.update({ character }); }
 
   /** Undefined means the runtime profile chooses; that is not a quality tier. */
-  getQuality(): QualityId | undefined {
-    return this.settings.quality;
-  }
+  getQuality(): QualityId | undefined { return this.settings.quality; }
+  setQuality(quality: QualityId | undefined): void { this.update({ quality }); }
 
-  setQuality(quality: QualityId | undefined): void {
-    this.update({ quality });
-  }
-
-  getRenderScale(): number {
-    return this.settings.renderScale;
-  }
-
+  getRenderScale(): number { return this.settings.renderScale; }
   setRenderScale(scale: number): void {
     this.update({ renderScale: clampRenderScale(scale) });
   }
 
-  getMasterVolume(): number {
-    return this.settings.masterVolume;
-  }
+  getInteractionEnabled(): boolean { return this.settings.interactionEnabled; }
+  setInteractionEnabled(enabled: boolean): void { this.update({ interactionEnabled: enabled }); }
 
-  getAmbientVolume(): number {
-    return this.settings.ambientVolume;
-  }
+  getSoundEnabled(): boolean { return this.settings.soundEnabled; }
+  setSoundEnabled(enabled: boolean): void { this.update({ soundEnabled: enabled }); }
 
-  getEffectsVolume(): number {
-    return this.settings.effectsVolume;
-  }
+  getMasterVolume(): number { return this.settings.masterVolume; }
+  getAmbientVolume(): number { return this.settings.ambientVolume; }
+  getEffectsVolume(): number { return this.settings.effectsVolume; }
 
   setVolumes(volumes: Partial<
   Pick<HudSettings, "masterVolume" | "ambientVolume" | "effectsVolume">
@@ -130,16 +97,13 @@ class HudSettingsStore {
     });
   }
 
-  /** The whole validated set, for a settings panel to render from. */
   snapshot(): Readonly<HudSettings> {
     return Object.freeze({ ...this.settings });
   }
 
   private update(changes: Partial<HudSettings>): void {
     const next = { ...this.settings, ...changes };
-    if (isUnchanged(this.settings, next)) {
-      return;
-    }
+    if (isUnchanged(this.settings, next)) return;
     this.settings = next;
     persistSettings(next);
   }
@@ -147,11 +111,9 @@ class HudSettingsStore {
 
 export const hudSettingsStore = new HudSettingsStore();
 
-/** Exported for the settings verifier, which must exercise the real decoder. */
+/** Exported for the settings verifier, which exercises the real decoder. */
 export function decodeHudSettings(raw: unknown): HudSettings {
-  if (!isRecord(raw)) {
-    return { ...DEFAULT_SETTINGS };
-  }
+  if (!isRecord(raw)) return { ...DEFAULT_SETTINGS };
   return {
     invertHorizontalMovement: raw.invertHorizontalMovement === true,
     weather: resolveCatalogId(WEATHER_PRESET_IDS, asString(raw.weather))
@@ -160,11 +122,13 @@ export function decodeHudSettings(raw: unknown): HudSettings {
       ?? DEFAULT_SETTINGS.shape,
     character: resolveCatalogId(CHARACTER_IDS, asString(raw.character))
       ?? DEFAULT_SETTINGS.character,
-    // An absent quality is meaningful — the profile decides — so an invalid one
-    // falls back to absent rather than to a tier nobody chose.
     quality: resolveCatalogId(QUALITY_IDS, asString(raw.quality)),
     renderScale: typeof raw.renderScale === "number"
       ? clampRenderScale(raw.renderScale) : DEFAULT_SETTINGS.renderScale,
+    interactionEnabled: typeof raw.interactionEnabled === "boolean"
+      ? raw.interactionEnabled : DEFAULT_SETTINGS.interactionEnabled,
+    soundEnabled: typeof raw.soundEnabled === "boolean"
+      ? raw.soundEnabled : DEFAULT_SETTINGS.soundEnabled,
     masterVolume: readUnit(raw.masterVolume, DEFAULT_SETTINGS.masterVolume),
     ambientVolume: readUnit(raw.ambientVolume, DEFAULT_SETTINGS.ambientVolume),
     effectsVolume: readUnit(raw.effectsVolume, DEFAULT_SETTINGS.effectsVolume),
@@ -174,13 +138,8 @@ export function decodeHudSettings(raw: unknown): HudSettings {
 function readStoredSettings(): HudSettings {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) {
-      return { ...DEFAULT_SETTINGS };
-    }
-    return decodeHudSettings(JSON.parse(raw));
+    return raw ? decodeHudSettings(JSON.parse(raw)) : { ...DEFAULT_SETTINGS };
   } catch {
-    // Unavailable, blocked or corrupt storage all mean the same thing here:
-    // this session runs on defaults rather than not running.
     return { ...DEFAULT_SETTINGS };
   }
 }
@@ -192,8 +151,7 @@ function persistSettings(settings: HudSettings): void {
       JSON.stringify({ version: HUD_SETTINGS_VERSION, ...settings }),
     );
   } catch {
-    // Persistent storage is optional, and a quota failure must not interrupt
-    // play; the setting still applies for this session.
+    // Storage is optional; the setting still applies for this session.
   }
 }
 
@@ -216,9 +174,7 @@ function clampUnit(value: number): number {
 }
 
 function clampRenderScale(value: number): number {
-  if (!Number.isFinite(value)) {
-    return DEFAULT_SETTINGS.renderScale;
-  }
+  if (!Number.isFinite(value)) return DEFAULT_SETTINGS.renderScale;
   return Math.min(MAXIMUM_RENDER_SCALE, Math.max(MINIMUM_RENDER_SCALE, value));
 }
 
