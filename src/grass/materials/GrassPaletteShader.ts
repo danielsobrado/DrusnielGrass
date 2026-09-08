@@ -19,7 +19,22 @@ function luminance(color: THREE.Color): number {
 }
 
 const desaturationScratch = new THREE.Color();
+const weatherPaletteMultiplier = new THREE.Color(1, 1, 1);
 let paletteDesaturation = 0;
+
+/** Rendering-only weather tint. Biome identities and placement never read it. */
+export function setGrassWeatherPaletteMultiplier(
+  value: readonly [number, number, number],
+): void {
+  if (!value.every(Number.isFinite)) {
+    throw new TypeError("Grass weather palette multiplier must be finite.");
+  }
+  weatherPaletteMultiplier.setRGB(
+    Math.max(0, value[0]),
+    Math.max(0, value[1]),
+    Math.max(0, value[2]),
+  );
+}
 
 /**
  * How far every grass palette colour is pulled toward its own luminance.
@@ -82,10 +97,13 @@ export function setBalancedGrassPaletteColors(
       Math.max(luminance(dryTarget), 0.0001),
   );
   // Every palette source in the renderer passes through here, which is the one
-  // property that makes a global saturation lever safe at all.
+  // property that makes global desaturation and weather tint safe at all.
   applyGrassPaletteDesaturation(baseTarget);
   applyGrassPaletteDesaturation(tipTarget);
   applyGrassPaletteDesaturation(dryTarget);
+  baseTarget.multiply(weatherPaletteMultiplier);
+  tipTarget.multiply(weatherPaletteMultiplier);
+  dryTarget.multiply(weatherPaletteMultiplier);
 }
 
 /**
