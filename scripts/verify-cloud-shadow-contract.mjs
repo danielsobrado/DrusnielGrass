@@ -187,23 +187,23 @@ assert(
 );
 assert(
   environment.includes("new WorldCloudShadowController(") &&
-    controller.includes("new WorldCloudShadowNodeMap(renderer, profile, capabilities)") &&
+    controller.includes(
+      "new WorldCloudShadowNodeMap(renderer, profile, capabilities, worldLighting)",
+    ) &&
     controller.includes("this.map.update(focus, elapsedSeconds)") &&
-    // The integrator's job — getting the field into every world material —
-    // is done at material construction on the node route. See the
-    // integrator-coverage assertion below for how that reach is now held.
     controller.includes("get nodes()") &&
     controller.includes('disposeSafely(this.map, "Cloud shadow map")') &&
     lighting.includes("sampleCloudPointDirectTransmittance(") &&
     lighting.includes("focus.x,") &&
     lighting.includes("focus.y,") &&
     lighting.includes("focus.z,") &&
-    lighting.includes("SUN_DIRECTION,") &&
+    lighting.includes("this.lighting.sunDirection") &&
+    !lighting.includes("SUN_DIRECTION,") &&
     !lighting.includes("sampleCloudDirectTransmittance") &&
     !lighting.includes("sampleCloudShadowTransmittance") &&
     lighting.includes("getAppliedDirectTransmittance(): number") &&
     lighting.includes("getWeatherState(): Readonly<WorldCloudWeatherState>"),
-  "Environment ownership must update/dispose one cloud-shadow wrapper while global and spatial direct light share altitude-aware focus transmittance.",
+  "Environment ownership must update/dispose one cloud-shadow wrapper while global and spatial direct light share the mutable render sun and altitude-aware focus transmittance.",
 );
 assert(
   diagnostics.includes("Spatial cloud shadow") &&
@@ -240,5 +240,5 @@ assert(
 );
 
 console.log(
-  "[cloud-shadow] Bounded world-space transmittance, altitude-aware focus normalization, direct-only terrain/grass/water/scenic integration, context-loss-safe offscreen rendering, full renderer-state restoration, diagnostics, lifecycle, and CS0 isolation tooling verified.",
+  "[cloud-shadow] Bounded world-space transmittance, altitude-aware focus normalization, dynamic render sun, direct-only terrain/grass/water/scenic integration, context-loss-safe offscreen rendering, full renderer-state restoration, diagnostics, lifecycle, and CS0 isolation tooling verified.",
 );
