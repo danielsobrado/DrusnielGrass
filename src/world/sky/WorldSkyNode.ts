@@ -24,6 +24,7 @@ export class WorldSkyNode {
   private readonly previousBackground;
   private elapsed = 0;
   private readonly focus = new Vector3();
+  private environmentRefreshQueued = false;
   private disposed = false;
 
   constructor(private readonly scene: Scene, private readonly renderer: WebGPURenderer,
@@ -58,7 +59,7 @@ export class WorldSkyNode {
     this.volume?.applyLightingState(this.lighting);
     this.volume?.resetHistory();
     this.scene.environmentIntensity = this.lighting.environmentIntensity;
-    if (!this.profile.compact) this.refreshEnvironment();
+    this.queueEnvironmentRefresh();
   }
 
   update(elapsedSeconds: number, focus: Vector3): void {
@@ -87,6 +88,15 @@ export class WorldSkyNode {
 
   resetHistory(): void { this.volume?.resetHistory(); }
 
+  private queueEnvironmentRefresh(): void {
+    if (this.disposed || this.profile.compact || this.environmentRefreshQueued) return;
+    this.environmentRefreshQueued = true;
+    queueMicrotask(() => {
+      this.environmentRefreshQueued = false;
+      if (!this.disposed) this.refreshEnvironment();
+    });
+  }
+
   private refreshEnvironment(): void {
     const next = this.bakeEnvironment();
     if (!next) return;
@@ -97,8 +107,6 @@ export class WorldSkyNode {
   }
 
   private bakeEnvironment(): RenderTarget | undefined {
-    // Stage into a fresh target and only swap after a successful bake. At most
-    // active + staging targets coexist, and a failed preset keeps the old IBL.
     const target = new RenderTarget(768, 1024, { type: HalfFloatType, minFilter: LinearFilter,
       magFilter: LinearFilter, generateMipmaps: false, depthBuffer: true });
     target.texture.mapping = CubeUVReflectionMapping;
