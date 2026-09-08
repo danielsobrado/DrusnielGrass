@@ -84,7 +84,7 @@ export class WorldWindSystem {
  * construction detail, and so the rule that makes this optional — no owner, no
  * update, no render target — is stated next to the thing it governs.
  */
-export function attachSharedWind(experience: WorldExperience | undefined,
+export function attachSharedWind(experience: WorldExperience,
   renderer: WebGPURenderer, params: URLSearchParams,
   focus: () => Vector3): WorldWindSystem | undefined {
   const model = resolveCatalogId(WIND_MODEL_IDS, params.get("windModel"))
@@ -93,6 +93,6 @@ export function attachSharedWind(experience: WorldExperience | undefined,
     return undefined;
   }
   let wind: WorldWindSystem | undefined;
-  experience?.attach("weather", () => (wind = new WorldWindSystem(renderer, focus)));
+  experience.attach("weather", () => (wind = new WorldWindSystem(renderer, focus)));
   return wind;
 }
