@@ -28,8 +28,9 @@ export class WorldHorizonNodeMaterial {
     );
     const faceGrade = varying(mix(0.88, 1.04, smoothstep(-0.15, 0.35, worldNormal.dot(sunDirection))));
     const grade = mix(faceGrade, 1, apronHaze.mul(0.85));
+    const haze = uniform(context?.worldHazeColor() ?? new Color(WORLD_SKY_HAZE));
     this.material.colorNode = mix(attribute<"vec3">("color", "vec3").mul(grade),
-      uniform(new Color(WORLD_SKY_HAZE)), apronHaze.mul(0.42));
+      haze, apronHaze.mul(0.42));
     const worldXZ = varying(position.xz);
     const coverageUv = worldXZ.add(coverage.worldHalfExtent).div(coverage.worldSize);
     const inside = coverageUv.x.greaterThanEqual(0).and(coverageUv.y.greaterThanEqual(0))
