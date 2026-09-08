@@ -54,6 +54,39 @@ assert(
   "Frame work must stay inside the fatal-frame boundary while named subsystems retain their independent fault isolation.",
 );
 
+const experienceConstruction = source.indexOf(
+  "this.experience = new WorldExperience(experienceConfig, profile.compact)",
+);
+const windAttachment = source.indexOf("attachSharedWind(this.experience");
+assert(
+  experienceConstruction >= 0 && windAttachment > experienceConstruction,
+  "The experience owner must exist before shared wind is attached.",
+);
+
+const registrationStart = source.indexOf("private registerFrameSubsystems(): void");
+const registrationEnd = source.indexOf("private disposeGrassResources", registrationStart);
+const registrationSource = source.slice(registrationStart, registrationEnd);
+const phaseOrder = [
+  "controls",
+  "experience",
+  "environment",
+  "terrain",
+  "stones",
+  "grass",
+  "renderer",
+  "hud",
+];
+let previousPhaseIndex = -1;
+for (const phase of phaseOrder) {
+  const phaseIndex = registrationSource.indexOf(`name: "${phase}"`);
+  assert(
+    phaseIndex > previousPhaseIndex,
+    `Frame phase ${phase} must remain after ${phaseOrder[Math.max(0, phaseOrder.indexOf(phase) - 1)]}.`,
+  );
+  previousPhaseIndex = phaseIndex;
+}
+
 console.log(
-  "[world-frame-lifecycle] Fatal frame containment and post-success RAF scheduling verified.",
+  "[world-frame-lifecycle] Fatal frame containment, shared-wind ownership, "
+  + "weather-before-render ordering and post-success RAF scheduling verified.",
 );
