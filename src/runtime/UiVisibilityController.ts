@@ -41,7 +41,16 @@ export class UiVisibilityController {
     bypassStartGate: boolean): void {
     this.loading?.dispose();
     this.settingsController.attachWorld(host);
-    this.loading = new WorldLoadingPresentation(reveal, { bypassStartGate });
+    try {
+      this.loading = new WorldLoadingPresentation(reveal, {
+        bypassStartGate,
+        setModalOverlay: (open) => host.setModalOverlay(open),
+      });
+    } catch (error) {
+      host.setModalOverlay(false);
+      reveal.reveal();
+      console.warn("[Drusniel World] Optional loading presentation unavailable.", error);
+    }
   }
 
   detachWorld(): void {
