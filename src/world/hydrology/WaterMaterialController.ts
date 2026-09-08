@@ -102,7 +102,11 @@ export class WaterMaterialController {
         uWaterReflection: { value: WATER_REFLECTION_COLOR },
         uWaterFoam: { value: WATER_FOAM_COLOR },
         uWaterAbsorption: { value: WATER_ABSORPTION_COLOR },
-        uWaterSunDirection: { value: WATER_SUN_DIRECTION.clone() },
+        // Borrow the shared mutable render-sun vector when available. Ecology
+        // keeps its own fixed reference sun and never sees this value.
+        uWaterSunDirection: {
+          value: context?.worldSunDirection() ?? WATER_SUN_DIRECTION.clone(),
+        },
         uWaterFresnelF0: { value: WATER_F0 },
         // High preset only; the standard path branches around all of these.
         uWaterOpticsQuality: { value: config.waterQuality },
