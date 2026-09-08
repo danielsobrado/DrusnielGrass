@@ -41,10 +41,6 @@ assert(
 );
 
 assert(
-  // The frame body delegates to the subsystem runner now. What must stay true
-  // is that every named phase is registered with its own failure policy, and
-  // that the frame itself schedules nothing — the fatal-frame boundary outside
-  // this slice owns the next request.
   !frameSource.includes("requestAnimationFrame(this.render)") &&
     frameSource.includes("this.frameMetrics.beginFrame(deltaSeconds)") &&
     frameSource.includes("this.subsystems.run(deltaSeconds") &&
@@ -57,10 +53,10 @@ assert(
 const experienceConstruction = source.indexOf(
   "this.experience = new WorldExperience(experienceConfig, profile.compact)",
 );
-const windAttachment = source.indexOf("attachSharedWind(this.experience");
+const weatherAttachment = source.indexOf("attachWorldWeather(this.experience");
 assert(
-  experienceConstruction >= 0 && windAttachment > experienceConstruction,
-  "The experience owner must exist before shared wind is attached.",
+  experienceConstruction >= 0 && weatherAttachment > experienceConstruction,
+  "The experience owner must exist before weather and shared wind are attached.",
 );
 
 const registrationStart = source.indexOf("private registerFrameSubsystems(): void");
@@ -87,6 +83,6 @@ for (const phase of phaseOrder) {
 }
 
 console.log(
-  "[world-frame-lifecycle] Fatal frame containment, shared-wind ownership, "
+  "[world-frame-lifecycle] Fatal frame containment, weather ownership, "
   + "weather-before-render ordering and post-success RAF scheduling verified.",
 );
