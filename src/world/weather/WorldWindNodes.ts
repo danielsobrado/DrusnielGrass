@@ -17,37 +17,37 @@ import { WIND_LATTICE_PERIOD, getWindGradientTexture } from "./WorldWindLattice"
  * only coherent if the near blades, the mid layer and the far cards are reading
  * one field rather than three that happen to look similar.
  *
- * **Cost, measured.** A full evaluation is seven gradient-noise lookups — one
- * for the direction wobble, two for the warp, and one each for the large layer,
- * its inertia probe, the medium layer and the flutter — and each lookup reads
- * four lattice texels, so twenty-eight fetches per evaluation. Evaluated per
- * blade vertex on the desktop world that costs 15.6 ms median against 7.6 ms
- * for the per-material gust model it replaces.
+ * **Cost, measured — and the shader is not where it is.**
  *
- * That is a failed budget, and the plan's answer is to bake the composite field
- * at reduced cadence and sample that everywhere, which `WorldWindBake` now
- * does. **It did not help, and three hypotheses about why were each falsified
- * by measurement:**
+ * A full evaluation is seven gradient-noise lookups reading four lattice texels
+ * each: twenty-eight fetches per vertex. That looks like the expensive thing,
+ * and it is not. With the frame timer unlocked from vsync and the quality tier
+ * pinned so the governor cannot equalise the comparison away:
  *
- * | change | median |
- * | ------ | ------ |
- * | per-material gust model (the baseline) | 7.6 ms |
- * | full field evaluated per vertex, 28 fetches | 15.6 ms |
- * | baked field, 1 fetch + noise flutter, 5 fetches | 15.4 ms |
- * | baked field, wave flutter, 1 fetch | 15.4 ms |
- * | baked field, gust-front texture removed, 1 fetch | 15.5 ms |
+ * | path | frame | GPU scene | draw (CPU) | grass update (CPU) |
+ * | ---- | ----- | --------- | ---------- | ------------------ |
+ * | per-material gust model | 5.3 ms | 0.13 ms | 5.05 ms | 0.09 ms |
+ * | shared field, baked, 1 fetch | 14.0 ms | 0.20 ms | 11.07 ms | 2.43 ms |
+ * | shared field, full, 28 fetches | 15.0 ms | — | — | — |
  *
- * Going from twenty-eight vertex-stage texture fetches to one changed nothing
- * measurable, so the cost is not the fetches and not the arithmetic around
- * them. Whatever it is, it is shared by both the analytic and baked paths and
- * absent from the per-material one, and it has not been found. The bake was
- * verified to compile — the branch was probed in the browser, not assumed.
+ * The GPU cost of the field is 0.07 ms. Twenty-eight fetches against one is
+ * worth a millisecond of frame time, which is why baking looked like it did
+ * nothing when the measurement was still vsync-quantised. The regression is
+ * CPU: draw submission doubles and the grass update phase goes up
+ * twenty-sevenfold, neither of which is shader work.
+ *
+ * Two earlier measurements were wrong and are recorded so nobody repeats them.
+ * Frame times of 7.6 and 15.1 ms are consecutive multiples of a 131 Hz refresh,
+ * so unlocked timing is required to see anything between them. And the grass
+ * quality governor targets 60 FPS by adapting density, so it equalises any two
+ * configurations that both miss the target — three different shader workloads
+ * measured identically because the governor made them identical, not because
+ * the work was the same. Pin the tier.
  *
  * So the shared field is opt-in behind `?windModel=cinematic` rather than the
- * default. It is correct: bit-identical to the model it was ported from, and
- * agreeing between CPU and GPU to the readback's quantisation floor. It is the
- * cost that is unexplained, and defaulting to something nobody has measured as
- * affordable would be the wrong way round.
+ * default, and the remaining work is on the CPU side rather than in this file.
+ * The field itself is correct: bit-identical to the model it was ported from,
+ * and agreeing between CPU and GPU to the readback's quantisation floor.
  */
 
 const DEG_TO_RAD = Math.PI / 180;
