@@ -39,8 +39,11 @@ const WIND_STEP = 0.05;
 const SPEED_MIN = 0;
 const SPEED_MAX = 2;
 const SPEED_STEP = 0.05;
+const WORLD_BOUND_SETTINGS = Object.freeze([
+  "weather", "wind", "speed", "renderScale", "interaction",
+]);
 
-/** Ordinary-user settings panel. Future-ticket controls are shown as unavailable, never as no-ops. */
+/** Ordinary-user settings panel. Future-ticket controls are explicit, never silent no-ops. */
 export class WorldExperiencePanel {
   private readonly iris = new WorldIrisTransition();
   private readonly root = document.createElement("div");
@@ -69,6 +72,7 @@ export class WorldExperiencePanel {
     document.body.appendChild(this.root);
 
     this.toggle.addEventListener("click", this.handleToggle);
+    this.panel.addEventListener("click", this.handleClick);
     this.panel.addEventListener("change", this.handleChange);
     this.panel.addEventListener("input", this.handleInput);
     document.addEventListener("keydown", this.handleKeyDown);
@@ -86,15 +90,14 @@ export class WorldExperiencePanel {
     this.sync();
   }
 
-  close(): void {
-    this.setOpen(false);
-  }
+  close(): void { this.setOpen(false); }
 
   dispose(): void {
     if (!this.initialized) return;
     this.close();
     this.initialized = false;
     this.toggle.removeEventListener("click", this.handleToggle);
+    this.panel.removeEventListener("click", this.handleClick);
     this.panel.removeEventListener("change", this.handleChange);
     this.panel.removeEventListener("input", this.handleInput);
     document.removeEventListener("keydown", this.handleKeyDown);
@@ -130,8 +133,8 @@ export class WorldExperiencePanel {
           <label class="world-experience-check"><span>Invert left/right movement</span><input data-setting="invert" type="checkbox"></label>
         </fieldset>
         <fieldset><legend>Sound</legend>
-          <label class="world-experience-check"><span>Enable sound when audio becomes available</span><input data-setting="sound" type="checkbox"></label>
-          <p class="world-experience-note">Audio is introduced in T06. This preference is saved now and does not block play.</p>
+          <label class="world-experience-check"><span>Enable sound when available</span><input data-setting="sound" type="checkbox"></label>
+          <p class="world-experience-note">Audio arrives in T06. This preference is saved now and never blocks play.</p>
         </fieldset>
         <fieldset><legend>Experience</legend>
           ${unavailable("Scenic tour", "Available in T12")}
@@ -145,6 +148,10 @@ export class WorldExperiencePanel {
   }
 
   private readonly handleToggle = (): void => this.setOpen(this.panel.hidden);
+  private readonly handleClick = (event: MouseEvent): void => {
+    const target = event.target;
+    if (target instanceof HTMLElement && target.closest<HTMLElement>("[data-action=\"close\"]")) this.close();
+  };
 
   private readonly handleKeyDown = (event: KeyboardEvent): void => {
     if (event.key !== "Escape" || isTextEditingTarget(event.target)) return;
@@ -221,7 +228,10 @@ export class WorldExperiencePanel {
     this.setOutput("wind", live?.windGain ?? 1);
     this.setOutput("speed", live?.simulationSpeed ?? 1);
     this.setOutput("renderScale", live?.renderScale ?? stored.renderScale);
-    this.panel.toggleAttribute("data-world-attached", Boolean(this.host));
+    for (const setting of WORLD_BOUND_SETTINGS) {
+      const input = this.panel.querySelector<HTMLInputElement | HTMLSelectElement>(`[data-setting="${setting}"]`);
+      if (input) input.disabled = !this.host;
+    }
   }
 
   private setValue(setting: string, value: string | number): void {
