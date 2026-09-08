@@ -139,6 +139,11 @@ export class WorldApp {
         spawn.pitch = THREE.MathUtils.degToRad(-34);
       }
 
+      // Optional owners must exist before any feature tries to attach to them.
+      // T02 originally attached wind before this assignment, which meant the
+      // cinematic owner was silently absent on the normal production path.
+      this.experience = new WorldExperience(experienceConfig, profile.compact);
+
       environment = new WorldEnvironmentController(this.scene, this.renderer,
         profile, profile.shadows && !useFlyControls, session.capabilities);
       this.environment = environment;
@@ -206,9 +211,6 @@ export class WorldApp {
           );
       this.controls = controls;
       this.viewState = new WorldViewState(controls, useFlyControls ? "fly" : "play");
-      // Optional systems are owned apart from the world's own: they are filled
-      // by their feature tickets, and an empty slot allocates nothing.
-      this.experience = new WorldExperience(experienceConfig, profile.compact);
       // Built here because the development tools reach the controls; every
       // query-parameter-only attachment lives behind this one owner.
       this.development = new WorldDevelopmentHooks({
@@ -603,8 +605,18 @@ export class WorldApp {
   private registerFrameSubsystems(): void {
     const runner = this.subsystems;
     runner.register({ name: "controls", run: this.updateControls, onFailure: () => {} });
-    runner.register({ name: "terrain", run: this.updateTerrain, onFailure: () => {} });
+    runner.register({
+      name: "experience",
+      // Weather and shared wind live here, so this phase must run before the
+      // environment and every material consumer for the frame to read one state.
+      run: this.updateExperience,
+      onFailure: () => {
+        this.disposeSafely("Experience", () => this.experience?.dispose());
+        this.experience = undefined;
+      },
+    });
     runner.register({ name: "environment", run: this.updateEnvironment, onFailure: () => {} });
+    runner.register({ name: "terrain", run: this.updateTerrain, onFailure: () => {} });
     runner.register({
       name: "stones",
       run: this.updateStones,
@@ -623,16 +635,6 @@ export class WorldApp {
         }
       },
       onFailure: () => {},
-    });
-    runner.register({
-      name: "experience",
-      // Optional systems are optional: releasing them costs an effect, not the
-      // frame.
-      run: this.updateExperience,
-      onFailure: () => {
-        this.disposeSafely("Experience", () => this.experience?.dispose());
-        this.experience = undefined;
-      },
     });
     runner.register({ name: "hud", run: this.updateHud, onFailure: () => {} });
   }
