@@ -1,25 +1,38 @@
 import { BackSide, Color, MeshBasicNodeMaterial, Vector2, Vector3, type Texture } from "three/webgpu";
 import { Fn, uniform, positionWorld, cameraPosition, vec2, vec3, max, mix, smoothstep, If, texture, screenUV } from "three/tsl";
 import type { RuntimeProfile } from "../../runtime/RuntimeConfig";
+import type { WorldLightingState } from "../../render/WorldLightingState";
 import { WORLD_SKY_HAZE, WORLD_SKY_HORIZON, WORLD_SKY_SUN, WORLD_SKY_ZENITH,
   WORLD_SUN_DIRECTION } from "../../app/WorldEnvironmentTuning";
 import { cloudValueNoiseNode, createCloudFieldNodes } from "./WorldCloudFieldNodes";
 
+const DEFAULT_DISK_POWER = 10000;
+
 /** Analytic sky path, preserving the existing compact and non-volume equations. */
 export class WorldSkyAnalyticNodeMaterial {
   readonly material = new MeshBasicNodeMaterial({ side: BackSide, depthWrite: false, fog: false });
-  readonly sunDirection = uniform(new Vector3(...WORLD_SUN_DIRECTION).normalize());
-  readonly zenith = uniform(new Color(WORLD_SKY_ZENITH));
-  readonly horizon = uniform(new Color(WORLD_SKY_HORIZON));
-  readonly haze = uniform(new Color(WORLD_SKY_HAZE));
-  readonly sunColor = uniform(new Color(WORLD_SKY_SUN));
+  readonly sunDirection;
+  readonly zenith;
+  readonly horizon;
+  readonly haze;
+  readonly sunHaloColor;
+  readonly sunDiskColor;
   readonly worldOffset = uniform(new Vector2());
   readonly cloudsEnabled = uniform(1);
   readonly field;
   readonly volumeMap;
+  private readonly haloPower = uniform(28);
+  private readonly diskStart = uniform(0.9992);
+  private readonly diskEnd = uniform(0.99985);
 
-  constructor(profile: RuntimeProfile, volumeTexture?: Texture) {
+  constructor(profile: RuntimeProfile, volumeTexture?: Texture, lighting?: WorldLightingState) {
     this.volumeMap = volumeTexture ? texture(volumeTexture) : undefined;
+    this.sunDirection = uniform(lighting?.sunDirection ?? new Vector3(...WORLD_SUN_DIRECTION).normalize());
+    this.zenith = uniform(lighting?.skyZenithColor ?? new Color(WORLD_SKY_ZENITH));
+    this.horizon = uniform(lighting?.skyHorizonColor ?? new Color(WORLD_SKY_HORIZON));
+    this.haze = uniform(lighting?.skyHazeColor ?? new Color(WORLD_SKY_HAZE));
+    this.sunHaloColor = uniform(lighting?.skySunHaloColor ?? new Color(WORLD_SKY_SUN));
+    this.sunDiskColor = uniform(lighting?.skySunDiskColor ?? new Color(WORLD_SKY_SUN));
     const cloud = profile.cloud;
     const field = this.field = createCloudFieldNodes(cloud, profile.compact);
     const baseHeight = uniform(cloud.baseHeight);
@@ -33,6 +46,7 @@ export class WorldSkyAnalyticNodeMaterial {
     const sunlit = uniform(new Color(cloud.sunlitColor));
     const rayStrength = uniform(cloud.godRayStrength);
     this.cloudsEnabled.value = cloud.enabled ? 1 : 0;
+    if (lighting) this.applyLightingState(lighting);
     this.material.name = "world-sky-dome";
     this.material.colorNode = Fn(() => {
       const direction = positionWorld.sub(cameraPosition).normalize();
@@ -40,8 +54,10 @@ export class WorldSkyAnalyticNodeMaterial {
       const sunFacing = max(direction.dot(this.sunDirection), 0);
       const color = mix(this.horizon, this.zenith, smoothstep(-0.04, 0.62, height)).toVar();
       color.assign(mix(this.haze, color, smoothstep(-0.18, 0.14, height)));
-      color.addAssign(this.sunColor.mul(sunFacing.pow(28).mul(0.42)
-        .add(smoothstep(0.9992, 0.99985, sunFacing).mul(1.65))));
+      color.addAssign(this.sunHaloColor.mul(sunFacing.pow(this.haloPower).mul(0.42)));
+      color.addAssign(this.sunDiskColor.mul(
+        smoothstep(this.diskStart, this.diskEnd, sunFacing).mul(1.65),
+      ));
       If(this.cloudsEnabled.greaterThan(0.5).and(height.greaterThan(0.015)), () => {
         const horizonFade = smoothstep(0.025, 0.18, height);
         if (this.volumeMap) {
@@ -56,7 +72,7 @@ export class WorldSkyAnalyticNodeMaterial {
             const fine = cloudValueNoiseNode(rotated.mul(37).add(vec2(-19.1, 5.7)).sub(0.31 * 0.37));
             const shaft = smoothstep(0.52, 0.82, broad.mul(0.68).add(fine.mul(0.32)));
             const edge = volume.a.mul(volume.a.oneMinus()).mul(2.4).add(0.35);
-            color.addAssign(this.sunColor.mul(sunFacing.pow(7)).mul(volume.a.oneMinus())
+            color.addAssign(this.sunHaloColor.mul(sunFacing.pow(7)).mul(volume.a.oneMinus())
               .mul(shaft).mul(edge).mul(horizonFade).mul(rayStrength));
           }
           return;
@@ -94,11 +110,22 @@ export class WorldSkyAnalyticNodeMaterial {
           const shaft = smoothstep(0.50, 0.80, broad.mul(0.68).add(fine.mul(0.32)));
           const godRay = sunFacing.pow(7).mul(density.oneMinus()).mul(shaft)
             .mul(silver.mul(2.4).add(0.35)).mul(horizonFade);
-          color.addAssign(this.sunColor.mul(godRay).mul(rayStrength));
+          color.addAssign(this.sunHaloColor.mul(godRay).mul(rayStrength));
         }
       });
       return color;
     })();
+  }
+
+  applyLightingState(lighting: WorldLightingState): void {
+    this.field.coverage.value = lighting.cloudThreshold;
+    this.haloPower.value = Math.max(1, lighting.skyHaloPower);
+    const diskPower = Math.max(10, lighting.skyDiskPower || DEFAULT_DISK_POWER);
+    this.diskStart.value = Math.max(0.9, Math.min(0.9998, 1 - 8 / diskPower));
+    this.diskEnd.value = Math.max(
+      this.diskStart.value + 0.00001,
+      Math.min(0.99998, 1 - 1.5 / diskPower),
+    );
   }
 
   update(elapsedSeconds: number, focus: Vector3): void {
