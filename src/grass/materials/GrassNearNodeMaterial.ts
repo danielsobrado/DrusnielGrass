@@ -39,12 +39,6 @@ export class GrassNearNodeMaterial extends MeshLambertNodeMaterial {
     this.normalNode = this.graph.normal.mul(faceDirection);
     this.colorNode = this.graph.color;
     if (context) {
-      if (wind) {
-        // Far cards are created later from the same per-world context. Publish
-        // the already-owned shared wind here so every grass representation
-        // reads the same field without introducing module-global weather state.
-        context.setWorldWindUniforms(wind);
-      }
       context.applyTo(this);
       this.sun = context.directionalSurfaceLight();
     }
