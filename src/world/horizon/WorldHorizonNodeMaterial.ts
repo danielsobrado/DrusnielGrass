@@ -23,7 +23,9 @@ export class WorldHorizonNodeMaterial {
     const outsideWorld = max(max(position.x.abs(), position.z.abs()).sub(worldHalfExtent), 0);
     const apronHaze = varying(smoothstep(0, WORLD_HORIZON_APRON_HAZE_DISTANCE, outsideWorld));
     const worldNormal = modelWorldMatrix.mul(vec4(normalLocal, 0)).xyz.normalize();
-    const sunDirection = uniform(new Vector3(...WORLD_SUN_DIRECTION).normalize());
+    const sunDirection = uniform(
+      context?.worldSunDirection() ?? new Vector3(...WORLD_SUN_DIRECTION).normalize(),
+    );
     const faceGrade = varying(mix(0.88, 1.04, smoothstep(-0.15, 0.35, worldNormal.dot(sunDirection))));
     const grade = mix(faceGrade, 1, apronHaze.mul(0.85));
     this.material.colorNode = mix(attribute<"vec3">("color", "vec3").mul(grade),
