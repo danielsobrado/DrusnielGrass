@@ -44,6 +44,11 @@ export interface WorldCloudWeatherState {
   regime: CloudWeatherRegime;
 }
 
+interface CloudLightingTargets {
+  readonly directTransmittance: number;
+  readonly weatherAmount: number;
+}
+
 export class WorldCloudEnvironmentLighting {
   private readonly weatherState: WorldCloudWeatherState = {
     amount: 0,
@@ -51,6 +56,9 @@ export class WorldCloudEnvironmentLighting {
     regime: "clear",
   };
   private readonly cloud: RuntimeCloudConfig;
+  private readonly lastFocus = new THREE.Vector3();
+  private lastElapsedSeconds = 0;
+  private hasFocus = false;
   private directTransmittance = 1;
   private weatherAmount = 0;
   private directAttenuationEnabled = true;
@@ -67,8 +75,15 @@ export class WorldCloudEnvironmentLighting {
     this.cloud = { ...profile.cloud, coverage: lighting.cloudThreshold };
   }
 
+  /** Cuts cloud response to the selected preset at the current world sample. */
   applyLightingState(): void {
     this.cloud.coverage = this.lighting.cloudThreshold;
+    if (this.hasFocus) {
+      const target = this.sampleTargets(this.lastFocus, this.lastElapsedSeconds);
+      this.directTransmittance = target.directTransmittance;
+      this.weatherAmount = target.weatherAmount;
+      this.publishWeatherState();
+    }
     this.apply();
   }
 
@@ -77,43 +92,22 @@ export class WorldCloudEnvironmentLighting {
     focus: THREE.Vector3,
     elapsedSeconds: number,
   ): void {
-    const cloud = this.cloud;
-    const sunDirection = this.lighting.sunDirection;
-    const targetTransmittance = sampleCloudPointDirectTransmittance(
-      cloud,
-      this.profile.compact,
-      focus.x,
-      focus.y,
-      focus.z,
-      elapsedSeconds,
-      sunDirection,
-    );
-    const heightToCloud = Math.max(cloud.baseHeight - focus.y, 0);
-    const cloudHeightAlongSun =
-      heightToCloud / Math.max(sunDirection.y, 0.01);
-    const sampleX = focus.x + sunDirection.x * cloudHeightAlongSun;
-    const sampleZ = focus.z + sunDirection.z * cloudHeightAlongSun;
-    const targetWeather = sampleCloudWeatherAmount(
-      cloud,
-      sampleX,
-      sampleZ,
-      elapsedSeconds,
-    );
-    const blend = 1 - Math.exp(-cloud.lightResponseRate * deltaSeconds);
+    this.lastFocus.copy(focus);
+    this.lastElapsedSeconds = elapsedSeconds;
+    this.hasFocus = true;
+    const target = this.sampleTargets(focus, elapsedSeconds);
+    const blend = 1 - Math.exp(-this.cloud.lightResponseRate * deltaSeconds);
     this.directTransmittance = THREE.MathUtils.lerp(
       this.directTransmittance,
-      targetTransmittance,
+      target.directTransmittance,
       blend,
     );
     this.weatherAmount = THREE.MathUtils.lerp(
       this.weatherAmount,
-      targetWeather,
+      target.weatherAmount,
       blend,
     );
-    this.weatherState.amount = this.weatherAmount;
-    this.weatherState.directTransmittance = this.directTransmittance;
-    this.weatherState.regime = resolveCloudWeatherRegime(this.weatherAmount);
-    this.scene.userData.worldCloudWeather = this.weatherState;
+    this.publishWeatherState();
     this.apply();
   }
 
@@ -136,9 +130,6 @@ export class WorldCloudEnvironmentLighting {
 
   apply(): void {
     if (!this.lighting.baseline) {
-      // Source-style presets already carry their own illumination ratios. Cloud
-      // cover attenuates only the direct key; it must not recolor the preset or
-      // overwrite its hemisphere/ambient response on the next frame.
       this.sun.color.copy(this.lighting.sunColor);
       this.sun.intensity =
         this.lighting.sunIntensity * this.getAppliedDirectTransmittance();
@@ -156,8 +147,6 @@ export class WorldCloudEnvironmentLighting {
       return;
     }
 
-    // Drusniel is an exact compatibility baseline: retain the destination's
-    // existing dynamic overcast grade rather than approximating it as a preset.
     const cloud = this.cloud;
     const grade = THREE.MathUtils.clamp(
       this.weatherAmount * cloud.weatherGradeStrength,
@@ -196,5 +185,43 @@ export class WorldCloudEnvironmentLighting {
     if (this.scene.userData.worldCloudWeather === this.weatherState) {
       delete this.scene.userData.worldCloudWeather;
     }
+  }
+
+  private sampleTargets(
+    focus: THREE.Vector3,
+    elapsedSeconds: number,
+  ): CloudLightingTargets {
+    const cloud = this.cloud;
+    const sunDirection = this.lighting.sunDirection;
+    const directTransmittance = sampleCloudPointDirectTransmittance(
+      cloud,
+      this.profile.compact,
+      focus.x,
+      focus.y,
+      focus.z,
+      elapsedSeconds,
+      sunDirection,
+    );
+    const heightToCloud = Math.max(cloud.baseHeight - focus.y, 0);
+    const cloudHeightAlongSun =
+      heightToCloud / Math.max(sunDirection.y, 0.01);
+    const sampleX = focus.x + sunDirection.x * cloudHeightAlongSun;
+    const sampleZ = focus.z + sunDirection.z * cloudHeightAlongSun;
+    return {
+      directTransmittance,
+      weatherAmount: sampleCloudWeatherAmount(
+        cloud,
+        sampleX,
+        sampleZ,
+        elapsedSeconds,
+      ),
+    };
+  }
+
+  private publishWeatherState(): void {
+    this.weatherState.amount = this.weatherAmount;
+    this.weatherState.directTransmittance = this.directTransmittance;
+    this.weatherState.regime = resolveCloudWeatherRegime(this.weatherAmount);
+    this.scene.userData.worldCloudWeather = this.weatherState;
   }
 }
