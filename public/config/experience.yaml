@@ -1,0 +1,51 @@
+# Optional experience systems: presentation, audio, authoring and the tour.
+#
+# This file decides which optional systems exist and how large their budgets
+# are. It never decides what the world is — species, placement, terrain and
+# hydrology all live in world.yaml, and nothing here regenerates them. Turning
+# a flag off leaves the same world, minus one effect.
+#
+# Every key is required and every value is validated; a misspelled key is
+# reported rather than ignored. See scripts/verify-experience-config.mjs.
+
+# Which systems may exist at all. Each one is on by default: a feature that
+# ships disabled is a feature nobody sees fail.
+weatherEnabled: true
+rainEnabled: true
+audioEnabled: true
+leavesEnabled: true
+birdsEnabled: true
+painterEnabled: true
+tourEnabled: true
+cinematicEnabled: true
+
+# Per-profile budgets. The compact profile is a smaller device, not a different
+# world, so these scale the same systems down rather than removing them.
+desktopRainCount: 4000
+compactRainCount: 1000
+desktopLeafCount: 192
+compactLeafCount: 48
+desktopBirdCount: 12
+compactBirdCount: 4
+
+# Includes loops and one-shots; at least one voice, so a mixer can always play
+# the sound that proves audio is working.
+desktopAudioVoices: 16
+compactAudioVoices: 8
+
+# Multisample counts only: 0, 2 or 4. Clamped again at runtime against what the
+# device actually supports.
+desktopPostSamples: 4
+compactPostSamples: 0
+
+# The authoring grid, in metres and texels per tile: 0.25 m per texel. Pinned
+# until painter documents can be migrated between grids, because a world
+# authored at one grid cannot be read back at another.
+authoringTileSize: 32
+authoringTileResolution: 128
+authoringMaxTiles: 1024
+
+# Seconds.
+tourDurationSeconds: 30
+wettingSeconds: 8
+dryingSeconds: 45

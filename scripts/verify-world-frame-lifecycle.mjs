@@ -41,14 +41,16 @@ assert(
 );
 
 assert(
+  // The frame body delegates to the subsystem runner now. What must stay true
+  // is that every named phase is registered with its own failure policy, and
+  // that the frame itself schedules nothing — the fatal-frame boundary outside
+  // this slice owns the next request.
   !frameSource.includes("requestAnimationFrame(this.render)") &&
     frameSource.includes("this.frameMetrics.beginFrame(deltaSeconds)") &&
-    frameSource.includes('this.runFrameSubsystem("controls"') &&
-    frameSource.includes('this.runFrameSubsystem("terrain"') &&
-    frameSource.includes('this.runFrameSubsystem("stones"') &&
-    frameSource.includes('this.runFrameSubsystem("grass"') &&
-    frameSource.includes('this.runFrameSubsystem("renderer"') &&
-    frameSource.includes('this.runFrameSubsystem("hud"'),
+    frameSource.includes("this.subsystems.run(deltaSeconds") &&
+    ["controls", "terrain", "environment", "stones", "grass", "renderer",
+      "experience", "hud"].every((phase) =>
+      new RegExp('name: "' + phase + '",[^]*?onFailure:').test(source)),
   "Frame work must stay inside the fatal-frame boundary while named subsystems retain their independent fault isolation.",
 );
 

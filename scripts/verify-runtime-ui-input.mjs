@@ -74,10 +74,17 @@ assert(
   "HUD settings must expose the movement preference with symmetric keyboard lifecycle cleanup.",
 );
 assert(
+  // The store gained a versioned schema, so the persisted document now carries
+  // a version alongside the settings and every field is validated in one
+  // decoder. The contract here is unchanged: inversion defaults to normal
+  // controls and only ever persists a real boolean. The decoder's own coverage,
+  // including the migration of a document that had only this field, is in
+  // verify-experience-config.mjs.
   hudSettingsStore.includes("invertHorizontalMovement: false") &&
-    hudSettingsStore.includes('localStorage.getItem(STORAGE_KEY)') &&
-    hudSettingsStore.includes('localStorage.setItem(STORAGE_KEY, JSON.stringify(settings))') &&
-    hudSettingsStore.includes("parsed.invertHorizontalMovement === true"),
+    hudSettingsStore.includes("localStorage.getItem(STORAGE_KEY)") &&
+    hudSettingsStore.includes("localStorage.setItem(") &&
+    hudSettingsStore.includes("version: HUD_SETTINGS_VERSION") &&
+    hudSettingsStore.includes("raw.invertHorizontalMovement === true"),
   "Horizontal movement inversion must default to normal controls and persist only validated boolean state.",
 );
 assert(

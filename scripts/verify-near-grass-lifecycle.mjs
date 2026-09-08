@@ -17,7 +17,7 @@ function assert(condition, message) {
 
 assert(
   source.includes('import { disposeResources } from "../../render/ResourceDisposal"') &&
-    source.includes("const resources = createNearGrassResources(profile, worldConfig, materialContext)") &&
+    source.includes("createNearGrassResources(profile, worldConfig, materialContext,") &&
     source.includes("function createNearGrassResources(") &&
     source.includes("const created: GrassNearMaterial[] = []") &&
     source.includes("disposeResources(created.map((material) => material.material))") &&

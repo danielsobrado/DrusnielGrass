@@ -169,10 +169,14 @@ assert(
   "Island rendering must clamp resumed or invalid frame deltas before updating grass animation.",
 );
 assert(
-  /else if \(subsystem === "stones"\) \{[\s\S]*?this\.stonesEnabled = false;[\s\S]*?this\.disposeSafely\("Stone system"/.test(
+  // Phase failure policy sits beside the phase now rather than in a branch
+  // over subsystem names; the contract is unchanged — a failed stones frame
+  // releases the stone system, a failed grass frame releases grass and its
+  // trail field, and both go through the fault-isolating helper.
+  /name: "stones",[\s\S]*?onFailure: \(\) => this\.disposeSafely\("Stone system"/.test(
     world,
   ) &&
-    /else if \(subsystem === "grass"\) \{[\s\S]*?this\.grassEnabled = false;[\s\S]*?this\.disposeGrassResources\(\);[\s\S]*?\}/.test(
+    /name: "grass",[\s\S]*?onFailure: \(\) => this\.disposeGrassResources\(\),/.test(
       world,
     ) &&
     /private disposeGrassResources\(\): void \{[\s\S]*?this\.disposeSafely\("Grass system"[\s\S]*?this\.grass\.dispose\(\)[\s\S]*?this\.disposeSafely\("Grass trail field"[\s\S]*?grassTrailField\.dispose\(\)/.test(
@@ -254,7 +258,7 @@ assert(
     /private releaseTargets\(\): void \{[\s\S]*?const quad = this\.quad;[\s\S]*?this\.quad = undefined;[\s\S]*?this\.material = undefined;[\s\S]*?this\.targets = undefined;[\s\S]*?disposeResources\(\[/.test(
       trailField,
     ) &&
-    /new WorldRuntimeGuard\([\s\S]*?\(enabled\) => \{[\s\S]*?this\.rendererEnabled = enabled;[\s\S]*?if \(enabled && !useFlyControls\) \{[\s\S]*?this\.disposeSafely\("Grass trail context restore"[\s\S]*?grassTrailField\.configure\(\{\}\)/.test(
+    /new WorldRuntimeGuard\([\s\S]*?\(enabled\) => \{[\s\S]*?this\.rendererPaused = !enabled;[\s\S]*?if \(enabled && !useFlyControls\) \{[\s\S]*?this\.disposeSafely\("Grass trail context restore"[\s\S]*?grassTrailField\.configure\(\{\}\)/.test(
       world,
     ),
   "Grass trail feedback must reject invalid inputs, restore renderer state, roll back partial attachment, clear singleton ownership before complete resource disposal, and rebuild neutral feedback targets after WebGL restoration.",

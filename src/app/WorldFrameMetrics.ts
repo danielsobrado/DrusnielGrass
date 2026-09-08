@@ -6,6 +6,8 @@ import {
 
 export type WorldFrameSubsystem =
   | "controls"
+  | "environment"
+  | "experience"
   | "terrain"
   | "stones"
   | "grass"
@@ -14,6 +16,8 @@ export type WorldFrameSubsystem =
 
 export interface WorldFrameTimings {
   controls: number;
+  environment: number;
+  experience: number;
   terrain: number;
   stones: number;
   grass: number;
@@ -29,6 +33,8 @@ export class WorldFrameMetrics {
   private sampleTimings = true;
   private readonly timings: WorldFrameTimings = {
     controls: 0,
+    environment: 0,
+    experience: 0,
     terrain: 0,
     stones: 0,
     grass: 0,

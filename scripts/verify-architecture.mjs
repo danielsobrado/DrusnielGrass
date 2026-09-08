@@ -165,14 +165,13 @@ assert(
   "WorldApp must remain an orchestrator rather than absorbing environment, browser-fault, or presentation logic.",
 );
 assert(
-  worldApp.includes('runFrameSubsystem("stones"') &&
-    worldApp.includes('subsystem === "stones"') &&
-    // Disposal moved behind `disposeSafely` when world cleanup was isolated, so
-    // one failing subsystem cannot abort the rest of the teardown. The pairing
-    // this guards — disable and release in the same step — is unchanged.
-    worldApp.includes(
-      'this.stonesEnabled = false;\n        this.disposeSafely("Stone system", () => this.stones.dispose());',
-    ) &&
+  // Stones are their own frame phase with their own failure policy. Disposal
+  // moved behind `disposeSafely` when world cleanup was isolated, and the
+  // policy moved beside the phase when the dispatch was extracted; the pairing
+  // this guards -- retire the phase and release the system in one step -- is
+  // unchanged, and the runner retires a phase before calling its policy.
+  /name: "stones",[^]*?onFailure: \(\) => this\.disposeSafely\("Stone system"/
+    .test(worldApp) &&
     !worldApp.includes("setStoneClearanceField"),
   "Stone streaming must have an independent failure domain and atomically release rendering plus clearance when it degrades.",
 );

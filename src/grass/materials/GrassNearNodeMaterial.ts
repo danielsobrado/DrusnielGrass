@@ -2,6 +2,7 @@ import { DoubleSide, MeshLambertNodeMaterial, type Node, type NodeBuilder } from
 import { Fn, If, abs, diffuseColor, faceDirection, float, mix, normalView, positionViewDirection, smoothstep, vec3 } from "three/tsl";
 import type { IUniform } from "three";
 import type { WorldNodeMaterialContext } from "../../render/WorldNodeMaterialContext";
+import type { WorldWindUniforms } from "../../world/weather/WorldWindUniforms";
 import { GRASS_LIGHT_MIX } from "./GrassPaletteShader";
 import { createGrassNodeUniforms } from "./GrassNearNodeInputs";
 import { createGrassNearNodes, setupGrassPosition, type GrassNearNodeFeatures } from "./GrassNearNodes";
@@ -20,7 +21,7 @@ export class GrassNearNodeMaterial extends MeshLambertNodeMaterial {
   private readonly graph: ReturnType<typeof createGrassNearNodes>;
 
   constructor(name: string, values: Record<string, IUniform>, features: GrassNearNodeFeatures,
-    context?: WorldNodeMaterialContext) {
+    context?: WorldNodeMaterialContext, wind?: WorldWindUniforms) {
     super();
     this.name = name;
     this.side = DoubleSide;
@@ -28,7 +29,7 @@ export class GrassNearNodeMaterial extends MeshLambertNodeMaterial {
     this.depthWrite = true;
     this.features = features;
     this.inputs = createGrassNodeUniforms(values);
-    this.graph = createGrassNearNodes(this.inputs, features);
+    this.graph = createGrassNearNodes(this.inputs, features, wind);
     this.positionNode = this.graph.position;
     // The GLSL writes the blade's view normal into `vNormal`, so
     // `normal_fragment_begin` flips it by `faceDirection` on this double-sided

@@ -42,6 +42,7 @@ export class ThirdPersonInput {
   private inputEventCount = 0;
   private lastInputType = "idle";
   private previousTouchAction = "";
+  private enabled = true;
   private disposed = false;
 
   constructor(
@@ -61,7 +62,48 @@ export class ThirdPersonInput {
     }
   }
 
+  /**
+   * Enables or disables the player's control of the character.
+   *
+   * Held state is cleared on both edges, not merely ignored. A key held when a
+   * tour starts is released outside this object's hearing, so its keyup never
+   * arrives; without clearing, the character would still be walking when the
+   * tour ends. Clearing on the way back in discards anything that accumulated
+   * while nobody was reading it.
+   */
+  setEnabled(enabled: boolean): void {
+    if (this.disposed || this.enabled === enabled) {
+      return;
+    }
+    this.enabled = enabled;
+    this.clearTransientState();
+  }
+
+  isEnabled(): boolean {
+    return this.enabled;
+  }
+
+  private clearTransientState(): void {
+    this.keys.clear();
+    this.touchMovement.set(0, 0);
+    this.joystickMovement.set(0, 0);
+    this.lookDelta.set(0, 0);
+    this.movePointer = undefined;
+    this.lookPointer = undefined;
+    this.mobileJoystick?.reset();
+    this.mobileSprint = false;
+    this.mobileJumpHeld = false;
+    this.jumpRequested = false;
+    this.resetRequested = false;
+    this.rollRequested = false;
+    this.zoomDelta = 0;
+    this.lastInputType = "idle";
+  }
+
   getMovement(target: THREE.Vector2): THREE.Vector2 {
+    if (!this.enabled) {
+      return target.set(0, 0);
+    }
     const touch = this.resolveTouchMovement();
     const joystick = this.mobileJoystick?.getMovement(this.joystickMovement) ??
       this.joystickMovement.set(0, 0);
@@ -86,24 +128,36 @@ export class ThirdPersonInput {
   }
 
   consumeLookDelta(target: THREE.Vector2): THREE.Vector2 {
+    if (!this.enabled) {
+      return target.set(0, 0);
+    }
     target.copy(this.lookDelta);
     this.lookDelta.set(0, 0);
     return target;
   }
 
   consumeZoomDelta(): number {
+    if (!this.enabled) {
+      return 0;
+    }
     const delta = this.zoomDelta;
     this.zoomDelta = 0;
     return delta;
   }
 
   consumeJump(): boolean {
+    if (!this.enabled) {
+      return false;
+    }
     const requested = this.jumpRequested;
     this.jumpRequested = false;
     return requested;
   }
 
   consumeRoll(): boolean {
+    if (!this.enabled) {
+      return false;
+    }
     const requested = this.rollRequested;
     this.rollRequested = false;
     return requested;
@@ -118,17 +172,20 @@ export class ThirdPersonInput {
   }
 
   consumeReset(): boolean {
+    if (!this.enabled) {
+      return false;
+    }
     const requested = this.resetRequested;
     this.resetRequested = false;
     return requested;
   }
 
   isJumpHeld(): boolean {
-    return this.mobileJumpHeld || this.keys.has("Space");
+    return this.enabled && (this.mobileJumpHeld || this.keys.has("Space"));
   }
 
   isSprinting(): boolean {
-    return (
+    return this.enabled && (
       this.mobileSprint ||
       this.keys.has("ShiftLeft") ||
       this.keys.has("ShiftRight")

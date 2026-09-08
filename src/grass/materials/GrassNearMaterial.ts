@@ -2,6 +2,7 @@ import type { GUI } from "dat.gui";
 import * as THREE from "three";
 import { GrassNearNodeMaterial } from "./GrassNearNodeMaterial";
 import type { WorldNodeMaterialContext } from "../../render/WorldNodeMaterialContext";
+import type { WorldWindUniforms } from "../../world/weather/WorldWindUniforms";
 import type {
   GrassLodConfig,
   GrassMaterialConfig,
@@ -91,6 +92,15 @@ export interface GrassNearMaterialOptions {
   name: string;
   /** Lighting and cloud-shadow field the node blade is built against. */
   context?: WorldNodeMaterialContext;
+  /**
+   * Drives the blade from the world's shared wind field.
+   *
+   * Off leaves the material's own gust model in place, which is the baseline
+   * the shared field is compared against.
+   */
+  cinematicWind?: boolean;
+  /** The shared wind uniforms; required when `cinematicWind` is on. */
+  windUniforms?: WorldWindUniforms;
   /** Distinct per option set, otherwise three reuses a cached program. */
   cacheKey: string;
   /** Mid layers keep the blades the near layer drops. */
@@ -319,15 +329,17 @@ export class GrassNearMaterial {
     const microWind = options.microWind !== false;
     const instanceFreeDither = options.instanceFreeDither === true;
     const shapeVariation = options.shapeVariation === true;
+    const cinematicWind = options.cinematicWind === true && options.windUniforms !== undefined;
     this.options = options;
     this.material = new GrassNearNodeMaterial(options.name, this.uniforms, {
       worldLod, vertexPalette, interactive: this.interactive, subPixelWidth, sheen,
-      noiseWind, microWind, instanceFreeDither, shapeVariation,
-    }, options.context);
+      noiseWind, microWind, instanceFreeDither, shapeVariation, cinematicWind,
+    }, options.context, options.windUniforms);
     // The same compile-time selection the chunks above make, in the form the
     // node material consumes. Resolved here so the defaults have exactly one
     // owner rather than being restated per implementation.
     this.nodeFeatures = {
+      cinematicWind,
       worldLod,
       vertexPalette,
       interactive: this.interactive,
@@ -342,6 +354,7 @@ export class GrassNearMaterial {
 
   /** Compile-time feature selection shared with the node material. */
   readonly nodeFeatures: {
+    cinematicWind: boolean;
     worldLod: boolean;
     vertexPalette: boolean;
     interactive: boolean;

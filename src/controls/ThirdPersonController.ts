@@ -13,7 +13,9 @@ import type { TerrainField } from "../world/TerrainField";
 import { WorldTerrainContactSampler } from "../world/WorldTerrainContactSampler";
 import type { WorldConfig } from "../world/WorldConfig";
 import { ThirdPersonInput } from "./ThirdPersonInput";
-import type { ControllerRecoveryState, WorldController, WorldControlMode } from "./WorldController";
+import type {
+  ControllerRecoveryState, WorldController, WorldControlMode, WorldControllerViewState,
+} from "./WorldController";
 
 const CAMERA_COLLISION_SAMPLES = [0.35, 0.6, 0.85] as const;
 const CAMERA_POSITION_RATE = 12;
@@ -249,6 +251,44 @@ export class ThirdPersonController implements WorldController {
       THREE.MathUtils.clamp(z, -halfWorld, halfWorld),
       this.facing,
     );
+  }
+
+  setEnabled(enabled: boolean): void {
+    this.input.setEnabled(enabled);
+  }
+
+  isEnabled(): boolean {
+    return this.input.isEnabled();
+  }
+
+  /**
+   * The controller's own framing, which is what actually places the camera.
+   *
+   * Saving the camera transform instead would be overwritten by the next
+   * update, which recomputes the camera from exactly these values.
+   */
+  saveViewState(): WorldControllerViewState {
+    return this.captureRecoveryState();
+  }
+
+  restoreViewState(state: WorldControllerViewState): void {
+    if (state.mode !== "third-person") {
+      return;
+    }
+    // Restoring through the recovery path resettles the camera against terrain
+    // and clears the capture lock, so a tour cannot leave it framed mid-flight.
+    this.restoreRecoveryState(state as ControllerRecoveryState);
+  }
+
+  getGameplayPose(target: THREE.Vector3): { position: THREE.Vector3; facing: number } {
+    target.copy(this.position);
+    return { position: target, facing: this.facing };
+  }
+
+  setCharacterVisible(visible: boolean): void {
+    if (!this.disposed) {
+      this.character.setVisible(visible);
+    }
   }
 
   captureRecoveryState(): ControllerRecoveryState {
