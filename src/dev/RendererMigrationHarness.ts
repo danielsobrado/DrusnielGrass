@@ -101,6 +101,16 @@ export class RendererMigrationHarness {
         session.renderer.domElement.dataset.bakeComparison =
           JSON.stringify(await compareImpostorBake(session.renderer));
       }
+      if (params.get("materialFixture") === "wind") {
+        const { compareWorldWind } = await import("./WorldWindComparison");
+        const reports = [];
+        for (const channel of ["gust", "strength", "turbulence", "direction"] as const) {
+          for (const [time, direction] of [[0, 0], [37.25, 35], [600, 287.5]] as const) {
+            reports.push(await compareWorldWind(session.renderer, channel, time, direction));
+          }
+        }
+        session.renderer.domElement.dataset.windComparison = JSON.stringify(reports);
+      }
       if (params.get("materialFixture") === "stone") {
         const { WorldConfigLoader } = await import("../world/WorldConfigLoader");
         const worldConfig = await new WorldConfigLoader().load();

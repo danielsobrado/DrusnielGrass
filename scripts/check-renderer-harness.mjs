@@ -25,6 +25,7 @@ try {
       if (fixture === 'trail') await page.waitForFunction(() => document.querySelector('#canvas')?.dataset.trailComparison, null, { timeout: 90000 });
       if (fixture === 'bake') await page.waitForFunction(() => document.querySelector('#canvas')?.dataset.bakeComparison, null, { timeout: 90000 });
       if (fixture === 'stone') await page.waitForFunction(() => document.querySelector('#canvas')?.dataset.stoneShader, null, { timeout: 90000 });
+      if (fixture === 'wind') await page.waitForFunction(() => document.querySelector('#canvas')?.dataset.windComparison, null, { timeout: 90000 });
       if (fixture === 'water') await page.waitForFunction(() => document.querySelector('#canvas')?.dataset.refractionComparison, null, { timeout: 180000 });
       if (fixture === 'cloudresponse') await page.waitForFunction(() => document.querySelector('#canvas')?.dataset.cloudResponseComparison, null, { timeout: 90000 });
       if (fixture === 'actor') await page.waitForFunction(() => document.querySelector('#canvas')?.dataset.actorComparison, null, { timeout: 90000 });
@@ -62,6 +63,7 @@ try {
       const bake = await page.locator('#canvas').getAttribute('data-bake-comparison');
       const stone = await page.locator('#canvas').getAttribute('data-stone-comparison');
       const stoneShader = await page.locator('#canvas').getAttribute('data-stone-shader');
+      const wind = await page.locator('#canvas').getAttribute('data-wind-comparison');
       const cloudResponse = await page.locator('#canvas').getAttribute('data-cloud-response-comparison');
       if (fixture === 'cloudresponse') {
         const reports = JSON.parse(cloudResponse);
@@ -183,6 +185,27 @@ try {
             `Portable refraction capture differs from the shipped pass: ${refraction}`);
         }
       }
+      if (fixture === 'wind') {
+        // One wind field, evaluated twice: in TypeScript for anything that asks
+        // where the wind is, and in TSL for everything that draws. They must be
+        // the same field, not two that resemble each other -- a gust front is
+        // only coherent across LODs if every representation reads one answer.
+        //
+        // Hashing the gradient in the shader put these two up to the full
+        // output range apart, so both now sample one precomputed lattice. What
+        // is left is the readback encoding: the comparison reads RGBA8, where
+        // one quantisation step is 1/255, so a half-step of disagreement is the
+        // floor this measurement can resolve rather than a property of the
+        // field.
+        const reports = JSON.parse(wind);
+        assert.equal(reports.length, 12, `Every channel and time must be sampled: ${wind}`);
+        for (const report of reports) {
+          assert.ok(report.samples > 4000,
+            `The wind comparison must cover the sample grid: ${wind}`);
+          assert.ok(report.maximum <= 1 / 255 && report.mean <= 2e-3,
+            `CPU and GPU wind differ by more than the readback quantisation: ${JSON.stringify(report)}`);
+        }
+      }
       if (fixture === 'stone') {
         const reports = JSON.parse(stone);
         assert.equal(reports.length, 5);
@@ -216,6 +239,27 @@ try {
           // inherits a fraction of the normal run's cross-API spread.
           assert.ok(report.mean <= (report.mode === 'normal' ? 3 : report.mode === 'lit' ? 0.8 : 0.1),
             `Node stone ${report.variant} ${report.mode} differs from the GLSL material: ${stone}`);
+        }
+      }
+      if (fixture === 'wind') {
+        // One wind field, evaluated twice: in TypeScript for anything that asks
+        // where the wind is, and in TSL for everything that draws. They must be
+        // the same field, not two that resemble each other -- a gust front is
+        // only coherent across LODs if every representation reads one answer.
+        //
+        // Hashing the gradient in the shader put these two up to the full
+        // output range apart, so both now sample one precomputed lattice. What
+        // is left is the readback encoding: the comparison reads RGBA8, where
+        // one quantisation step is 1/255, so a half-step of disagreement is the
+        // floor this measurement can resolve rather than a property of the
+        // field.
+        const reports = JSON.parse(wind);
+        assert.equal(reports.length, 12, `Every channel and time must be sampled: ${wind}`);
+        for (const report of reports) {
+          assert.ok(report.samples > 4000,
+            `The wind comparison must cover the sample grid: ${wind}`);
+          assert.ok(report.maximum <= 1 / 255 && report.mean <= 2e-3,
+            `CPU and GPU wind differ by more than the readback quantisation: ${JSON.stringify(report)}`);
         }
       }
       if (fixture === 'stone') {
