@@ -1,8 +1,9 @@
 import { LinearFilter, MeshBasicNodeMaterial, QuadMesh, RenderTarget, Vector2, Vector3,
   type WebGPURenderer } from "three/webgpu";
 import { Fn, float, max, mix, uniform, uv, vec4 } from "three/tsl";
-import type { RuntimeProfile } from "../../runtime/RuntimeConfig";
+import type { RuntimeCloudConfig, RuntimeProfile } from "../../runtime/RuntimeConfig";
 import type { RendererCapabilities } from "../../render/RendererCapabilities";
+import type { WorldLightingState } from "../../render/WorldLightingState";
 import { renderNodePass } from "../../render/RenderNodePass";
 import { readRenderTargetRgba8 } from "../../render/RenderTargetReadback";
 import { WORLD_SUN_DIRECTION } from "../../app/WorldEnvironmentTuning";
@@ -16,22 +17,27 @@ export class WorldCloudShadowNodeMap {
   readonly uniforms;
   readonly nodes;
   private readonly origin = uniform(new Vector2());
-  private readonly sun = uniform(new Vector3(...WORLD_SUN_DIRECTION).normalize());
+  private readonly sun;
   private readonly field;
+  private readonly cloud: RuntimeCloudConfig;
   private readonly target: RenderTarget;
   private readonly material = new MeshBasicNodeMaterial({ depthTest: false, depthWrite: false, toneMapped: false });
   private readonly quad = new QuadMesh(this.material);
   private disposed = false;
   private enabled = true;
   private pendingRead = false;
+  private forceRefresh = true;
 
   constructor(private readonly renderer: WebGPURenderer, private readonly profile: RuntimeProfile,
-    capabilities: RendererCapabilities) {
-    const cloud = profile.cloud;
+    capabilities: RendererCapabilities, lighting?: WorldLightingState) {
+    this.cloud = { ...profile.cloud };
+    if (lighting) this.cloud.coverage = lighting.cloudThreshold;
+    const cloud = this.cloud;
     const resolution = Math.min(cloud.shadowMapResolution, capabilities.maxTextureSize);
     this.target = new RenderTarget(resolution, resolution, { depthBuffer: false,
       stencilBuffer: false, minFilter: LinearFilter, magFilter: LinearFilter });
     this.target.texture.name = "world-cloud-shadow-transmittance";
+    this.sun = uniform(lighting?.sunDirection ?? new Vector3(...WORLD_SUN_DIRECTION).normalize());
     this.uniforms = createWorldCloudShadowUniforms(cloud, this.sun.value);
     this.uniforms.uCloudShadowMap.value = this.target.texture;
     this.nodes = new WorldCloudShadowNodes(this.uniforms);
@@ -53,6 +59,14 @@ export class WorldCloudShadowNodeMap {
     this.setEnabled(cloud.enabled);
   }
 
+  applyLightingState(lighting: WorldLightingState): void {
+    if (this.disposed) return;
+    this.cloud.coverage = lighting.cloudThreshold;
+    this.field.coverage.value = lighting.cloudThreshold;
+    this.uniforms.uCloudSunDirection.value.copy(lighting.sunDirection);
+    this.forceRefresh = true;
+  }
+
   setEnabled(enabled: boolean): void {
     this.enabled = enabled && this.profile.cloud.enabled && !this.disposed;
     this.uniforms.uCloudShadowEnabled.value = this.enabled ? 1 : 0;
@@ -66,13 +80,17 @@ export class WorldCloudShadowNodeMap {
       this.uniforms.uCloudFocusTransmittance.value = 1;
       return;
     }
-    const cloud = this.profile.cloud;
+    const cloud = this.cloud;
     const sun = this.sun.value;
     const altitude = Math.max(cloud.baseHeight - focus.y, 0) / Math.max(sun.y, 0.08);
     const texelSize = cloud.shadowWorldSize / this.target.width;
-    this.origin.value.set(Math.round((focus.x + sun.x * altitude) / texelSize) * texelSize,
-      Math.round((focus.z + sun.z * altitude) / texelSize) * texelSize);
-    this.uniforms.uCloudShadowOriginXZ.value.copy(this.origin.value);
+    const nextX = Math.round((focus.x + sun.x * altitude) / texelSize) * texelSize;
+    const nextZ = Math.round((focus.z + sun.z * altitude) / texelSize) * texelSize;
+    if (this.forceRefresh || nextX !== this.origin.value.x || nextZ !== this.origin.value.y) {
+      this.origin.value.set(nextX, nextZ);
+      this.uniforms.uCloudShadowOriginXZ.value.copy(this.origin.value);
+      this.forceRefresh = false;
+    }
     this.uniforms.uCloudFocusTransmittance.value = sampleCloudPointDirectTransmittance(cloud,
       this.profile.compact, focus.x, focus.y, focus.z, elapsedSeconds, sun);
     this.uniforms.uCloudShadowEnabled.value = 1;
@@ -93,7 +111,7 @@ export class WorldCloudShadowNodeMap {
 
   getDiagnostics() {
     return { enabled: this.uniforms.uCloudShadowEnabled.value >= 0.5,
-      resolution: this.target.width, worldSize: this.profile.cloud.shadowWorldSize,
+      resolution: this.target.width, worldSize: this.cloud.shadowWorldSize,
       focusTransmittance: this.uniforms.uCloudFocusTransmittance.value,
       originX: this.origin.value.x, originZ: this.origin.value.y };
   }
