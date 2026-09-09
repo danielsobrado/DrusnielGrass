@@ -19,7 +19,6 @@ import {
   WORLD_RAIN_STREAK_LENGTH_METERS,
   WORLD_RAIN_STREAK_WIDTH_METERS,
   WORLD_RAIN_TURBULENCE_METERS,
-  WORLD_RAIN_WIND_DRIFT_METERS_PER_SECOND,
   WORLD_RAIN_WIND_TILT_GAIN,
 } from "./WorldRainTuning";
 
@@ -87,11 +86,13 @@ export function createWorldRainMaterial(inputs: WorldRainNodeInputs): MeshBasicN
       .div(verticalRange),
   ).mul(verticalRange).add(WORLD_RAIN_MIN_HEIGHT_METERS);
 
-  const drift = inputs.rain.time.mul(wind.strength)
-    .mul(WORLD_RAIN_WIND_DRIFT_METERS_PER_SECOND);
-  const localX = fract(randomX.add(drift.mul(wind.direction.x).div(WORLD_RAIN_AREA_METERS)))
+  // Horizontal travel is integrated on the CPU. Multiplying elapsed time by a
+  // changing wind direction would rewrite the entire prior path whenever the
+  // wind turns and makes long sessions increasingly unstable.
+  const drift = inputs.rain.driftOffset;
+  const localX = fract(randomX.add(drift.x.div(WORLD_RAIN_AREA_METERS)))
     .sub(0.5).mul(WORLD_RAIN_AREA_METERS);
-  const localZ = fract(randomZ.add(drift.mul(wind.direction.y).div(WORLD_RAIN_AREA_METERS)))
+  const localZ = fract(randomZ.add(drift.y.div(WORLD_RAIN_AREA_METERS)))
     .sub(0.5).mul(WORLD_RAIN_AREA_METERS);
   const turbulencePhase = inputs.rain.time.mul(0.9).add(randomTurbulence.mul(TWO_PI));
   const turbulence = wind.flutter.mul(WORLD_RAIN_TURBULENCE_METERS);
