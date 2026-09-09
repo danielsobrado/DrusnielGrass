@@ -1,5 +1,6 @@
 import * as THREE from "three";
 import type { WorldExperience } from "../../app/WorldExperience";
+import { disposeResources } from "../../render/ResourceDisposal";
 import type { WorldWaterContactEvent } from "../hydrology/WorldWaterContactField";
 import { WorldWaterContactField } from "../hydrology/WorldWaterContactField";
 import type { TerrainField } from "../TerrainField";
@@ -29,6 +30,15 @@ export interface WorldRainSystemOptions {
 
 export type WorldWaterContactImpulse = Omit<WorldWaterContactEvent, "time">;
 
+interface WorldRainResources {
+  readonly wetness: WorldWetness;
+  readonly cache: WorldRainGroundCache;
+  readonly waterContacts: WorldWaterContactField;
+  readonly geometry: THREE.PlaneGeometry;
+  readonly material: ReturnType<typeof createWorldRainMaterial>;
+  readonly mesh: THREE.InstancedMesh;
+}
+
 /** One pooled local rain volume and the precipitation state it drives. */
 export class WorldRainSystem {
   readonly uniforms = new WorldRainUniforms();
@@ -47,32 +57,13 @@ export class WorldRainSystem {
       throw new Error("Rain capacity must be a positive integer.");
     }
 
-    this.wetness = new WorldWetness(options.wettingSeconds, options.dryingSeconds);
-    this.cache = new WorldRainGroundCache(options.terrain);
-    this.waterContacts = new WorldWaterContactField(
-      options.terrain,
-      options.compact
-        ? WORLD_WATER_CONTACT_CAPACITY_COMPACT
-        : WORLD_WATER_CONTACT_CAPACITY_DESKTOP,
-    );
-    this.geometry = new THREE.PlaneGeometry(1, 1);
-    this.geometry.translate(0, -0.5, 0);
-    this.material = createWorldRainMaterial({
-      rain: this.uniforms,
-      wind: options.weather.windUniforms,
-      groundTexture: this.cache.texture,
-      groundCenter: this.cache.center,
-      seed: options.seed,
-    });
-    this.mesh = new THREE.InstancedMesh(this.geometry, this.material, options.capacity);
-    this.mesh.name = "world-rain";
-    this.mesh.count = 0;
-    this.mesh.visible = false;
-    this.mesh.frustumCulled = false;
-    this.mesh.renderOrder = 3;
-    this.mesh.userData.excludeFromReflection = true;
-    this.mesh.userData.occlusionCull = false;
-    options.scene.add(this.mesh);
+    const resources = createWorldRainResources(options, this.uniforms);
+    this.wetness = resources.wetness;
+    this.cache = resources.cache;
+    this.waterContacts = resources.waterContacts;
+    this.geometry = resources.geometry;
+    this.material = resources.material;
+    this.mesh = resources.mesh;
   }
 
   update(deltaSeconds: number): void {
@@ -112,15 +103,17 @@ export class WorldRainSystem {
   dispose(): void {
     if (this.disposed) return;
     this.disposed = true;
-    this.mesh.removeFromParent();
     this.mesh.count = 0;
     this.mesh.visible = false;
-    this.material.dispose();
-    this.geometry.dispose();
-    this.cache.dispose();
     this.waterContacts.clear();
     this.uniforms.setIntensity(0);
     this.wetness.reset();
+    disposeResources([
+      { dispose: () => this.mesh.removeFromParent() },
+      this.material,
+      this.geometry,
+      this.cache,
+    ]);
   }
 }
 
@@ -150,6 +143,60 @@ export function approachRainIntensity(current: number, target: number, deltaSeco
   const alpha = 1 - Math.exp(-deltaSeconds / WORLD_RAIN_RESPONSE_SECONDS);
   const next = from + (to - from) * alpha;
   return Math.abs(next - to) < 1e-6 ? to : next;
+}
+
+function createWorldRainResources(
+  options: WorldRainSystemOptions,
+  uniforms: WorldRainUniforms,
+): WorldRainResources {
+  const wetness = new WorldWetness(options.wettingSeconds, options.dryingSeconds);
+  let cache: WorldRainGroundCache | undefined;
+  let waterContacts: WorldWaterContactField | undefined;
+  let geometry: THREE.PlaneGeometry | undefined;
+  let material: ReturnType<typeof createWorldRainMaterial> | undefined;
+  let mesh: THREE.InstancedMesh | undefined;
+
+  try {
+    cache = new WorldRainGroundCache(options.terrain);
+    waterContacts = new WorldWaterContactField(
+      options.terrain,
+      options.compact
+        ? WORLD_WATER_CONTACT_CAPACITY_COMPACT
+        : WORLD_WATER_CONTACT_CAPACITY_DESKTOP,
+    );
+    geometry = new THREE.PlaneGeometry(1, 1);
+    geometry.translate(0, -0.5, 0);
+    material = createWorldRainMaterial({
+      rain: uniforms,
+      wind: options.weather.windUniforms,
+      groundTexture: cache.texture,
+      groundCenter: cache.center,
+      seed: options.seed,
+    });
+    mesh = new THREE.InstancedMesh(geometry, material, options.capacity);
+    mesh.name = "world-rain";
+    mesh.count = 0;
+    mesh.visible = false;
+    mesh.frustumCulled = false;
+    mesh.renderOrder = 3;
+    mesh.userData.excludeFromReflection = true;
+    mesh.userData.occlusionCull = false;
+    options.scene.add(mesh);
+    return { wetness, cache, waterContacts, geometry, material, mesh };
+  } catch (error) {
+    waterContacts?.clear();
+    try {
+      disposeResources([
+        { dispose: () => mesh?.removeFromParent() },
+        material,
+        geometry,
+        cache,
+      ]);
+    } catch (cleanupError) {
+      console.warn("[Drusniel World] Rain construction cleanup failed.", cleanupError);
+    }
+    throw error;
+  }
 }
 
 function resolveVisibleCount(capacity: number, intensity: number): number {
