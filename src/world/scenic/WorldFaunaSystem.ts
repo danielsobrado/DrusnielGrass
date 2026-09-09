@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import { MeshStandardNodeMaterial } from "three/webgpu";
 import {
   ActorAnimationQuality,
   ACTOR_QUALITY_CULLED,
@@ -409,7 +410,7 @@ export class WorldFaunaSystem {
         ? mesh.material
         : [mesh.material];
       for (const material of materials) {
-        if (material instanceof THREE.MeshStandardMaterial) {
+        if (material instanceof MeshStandardNodeMaterial) {
           material.color.copy(this.tint);
         }
       }
