@@ -16,6 +16,7 @@ import {
   attachWorldWeather,
   type WorldWeatherState,
 } from "../world/weather/WorldWeatherState";
+import { attachWorldRain, type WorldRainSystem } from "../world/weather/WorldRainSystem";
 import { WorldLightingState } from "../render/WorldLightingState";
 import { hudSettingsStore } from "../runtime/HudSettingsStore";
 import { WorldViewState } from "../runtime/WorldViewState";
@@ -100,6 +101,7 @@ export class WorldApp {
   private grassEnabled = true;
   private experience?: WorldExperience;
   private weather?: WorldWeatherState;
+  private rain?: WorldRainSystem;
   private grassArtDirection?: GrassArtDirection;
   private rendererPaused = false;
   private subsystems!: WorldFrameSubsystems;
@@ -185,6 +187,21 @@ export class WorldApp {
         },
       });
       environment.materialContext.setWorldWindUniforms(this.weather?.windUniforms);
+      if (this.weather) {
+        this.rain = attachWorldRain(this.experience, {
+          scene: this.scene,
+          terrain: this.field,
+          weather: this.weather,
+          focus: () => controls?.getStreamingPosition() ?? spawn.position,
+          compact: profile.compact,
+          seed: config.seed,
+        });
+      }
+      environment.materialContext.setWorldPrecipitation(
+        this.rain?.uniforms,
+        this.rain?.wetness,
+      );
+      environment.materialContext.setWorldWaterContacts(this.rain?.waterContacts);
 
       terrain = new TerrainStreamer(
         this.scene,
@@ -251,6 +268,9 @@ export class WorldApp {
             profile,
             spawn,
           );
+      if (controls instanceof ThirdPersonController) {
+        controls.getCharacter().bindMaterialContext(environment.materialContext);
+      }
       this.controls = controls;
       this.viewState = new WorldViewState(controls, useFlyControls ? "fly" : "play");
       grassInteractionField.setInteractionEnabled(hudSettingsStore.getInteractionEnabled());
@@ -290,6 +310,7 @@ export class WorldApp {
         profile,
         spawn.position,
         profile.shadows && !useFlyControls,
+        environment.materialContext,
       );
       this.scenic = scenic;
 
@@ -436,6 +457,7 @@ export class WorldApp {
     this.disposeSafely("Stone system", () => this.stones.dispose());
     this.disposeGrassResources();
     this.disposeSafely("Experience", () => this.experience?.dispose());
+    this.rain = undefined;
     this.weather = undefined;
     this.experience = undefined;
     this.experiencePanelHost = undefined;
@@ -594,6 +616,7 @@ export class WorldApp {
       run: this.updateExperience,
       onFailure: () => {
         this.disposeSafely("Experience", () => this.experience?.dispose());
+        this.rain = undefined;
         this.weather = undefined;
         this.experience = undefined;
       },
