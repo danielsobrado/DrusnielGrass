@@ -1,5 +1,6 @@
 import { DirectionalLightNode, type AmbientLight, type Color, type DirectionalLight, type HemisphereLight, type Light, type Node, type NodeBuilder, type NodeMaterial, type Vector3 } from "three/webgpu";
 import { lights, positionWorld, cameraPosition, cameraViewMatrix, vec3, mix, uniform, reference, lightPosition, lightTargetDirection } from "three/tsl";
+import type { WorldWaterContactField } from "../world/hydrology/WorldWaterContactField";
 import type { WorldCloudShadowNodes } from "../world/sky/WorldCloudShadowNodes";
 import type { WorldRainUniforms } from "../world/weather/WorldRainUniforms";
 import type { WorldWetness } from "../world/weather/WorldWetness";
@@ -24,6 +25,7 @@ export class WorldNodeMaterialContext {
   private wind?: WorldWindUniforms;
   private rain?: WorldRainUniforms;
   private wetness?: WorldWetness;
+  private waterContacts?: WorldWaterContactField;
 
   constructor(private readonly sun: DirectionalLight,
     private readonly otherLights: readonly Light[], private readonly clouds?: WorldCloudShadowNodes,
@@ -56,6 +58,14 @@ export class WorldNodeMaterialContext {
 
   worldWetness() {
     return this.wetness?.uniform;
+  }
+
+  setWorldWaterContacts(contacts: WorldWaterContactField | undefined): void {
+    this.waterContacts = contacts;
+  }
+
+  worldWaterContacts(): WorldWaterContactField | undefined {
+    return this.waterContacts;
   }
 
   directionalSurfaceLight(cloudResponseStrength = 1) {
