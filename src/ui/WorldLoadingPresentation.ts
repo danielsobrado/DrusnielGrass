@@ -4,6 +4,7 @@ import type { WorldRevealController, WorldRevealState } from "../runtime/WorldRe
 export interface WorldLoadingPresentationOptions {
   readonly bypassStartGate: boolean;
   readonly setModalOverlay: (open: boolean) => void;
+  readonly onStartAccepted?: () => void;
 }
 
 /** Decorates the existing reveal owner; it never creates a second startup veil. */
@@ -16,6 +17,7 @@ export class WorldLoadingPresentation {
   private detach?: () => void;
   private disposed = false;
   private blockedInput = false;
+  private startAccepted = false;
 
   constructor(
     private readonly reveal: WorldRevealController,
@@ -87,6 +89,7 @@ export class WorldLoadingPresentation {
     if (!state.ready) return;
     this.progress.value = 1;
     if (this.options.bypassStartGate || !this.element) {
+      if (!this.options.bypassStartGate) this.acceptStartGate();
       // Automated captures are silent by policy without rewriting user preferences.
       this.releaseInput();
       this.reveal.reveal();
@@ -99,10 +102,21 @@ export class WorldLoadingPresentation {
   private readonly handleStart = (): void => {
     if (!this.reveal.getState().ready) return;
     hudSettingsStore.setSoundEnabled(this.sound.checked);
+    this.acceptStartGate();
     this.startButton.disabled = true;
     this.releaseInput();
     this.reveal.reveal();
   };
+
+  private acceptStartGate(): void {
+    if (this.startAccepted) return;
+    this.startAccepted = true;
+    try {
+      this.options.onStartAccepted?.();
+    } catch (error) {
+      console.warn("[Drusniel World] Start acceptance callback failed.", error);
+    }
+  }
 
   private releaseInput(): void {
     if (!this.blockedInput) return;
