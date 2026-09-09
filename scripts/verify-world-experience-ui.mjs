@@ -114,6 +114,12 @@ try {
     "Unknown startup work must be shown as indeterminate rather than fake percentages.");
   assert.ok(loading.includes("this.options.bypassStartGate || !this.element"),
     "QA and a missing reveal DOM must not trap the world behind a Start gate.");
+  assert.ok(loading.includes("onStartAccepted?: () => void")
+    && loading.includes("this.options.onStartAccepted?.()")
+    && loading.includes("this.acceptStartGate()"),
+    "Interactive Start acceptance must be reportable once so renderer recovery does not ask twice.");
+  assert.ok(loading.includes("if (!this.options.bypassStartGate) this.acceptStartGate()"),
+    "A missing Start DOM that fails open must count as accepted for later recovery.");
   assert.ok(!loading.includes("hudSettingsStore.setSoundEnabled(false)"),
     "Silent QA must be session-local and must not overwrite the user's persisted sound preference.");
 
@@ -122,6 +128,12 @@ try {
   assert.ok(ui.includes("setModalOverlay: (open) => host.setModalOverlay(open)"));
   assert.ok(/catch \(error\) \{[\s\S]*?try \{[\s\S]*?host\.setModalOverlay\(false\);[\s\S]*?\} catch \(cleanupError\) \{[\s\S]*?Loading modal rollback failed[\s\S]*?\}[\s\S]*?reveal\.reveal\(\);/.test(ui),
     "Loading construction failure must reveal even when modal rollback itself fails.");
+  assert.ok(ui.includes("private startGateAccepted = false")
+    && ui.includes("const gateBypassed = bypassStartGate || this.startGateAccepted")
+    && ui.includes("onStartAccepted: this.handleStartAccepted"),
+    "The Start gate must remain accepted across renderer recovery in the same page lifetime.");
+  assert.ok(ui.includes("if (!bypassStartGate) this.startGateAccepted = true"),
+    "A failed-open interactive Start presentation must not reappear on recovery.");
   assert.ok(ui.includes("if (this.minimized) this.settingsController.close()"),
     "Minimizing the HUD must close settings before hiding its DOM so input cannot remain trapped.");
   assert.ok(/attachWorld\([\s\S]*?this\.loading\?\.dispose\(\);[\s\S]*?this\.settingsController\.close\(\);[\s\S]*?this\.settingsController\.attachWorld\(host\)/.test(ui),
@@ -145,6 +157,9 @@ try {
     "Bootstrap recovery's WorldApp mock must expose the T04 UI façade used by main.");
   assert.ok(bootstrapRecovery.includes("&capture=1"),
     "Bootstrap recovery must bypass the interactive Start gate.");
+  const windCost = read("scripts/check-wind-cost.mjs");
+  assert.ok(windCost.includes('BASE + "?capture=1&" + query'),
+    "Wind performance measurements must not include the Start presentation compositor.");
 
   const weather = read("src/world/weather/WorldWeatherState.ts");
   assert.ok(weather.includes("urlPreset ?? options.storedPreset ?? DEFAULT_WEATHER_PRESET"),
@@ -195,6 +210,6 @@ try {
 }
 
 console.log(
-  "[world-experience-ui] Iris coalescing/mask, truthful reveal/start gate, modal input/minimap isolation, "
+  "[world-experience-ui] Iris coalescing/mask, truthful reveal/one-shot Start gate, modal input/minimap isolation, "
   + "settings migration, capture/recovery compatibility, optional-weather availability, live controls and interaction lifecycle verified.",
 );
