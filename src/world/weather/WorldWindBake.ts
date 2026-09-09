@@ -123,13 +123,13 @@ export class WorldWindBake {
     this.intensity.value = field.getIntensity();
     this.noiseScale.value = field.getNoiseScale();
     try {
-      renderNodePass(this.renderer, this.target, this.quad);
+      // This opaque full-screen pass overwrites every pixel. Skipping the clear
+      // prevents a failed optional draw from erasing the last valid baked field.
+      renderNodePass(this.renderer, this.target, this.quad, false);
       this.failureRetrySeconds = 0;
       return true;
     } catch (error) {
-      // The texture still represents the previously published field. Roll its
-      // sampling metadata back with it so a failed optional bake cannot shift
-      // an old texture under every already-compiled wind material.
+      // Keep sampling metadata aligned with the last successfully published field.
       this.origin.value.set(previousOriginX, previousOriginY);
       this.time.value = previousTime;
       this.directionDegrees.value = previousDirectionDegrees;
