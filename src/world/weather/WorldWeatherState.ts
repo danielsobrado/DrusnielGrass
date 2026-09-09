@@ -30,6 +30,7 @@ export type WorldWeatherPresetApplied = (preset: ResolvedWorldEnvironmentPreset)
 /** One authoritative presentation-weather owner. Ecology never reads it. */
 export class WorldWeatherState {
   private active: ResolvedWorldEnvironmentPreset;
+  private elapsedSeconds = 0;
   private disposed = false;
 
   constructor(
@@ -44,6 +45,7 @@ export class WorldWeatherState {
 
   get windUniforms() { return this.wind?.uniforms; }
   getPresetId(): WeatherPresetId { return this.active.id; }
+  getElapsedSeconds(): number { return this.elapsedSeconds; }
   isAvailable(): boolean { return !this.disposed; }
   hasWindControls(): boolean { return !this.disposed && this.wind !== undefined; }
 
@@ -101,7 +103,10 @@ export class WorldWeatherState {
   }
 
   update(deltaSeconds: number): void {
-    if (!this.disposed) this.wind?.update(deltaSeconds);
+    if (this.disposed) return;
+    const delta = Number.isFinite(deltaSeconds) && deltaSeconds > 0 ? deltaSeconds : 0;
+    this.elapsedSeconds += delta;
+    this.wind?.update(delta);
   }
 
   dispose(): void {
