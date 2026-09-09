@@ -100,11 +100,15 @@ try {
 
   const loading = read("src/ui/WorldLoadingPresentation.ts");
   assert.ok(loading.includes("reveal.holdForStart()") && loading.includes("options.setModalOverlay(true)"));
+  assert.ok(/reveal\.holdForStart\(\);[\s\S]*?this\.blockedInput = true;[\s\S]*?options\.setModalOverlay\(true\)/.test(loading),
+    "Rollback ownership must be recorded before the host is asked to publish modal state.");
   assert.ok(loading.includes('document.documentElement.dataset.worldStartGate = "true"')
     && loading.includes("delete document.documentElement.dataset.worldStartGate"),
     "The Start gate must hide competing settings ownership for exactly its input-blocking lifetime.");
   assert.ok(/constructor\([\s\S]*?try \{[\s\S]*?\} catch \(error\) \{[\s\S]*?this\.releaseInput\(\)/.test(loading),
     "Loading presentation construction must roll back modal input and startup UI state if publication fails.");
+  assert.ok(/try \{[\s\S]*?this\.options\.setModalOverlay\(false\);[\s\S]*?\} catch \(error\) \{[\s\S]*?Modal input release failed/.test(loading),
+    "Modal release failure must not prevent presentation disposal or reveal cleanup from continuing.");
   assert.ok(loading.includes("this.releaseInput()") && loading.includes("this.reveal.reveal()"));
   assert.ok(loading.includes("this.progress.removeAttribute(\"value\")"),
     "Unknown startup work must be shown as indeterminate rather than fake percentages.");
