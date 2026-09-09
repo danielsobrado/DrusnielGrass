@@ -44,8 +44,11 @@ export class WorldRainGroundCache {
     this.texture.colorSpace = THREE.NoColorSpace;
     this.texture.wrapS = THREE.ClampToEdgeWrapping;
     this.texture.wrapT = THREE.ClampToEdgeWrapping;
-    this.texture.minFilter = THREE.LinearFilter;
-    this.texture.magFilter = THREE.LinearFilter;
+    // R32Float is not filterable on every WebGPU adapter. The cache already
+    // stores conservative cell maxima, so nearest sampling is the portable and
+    // safer clipping contract rather than requiring float32-filterable.
+    this.texture.minFilter = THREE.NearestFilter;
+    this.texture.magFilter = THREE.NearestFilter;
     this.texture.generateMipmaps = false;
     this.texture.needsUpdate = true;
   }
