@@ -1,9 +1,10 @@
 import { Vector4 } from "three/webgpu";
-import { uniformArray } from "three/tsl";
+import { uniform, uniformArray } from "three/tsl";
 import { createHydrologySample } from "./HydrologyField";
 import type { TerrainField } from "../TerrainField";
 import {
   WORLD_WATER_CONTACT_COVERAGE_THRESHOLD,
+  WORLD_WATER_CONTACT_MAX_AGE_SECONDS,
   WORLD_WATER_CONTACT_MAX_RADIUS_METERS,
   WORLD_WATER_CONTACT_MAX_STRENGTH,
   WORLD_WATER_CONTACT_MIN_RADIUS_METERS,
@@ -33,6 +34,8 @@ export class WorldWaterContactField {
   private readonly strengthValues: Vector4[];
   readonly events;
   readonly strengths;
+  /** Lets the water shader bypass the fixed slot loop while no event can contribute. */
+  readonly activeUntil = uniform(INACTIVE_EVENT_TIME);
 
   private readonly hydrology = createHydrologySample();
   private cursor = 0;
@@ -71,12 +74,17 @@ export class WorldWaterContactField {
 
     this.eventValues[this.cursor].set(event.x, event.z, event.time, radius);
     this.strengthValues[this.cursor].set(strength, 0, 0, 0);
+    this.activeUntil.value = Math.max(
+      this.activeUntil.value,
+      event.time + WORLD_WATER_CONTACT_MAX_AGE_SECONDS,
+    );
     this.cursor = (this.cursor + 1) % this.capacity;
     return true;
   }
 
   clear(): void {
     this.cursor = 0;
+    this.activeUntil.value = INACTIVE_EVENT_TIME;
     for (let index = 0; index < this.capacity; index += 1) {
       this.eventValues[index].set(0, 0, INACTIVE_EVENT_TIME, 0);
       this.strengthValues[index].set(0, 0, 0, 0);
