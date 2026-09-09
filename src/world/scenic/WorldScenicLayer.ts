@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import type { WorldNodeMaterialContext } from "../../render/WorldNodeMaterialContext";
 import type { RuntimeProfile } from "../../runtime/RuntimeConfig";
 import type { TerrainField } from "../TerrainField";
 import type { WorldConfig } from "../WorldConfig";
@@ -23,9 +24,10 @@ export class WorldScenicLayer {
     profile: RuntimeProfile,
     spawn: THREE.Vector3,
     shadows: boolean,
+    context?: WorldNodeMaterialContext,
   ) {
     try {
-      this.trees = new WorldTreeSystem(scene, field, config, profile, shadows);
+      this.trees = new WorldTreeSystem(scene, field, config, profile, shadows, context);
     } catch (error) {
       this.treesEnabled = false;
       console.warn("[Drusniel World] Trees unavailable during initialization.", error);
@@ -40,7 +42,15 @@ export class WorldScenicLayer {
     }
 
     try {
-      this.life = new WorldFaunaSystem(scene, field, config, profile, spawn, shadows);
+      this.life = new WorldFaunaSystem(
+        scene,
+        field,
+        config,
+        profile,
+        spawn,
+        shadows,
+        context,
+      );
     } catch (error) {
       this.faunaEnabled = false;
       console.warn("[Drusniel World] Fauna unavailable during initialization.", error);
