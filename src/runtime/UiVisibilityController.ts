@@ -40,6 +40,7 @@ export class UiVisibilityController {
   attachWorld(host: WorldExperiencePanelHost, reveal: WorldRevealController,
     bypassStartGate: boolean): void {
     this.loading?.dispose();
+    this.settingsController.close();
     this.settingsController.attachWorld(host);
     try {
       this.loading = new WorldLoadingPresentation(reveal, {
