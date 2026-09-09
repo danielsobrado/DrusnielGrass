@@ -27,6 +27,7 @@ export class WorldCloudShadowController {
   private debug?: WorldCloudShadowDebugPanel;
   private debugPixels?: Uint8Array;
   private debugPixelsReady = false;
+  private spatialFailed = false;
   private disposed = false;
 
   constructor(
@@ -45,7 +46,7 @@ export class WorldCloudShadowController {
       this.debug = WorldCloudShadowDebugPanel.createIfRequested(scene, {
         getDiagnostics: () => this.getDiagnostics(),
         readPixels: (target) => this.readDebugPixels(target),
-        setSpatialEnabled: (enabled) => this.map.setEnabled(enabled),
+        setSpatialEnabled: (enabled) => this.setSpatialEnabled(enabled),
         setDirectAttenuationEnabled: (enabled) =>
           this.lighting.setDirectAttenuationEnabled(enabled),
         setSunShadowsEnabled: (enabled) => this.setSunShadowsEnabled(enabled),
@@ -70,7 +71,18 @@ export class WorldCloudShadowController {
     if (this.disposed) {
       return;
     }
-    this.map.update(focus, elapsedSeconds);
+    if (!this.spatialFailed) {
+      try {
+        this.map.update(focus, elapsedSeconds);
+      } catch (error) {
+        this.spatialFailed = true;
+        this.map.setEnabled(false);
+        console.warn(
+          "[Drusniel World] Spatial cloud shadows unavailable; using global cloud lighting.",
+          error,
+        );
+      }
+    }
     this.debug?.update(deltaSeconds);
   }
 
@@ -126,6 +138,12 @@ export class WorldCloudShadowController {
     if (!this.debugPixelsReady) return false;
     target.set(buffer);
     return true;
+  }
+
+  private setSpatialEnabled(enabled: boolean): void {
+    if (!this.spatialFailed) {
+      this.map.setEnabled(enabled);
+    }
   }
 
   private setSunShadowsEnabled(enabled: boolean): void {
