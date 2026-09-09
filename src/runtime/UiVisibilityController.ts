@@ -12,6 +12,7 @@ export class UiVisibilityController {
   private loading?: WorldLoadingPresentation;
   private minimized = false;
   private initialized = false;
+  private startGateAccepted = false;
   private readonly diagnostics: boolean;
   private helpHandle = 0;
 
@@ -42,10 +43,12 @@ export class UiVisibilityController {
     this.loading?.dispose();
     this.settingsController.close();
     this.settingsController.attachWorld(host);
+    const gateBypassed = bypassStartGate || this.startGateAccepted;
     try {
       this.loading = new WorldLoadingPresentation(reveal, {
-        bypassStartGate,
+        bypassStartGate: gateBypassed,
         setModalOverlay: (open) => host.setModalOverlay(open),
+        onStartAccepted: this.handleStartAccepted,
       });
     } catch (error) {
       try {
@@ -53,6 +56,7 @@ export class UiVisibilityController {
       } catch (cleanupError) {
         console.warn("[Drusniel World] Loading modal rollback failed.", cleanupError);
       }
+      if (!bypassStartGate) this.startGateAccepted = true;
       reveal.reveal();
       console.warn("[Drusniel World] Optional loading presentation unavailable.", error);
     }
@@ -72,6 +76,10 @@ export class UiVisibilityController {
     this.initialized = false;
     this.button.removeEventListener("click", this.toggle);
   }
+
+  private readonly handleStartAccepted = (): void => {
+    this.startGateAccepted = true;
+  };
 
   private readonly toggle = (): void => {
     this.minimized = !this.minimized;
