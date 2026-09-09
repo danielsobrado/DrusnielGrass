@@ -13,7 +13,7 @@ export class WorldLoadingPresentation {
   private readonly status = document.createElement("p");
   private readonly progress = document.createElement("progress");
   private readonly sound = document.createElement("input");
-  private readonly detach: () => void;
+  private detach?: () => void;
   private disposed = false;
   private blockedInput = false;
 
@@ -21,21 +21,29 @@ export class WorldLoadingPresentation {
     private readonly reveal: WorldRevealController,
     private readonly options: WorldLoadingPresentationOptions,
   ) {
-    const startGateAvailable = this.element !== null && !options.bypassStartGate;
-    if (startGateAvailable) {
-      reveal.holdForStart();
-      this.blockedInput = true;
-      options.setModalOverlay(true);
+    try {
+      const startGateAvailable = this.element !== null && !options.bypassStartGate;
+      if (startGateAvailable) {
+        reveal.holdForStart();
+        options.setModalOverlay(true);
+        this.blockedInput = true;
+        document.documentElement.dataset.worldStartGate = "true";
+      }
+      if (this.element) this.build();
+      this.detach = reveal.subscribe(this.handleState);
+    } catch (error) {
+      this.releaseInput();
+      this.startButton.removeEventListener("click", this.handleStart);
+      throw error;
     }
-    if (this.element) this.build();
-    this.detach = reveal.subscribe(this.handleState);
   }
 
   dispose(): void {
     if (this.disposed) return;
     this.disposed = true;
     this.releaseInput();
-    this.detach();
+    this.detach?.();
+    this.detach = undefined;
     this.startButton.removeEventListener("click", this.handleStart);
   }
 
@@ -99,6 +107,7 @@ export class WorldLoadingPresentation {
   private releaseInput(): void {
     if (!this.blockedInput) return;
     this.blockedInput = false;
+    delete document.documentElement.dataset.worldStartGate;
     this.options.setModalOverlay(false);
   }
 }
