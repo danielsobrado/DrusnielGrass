@@ -121,7 +121,7 @@ async function measure(browser, query) {
     const page = await context.newPage();
     const errors = [];
     page.on("pageerror", (error) => errors.push(error.message.slice(0, 120)));
-    await page.goto(BASE + "?" + query, { waitUntil: "load" });
+    await page.goto(BASE + "?capture=1&" + query, { waitUntil: "load" });
     await page.waitForFunction(
       () => (document.querySelector("#world-stats")?.textContent ?? "").includes("FPS"),
       null, { timeout: 60000 });
