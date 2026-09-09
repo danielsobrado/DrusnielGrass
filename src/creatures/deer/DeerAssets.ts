@@ -1,6 +1,7 @@
 import * as THREE from "three";
 import { mergeActorParts } from "../../actor/geometry/ActorPartMerge";
 import { applyActorEnvironmentNodeResponse } from "../../render/ActorEnvironmentNodeResponse";
+import type { WorldNodeMaterialContext } from "../../render/WorldNodeMaterialContext";
 import { MeshStandardNodeMaterial } from "three/webgpu";
 import { buildDeerParts, type DeerPartSlot, type DeerVariant } from "./DeerGeometry";
 
@@ -37,6 +38,8 @@ class DeerAssetLibrary implements DeerAssets {
   >();
   private disposed = false;
 
+  constructor(private readonly context?: WorldNodeMaterialContext) {}
+
   geometryFor(
     variant: DeerVariant,
     slot: DeerPartSlot,
@@ -56,7 +59,7 @@ class DeerAssetLibrary implements DeerAssets {
       metalness: 0,
     });
     try {
-      applyActorEnvironmentNodeResponse(material);
+      applyActorEnvironmentNodeResponse(material, this.context);
       return material;
     } catch (error) {
       material.dispose();
@@ -118,6 +121,6 @@ function disposeGeometries(
   }
 }
 
-export function createDeerAssets(): DeerAssets {
-  return new DeerAssetLibrary();
+export function createDeerAssets(context?: WorldNodeMaterialContext): DeerAssets {
+  return new DeerAssetLibrary(context);
 }
