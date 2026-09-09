@@ -2,6 +2,7 @@ import { DoubleSide, MeshPhysicalNodeMaterial } from "three/webgpu";
 import type { IUniform } from "three";
 import { reference } from "three/tsl";
 import { createUniformTexture, type UniformTexture } from "../../render/NodeUniformTexture";
+import { disposeResources } from "../../render/ResourceDisposal";
 import type { WorldNodeMaterialContext } from "../../render/WorldNodeMaterialContext";
 import { WATER_IOR, WATER_SHALLOW_COLOR, WATER_SPECULAR_COLOR } from "./WaterMaterialTuning";
 import { createWaterSurfaceNodes } from "./WaterSurfaceNodes";
@@ -116,8 +117,10 @@ export class WaterSurfaceNodeMaterial extends MeshPhysicalNodeMaterial {
   }
 
   override dispose(): void {
-    for (const bound of this.boundTextures) bound.dispose();
-    this.boundTextures.length = 0;
-    super.dispose();
+    const boundTextures = this.boundTextures.splice(0);
+    disposeResources([
+      ...boundTextures,
+      { dispose: () => super.dispose() },
+    ]);
   }
 }
