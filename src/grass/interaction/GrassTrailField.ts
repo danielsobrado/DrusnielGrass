@@ -473,19 +473,16 @@ class GrassTrailField {
     ) {
       return;
     }
+
     const delta = this.accumulatedDeltaSeconds;
-    this.accumulatedDeltaSeconds = 0;
-    this.previousCenter.copy(this.center);
     const texelSize = this.config.coverage / this.targetSize();
-    this.center.set(
-      Math.round(this.focus.x / texelSize) * texelSize,
-      Math.round(this.focus.y / texelSize) * texelSize,
-    );
+    const nextCenterX = Math.round(this.focus.x / texelSize) * texelSize;
+    const nextCenterZ = Math.round(this.focus.y / texelSize) * texelSize;
 
     const uniforms = this.updateUniforms;
     uniforms.uPrevious.value = this.readTexture();
-    (uniforms.uCenter.value as THREE.Vector2).copy(this.center);
-    (uniforms.uPreviousCenter.value as THREE.Vector2).copy(this.previousCenter);
+    (uniforms.uCenter.value as THREE.Vector2).set(nextCenterX, nextCenterZ);
+    (uniforms.uPreviousCenter.value as THREE.Vector2).copy(this.center);
     uniforms.uCoverage.value = this.config.coverage;
     uniforms.uDelta.value = delta;
     uniforms.uRecoveryRate.value = this.config.recoveryRate;
@@ -511,26 +508,57 @@ class GrassTrailField {
         THREE.MathUtils.clamp(this.contacts[offset + 7], 0, 1),
       );
     }
-    this.contactCount = 0;
 
     const writeTarget = 1 - this.readTarget;
-    if (backend) {
-      // The node pass restores renderer state itself; see RenderNodePass.
-      backend.render(this.readTarget, writeTarget);
-      this.readTarget = writeTarget;
-      return;
-    }
-    if (!renderer || !targets) {
-      return;
-    }
-    const previousRenderTarget = renderer.getRenderTarget();
     try {
-      renderer.setRenderTarget(targets[writeTarget]);
-      renderer.render(this.scene, this.camera);
-      this.readTarget = writeTarget;
-    } finally {
-      renderer.setRenderTarget(previousRenderTarget);
+      if (backend) {
+        // The node pass restores renderer state itself; see RenderNodePass.
+        backend.render(this.readTarget, writeTarget);
+      } else if (renderer && targets) {
+        const previousRenderTarget = renderer.getRenderTarget();
+        let renderError: unknown;
+        try {
+          renderer.setRenderTarget(targets[writeTarget]);
+          renderer.render(this.scene, this.camera);
+        } catch (error) {
+          renderError = error;
+        }
+        try {
+          renderer.setRenderTarget(previousRenderTarget);
+        } catch (restoreError) {
+          if (renderError) {
+            console.warn(
+              "[Drusniel World] Grass trail renderer restoration also failed.",
+              restoreError,
+            );
+            throw renderError;
+          }
+          throw restoreError;
+        }
+        if (renderError) {
+          throw renderError;
+        }
+      } else {
+        return;
+      }
+    } catch (error) {
+      // Trail crushing is optional. Keep the last successfully published texture
+      // and its centre alive for materials that already reference it, but stop
+      // updating the effect so one pass cannot retire the entire grass phase.
+      this.enabled = false;
+      this.resetPendingFrame();
+      console.warn(
+        "[Drusniel World] Grass trail rendering unavailable; continuing without trail updates.",
+        error,
+      );
+      return;
     }
+
+    this.previousCenter.copy(this.center);
+    this.center.set(nextCenterX, nextCenterZ);
+    this.readTarget = writeTarget;
+    this.contactCount = 0;
+    this.accumulatedDeltaSeconds = 0;
   }
 
   isEnabled(): boolean {
