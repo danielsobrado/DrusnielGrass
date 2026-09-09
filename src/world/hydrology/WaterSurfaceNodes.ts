@@ -19,10 +19,12 @@ import {
   waterResolveRegimeNode, waterResolveStreakStretchNode,
 } from "./WaterRegimeNodes";
 import {
-  waterResolveLakeSlopeNode, waterResolveMicroSlopeNode, waterResolveRiffleFoamNode,
-  waterResolveRiverPhasesNode, waterResolveRiverSlopeNode, waterResolveShoreFoamNode,
-  waterResolveStoneEdgeNode, waterSampleAdvectedNoiseNode,
+  waterResolveContactSlopeNode, waterResolveLakeSlopeNode, waterResolveMicroSlopeNode,
+  waterResolveRainSlopeNode, waterResolveRiffleFoamNode, waterResolveRiverPhasesNode,
+  waterResolveRiverSlopeNode, waterResolveShoreFoamNode, waterResolveStoneEdgeNode,
+  waterSampleAdvectedNoiseNode,
 } from "./WaterSurfaceHelperNodes";
+import type { WorldWaterContactField } from "./WorldWaterContactField";
 
 /**
  * The water surface, as nodes.
@@ -36,7 +38,8 @@ import {
  * which the one shipped fragment guarantees only by writing them in order.
  *
  * Nothing here owns water state: the caller hands in nodes bound to the
- * `IUniform` table `WaterMaterialController` already writes.
+ * `IUniform` table `WaterMaterialController` already writes. Precipitation is
+ * optional world state, so standalone water tests retain the original graph.
  */
 export interface WaterSurfaceInputs extends WaterOpticsInputs {
   time: Node<"float">;
@@ -71,6 +74,9 @@ export interface WaterSurfaceInputs extends WaterOpticsInputs {
   reflection: Node<"vec3">;
   foam: Node<"vec3">;
   sunDirection: Node<"vec3">;
+  rainTime?: Node<"float">;
+  rainIntensity?: Node<"float">;
+  waterContacts?: WorldWaterContactField;
 }
 
 export function createWaterSurfaceNodes(u: WaterSurfaceInputs) {
@@ -190,6 +196,29 @@ export function createWaterSurfaceNodes(u: WaterSurfaceInputs) {
     return resolved;
   })();
 
+  const rainSlope = u.rainTime && u.rainIntensity
+    ? Fn(() => {
+      const resolved = vec2(0).toVar();
+      If(detailWeight.greaterThan(0.001).and(u.rainIntensity!.greaterThan(0.001)), () => {
+        resolved.assign(
+          waterResolveRainSlopeNode(position, u.rainTime!, u.rainIntensity!).mul(detailWeight),
+        );
+      });
+      return resolved;
+    })()
+    : vec2(0);
+  const contactSlope = u.rainTime && u.waterContacts
+    ? Fn(() => {
+      const resolved = vec2(0).toVar();
+      If(detailWeight.greaterThan(0.001), () => {
+        resolved.assign(
+          waterResolveContactSlopeNode(position, u.rainTime!, u.waterContacts!).mul(detailWeight),
+        );
+      });
+      return resolved;
+    })()
+    : vec2(0);
+
   const stoneObstacle = interaction.x.clamp(0, 1);
   const stoneWake = interaction.y.clamp(0, 1).mul(stoneObstacle.oneMinus());
   const stoneEdge = waterResolveStoneEdgeNode(stoneObstacle);
@@ -204,7 +233,9 @@ export function createWaterSurfaceNodes(u: WaterSurfaceInputs) {
   const slope = mix(lakeSlope, riverSlope, riverAmount).mul(waveStrength)
     .add(microSlope.mul(u.rippleStrength)).add(noiseSlope)
     .add(flowPerpendicular.mul(flowNoise.g.sub(0.5)).mul(0.28)
-      .add(flowDirection.mul(flowNoise.r.sub(0.5)).mul(0.12)).mul(stoneActivity));
+      .add(flowDirection.mul(flowNoise.r.sub(0.5)).mul(0.12)).mul(stoneActivity))
+    .add(rainSlope)
+    .add(contactSlope);
 
   const surfaceNormal = geometricNormal.add(vec3(slope.x.negate(), 0, slope.y.negate()))
     .normalize();
