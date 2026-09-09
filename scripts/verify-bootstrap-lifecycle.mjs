@@ -52,6 +52,9 @@ assert(
   /const world = await WorldApp\.create\(nextSession, profile, lifetime.signal\);[\s\S]*?app = world;[\s\S]*?if \(disposed\) \{[\s\S]*?disposeRuntime\(\);[\s\S]*?return;/.test(
     source,
   ) &&
+    /await initializeApp\(session\);[\s\S]*?if \(disposed\) \{[\s\S]*?disposeRuntime\(\);[\s\S]*?return;/.test(
+      source,
+    ) &&
     /await island\.initialize\(\);[\s\S]*?if \(disposed\) \{[\s\S]*?return;/.test(
       source,
     ),
@@ -94,7 +97,7 @@ for (const modulePath of [
 assert(
   source.includes('params.get("debug") === "1"') &&
     !source.includes('import { installWorldIsolationHarness }') &&
-    /await import\(\s*"\.\/runtime\/WorldIsolationHarness"\s*\)[\s\S]*?if \(disposed\) \{[\s\S]*?return;[\s\S]*?installWorldIsolationHarness\(params\)/.test(
+    /await import\(\s*"\.\/runtime\/WorldIsolationHarness"\s*\)[\s\S]*?if \(disposed\)(?: \{)?[\s\S]*?return;[\s\S]*?installWorldIsolationHarness\(params\)/.test(
       source,
     ),
   "Isolation diagnostics must stay debug-only, lazy, and re-check bootstrap ownership before installing a global scene hook.",
@@ -116,7 +119,7 @@ assert(
   "Isolation diagnostics must be idempotent and restore scene, camera, visibility, and prototype ownership when disposed.",
 );
 assert(
-  (source.match(/if \(disposed\) \{/g)?.length ?? 0) >= 8,
+  (source.match(/if \(disposed\)/g)?.length ?? 0) >= 8,
   "Optional asynchronous runtime modules must re-check bootstrap ownership before publishing resources.",
 );
 

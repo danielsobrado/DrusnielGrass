@@ -23,8 +23,9 @@ Implementation started 2026-09-06. Full scope is authorized; deployment is not r
 | G06 | Complete | Both applications default to `auto` and reach a usable WebGPU renderer, falling back to the same TSL implementation on WebGL 2. `check-renderer-matrix.mjs` passes 13/13 across both scenes, both profiles, both backends, resize, BFCache, teardown, a failed adapter and automatic fallback. No legacy shader route is reachable from production or present in any bundle, enforced by `verify-built-site.mjs`. |
 | T01 | Complete | Development attachments live in `WorldDevelopmentHooks`; experience config, identifier catalogs, versioned HUD settings and `WorldViewState` are in the production route. Optional owners allocate nothing when empty. Environment/scenic/reveal are separate frame fault domains from controls. Held by `verify-experience-config.mjs` and `verify-experience-lifecycle.mjs`. WorldApp remains under the 730-line architecture cap. |
 | T02 | Complete | Shared cinematic wind is the default (`DEFAULT_WIND_MODEL`). The field matches the source model over 960 samples; CPU/GPU gusts share one gradient lattice. Near/mid/far grass consume the same cinematic gust and Lowsway rest bend. `?windModel=legacy` remains the comparison baseline. Held by `verify-world-wind.mjs`. |
-| T03 | Complete | Eight presets (`drusniel`, Highfield, Emberfall, Greyrain, Galewind, Stillmeadow, Lowsway, Moonrise) owned by `WorldWeatherState`, switched through `window.__drusnielWeather` until T04. `npm run build` includes `verify-weather-presets.mjs`. Browser/dev-hook visual pass recorded 2026-09-08. Ecology and river placement were not retuned. |
-| T04–T16 | Pending | Next is T04 (iris, loading presentation, settings UI). Deployment is not requested. |
+| T03 | Complete | Eight presets (`drusniel`, Highfield, Emberfall, Greyrain, Galewind, Stillmeadow, Lowsway, Moonrise) owned by `WorldWeatherState`. Ordinary switching is now the T04 Settings selector; `?diagnostics=1` still exposes `window.__drusnielWeather`. Browser/dev-hook visual pass recorded 2026-09-08. Ecology and river placement were not retuned. |
+| T04 | Complete | Iris, Start gate, Scene Settings, modal/minimap isolation and capture/QA bypass. Local `npm run build`, renderer-matrix 13/13, production-renderers 8/8, wind-cost convergence and an interactive WebGPU/WebGL 2 / compact pass recorded 2026-09-09. Live GPU-loss while Start/Settings owns input was not injected; that path stays on the bootstrap-recovery mocks. |
+| T05–T16 | Pending | Next is T05 (rain, wetness and local water impacts). Deployment is not requested. |
 
 **Renderer inventory: 0 pending.** 98 ported and comparison-gated, 94
 development comparison locations, 7 exempt, and 4 shipped-GLSL modules retained
@@ -487,4 +488,14 @@ Also checked:
 
 `?diagnostics=1` also opens grass-art and foliage tuners. Those "Muted Meadow" controls are art direction, not T03 weather.
 
-T04 is not started. Deployment is not requested.
+### 2026-09-09 T04 runtime acceptance
+
+Head `28dc0bf`. Full `npm run build` exit 0 after three verifier regex updates for compacted `WorldApp` / bootstrap / navigation source. No deployment.
+
+**Start and Settings.** Ordinary WebGPU Start used the 2.8 s degraded copy and released the gate on **Enter the world**. Forced `?renderer=webgl` bound `webgl2`. Compact 390×844 hid Settings until Start, kept **M** inert during the gate, then inset the panel; control rows met 44 px height. Escape closed Settings from select, range and checkbox focus. Settings disabled **M** and closed an open map; HUD minimize closed Settings. Capture (`?capture=1`) and QA (`?qa=t04`) skipped the click and left `soundEnabled: true`.
+
+**Weather / iris.** Settings Moonrise → Greyrain → Moonrise closed the iris (radius ~0) on each cut and restored night. Reduced-motion emulation kept the iris radius at 120 vmax.
+
+**Automation.** `test:renderer-matrix` 13/13 and `test:production-renderers` 8/8 screenshots are the world, not the Start card. `test:wind-cost` converged on both backends with capture bypass. `test:bootstrap-recovery` passed the mocked loss/cancel cases.
+
+T05 is not started. Deployment is not requested.

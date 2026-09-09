@@ -6,12 +6,13 @@ Recorded: 2026-09-09
 
 - Pre-T04 base: `71d2fcc6c316a1ffed862e9e1e99c66ac2b04604`
 - First T04 checkpoint head: `ed44b660da327a80659a5374083dd713a227015f`
-- Follow-up review head before this document update: `6cf6ae7d4bc66118f2a595ef681ecf4ae4e3d6f6`
+- Follow-up review head: `6cf6ae7d4bc66118f2a595ef681ecf4ae4e3d6f6`
+- Runtime-acceptance head: `28dc0bf4c86688933caac89d5bcf54218ca3425f`
 - Deployment: not requested and not performed.
 
 ## Implementation status
 
-T04 implementation is complete at code/static-contract level. Runtime acceptance remains pending until the repository can be executed locally and in a browser.
+T04 is accepted at code, static-contract, local-build and browser/backend level on this machine. T05 has not started.
 
 Implemented:
 
@@ -59,45 +60,43 @@ The review found and fixed these concrete defects:
 16. Renderer recovery after a successful Start asked the user to enter the world a second time.
 17. Replacing a loading presentation could leave a stale disposed instance retained when construction of its replacement failed.
 
-## Verification still required before marking T04 accepted
+## Verification executed 2026-09-09
 
-Run from a clean checkout of the current `main` head:
-
-```text
-npm run test:runtime-ui-input
-npm run test:experience-ui
-npm run test:architecture
-npm run test:bootstrap-recovery
-npm run build
-```
-
-Then run the production-world browser checks affected by the Start gate:
+All named gates from a working tree at `28dc0bf` plus three local verifier-regex updates (`scripts/verify-runtime-safety.mjs`, `scripts/verify-bootstrap-lifecycle.mjs`, `scripts/verify-navigation.mjs`) required after T04 compacted `WorldApp` control flow. Those regexes were not reverted; they now match the shipped source.
 
 ```text
-npm run test:renderer-matrix
-npm run test:production-renderers
-npm run test:wind-cost
+npm run test:runtime-ui-input          # pass
+npm run test:experience-ui             # pass
+npm run test:architecture              # pass
+npm run test:bootstrap-recovery        # pass (mocked device-loss / cancel)
+npm run test:renderer-matrix           # 13/13
+npm run test:production-renderers      # 8/8
+npm run test:wind-cost                 # all rounds converged, 0 page errors
+npm run build                          # exit 0, including verify-world-experience-ui and verify-built-site
 ```
 
-Then perform browser checks on both WebGPU and forced WebGL 2, desktop and compact:
+Interactive browser on `http://localhost:5173/` (long-lived Vite still labelled `v0.9.6+8160bdb218d1`; HMR served the current T04 UI):
 
-- normal Start flow and degraded timeout flow;
-- QA/capture bypass without changing the persisted sound preference;
-- keyboard-only Settings, including Escape from every control type;
-- portrait/compact layout and 44 px touch targets;
-- rapid weather changes and rejected optional-owner commands;
-- Settings while minimap is open, M while Settings/Start is open, and HUD minimize while Settings is open;
-- renderer recovery before Start still presents the gate;
-- renderer recovery after Start does not ask for a second click, while still waiting for replacement-world readiness;
-- renderer recovery while Settings owns input closes/rebinds UI cleanly;
-- reduced-motion iris behavior;
-- weather changes followed by A -> B -> A state restoration;
-- interaction off -> trail recovery -> interaction on at the current gameplay pose;
-- renderer-matrix/production screenshots contain the rendered world rather than the Start card;
-- wind-cost cases run without the Start presentation in the compositor.
+- Ordinary Start on WebGPU: veil copy was the degraded timeout text (“Ready — background detail is still settling”), sound checkbox on, **Enter the world** enabled; click released `data-world-start-gate` and revealed the world.
+- Forced WebGL 2 (`?renderer=webgl`): canvas `data-renderer=webgl2`, same Start then Settings path.
+- Compact portrait (`?profile=compact`, 390×844): Start still hid Settings; **M** during the gate left the minimap closed; after entry the panel inset to 12 px and Settings/close/select/range heights were 44 px (native checkboxes remain 22×22 inside a 44 px label row).
+- Settings Escape from weather `<select>`, wind `<input type=range>` and interaction checkbox all closed the panel.
+- Minimap isolation: **M** while Settings open did nothing; **M** after close opened the map; opening Settings while the map was open closed it without reopening on Settings close; **M** during Start left the map closed.
+- HUD minimize while Settings was open closed the panel and set `data-ui-minimized=true`.
+- Weather A→B→A from Settings: Moonrise → Greyrain → Moonrise, iris radius reached ~0 on each cut (~2.2–2.5 s), live select restored Moonrise and the night grade.
+- Reduced-motion emulation: `prefers-reduced-motion: reduce` kept `--world-iris-radius` at 120 vmax through a moonlight→sunny swap.
+- `?capture=1` and `?qa=t04` skipped the click, left overlay opacity 0, and did not write `soundEnabled=false` (`drusniel-world-hud-settings` stayed `soundEnabled: true`).
+- Interaction checkbox was turned off then on at the current pose; trail appearance at blade scale was not scored.
+- `.shots/renderer-matrix/world-*-*.png` and `.shots/production-renderers/world-*-*.png` show the grass world and HUD chrome, not the Start card.
 
-This session could not execute those commands because the execution environment cannot resolve `github.com` or the npm registry to obtain a runnable checkout and dependencies. That limitation is not a passing-build result.
+Not executed as a live GPU loss in this browser:
+
+- renderer recovery before first Start still presenting the gate;
+- renderer recovery after Start without a second click;
+- renderer recovery while Settings owns input.
+
+Those ownership paths remain held by `scripts/check-bootstrap-recovery.mjs` (capture-bypass mocks) and `scripts/verify-world-experience-ui.mjs`. A live optional-weather reject was not forced in-session; the experience-ui verifier still covers selector rollback.
 
 ## Next ticket
 
-Do not start T05 until the T04 local build and browser acceptance above pass. T05 is rain, wetness and local water impacts.
+T05 may start. T05 is rain, wetness and local water impacts. Deployment is still not requested.

@@ -153,7 +153,9 @@ assert(
   viewportSizing.includes("Math.max(1, window.innerWidth)") &&
     viewportSizing.includes("Math.max(1, window.innerHeight)") &&
     viewportSizing.includes("Number.isFinite(devicePixelRatio)") &&
-    world.includes("this.pixelRatio = resolvePixelRatio(this.profile.maxPixelRatio)") &&
+    world.includes(
+      "this.pixelRatio = resolvePixelRatio(this.profile.maxPixelRatio * this.renderScale)",
+    ) &&
     world.includes("this.camera.aspect = resolveViewportSize().aspect") &&
     island.includes("this.renderer.setPixelRatio(resolvePixelRatio(this.profile.maxPixelRatio))") &&
     island.includes("this.applyViewportSize()"),
@@ -179,7 +181,7 @@ assert(
   /name: "stones",[\s\S]*?onFailure: \(\) => this\.disposeSafely\("Stone system"/.test(
     world,
   ) &&
-    /name: "grass",[\s\S]*?onFailure: \(\) => this\.disposeGrassResources\(\),/.test(
+    /name: "grass",[\s\S]*?onFailure: \(\) => this\.disposeGrassResources\(\)/.test(
       world,
     ) &&
     /private disposeGrassResources\(\): void \{[\s\S]*?this\.disposeSafely\("Grass system"[\s\S]*?this\.grass\.dispose\(\)[\s\S]*?this\.disposeSafely\("Grass trail field"[\s\S]*?grassTrailField\.dispose\(\)/.test(

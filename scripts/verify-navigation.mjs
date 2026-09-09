@@ -148,7 +148,7 @@ try {
     "Fly camera bounds must stay owned by FlyWorldController, not WorldApp.",
   );
   assert(
-    /if \(!this\.minimap\.isOpen\(\)\) \{[\s\S]*?this\.controls\.update\(deltaSeconds\);[\s\S]*?\}/.test(
+    /if \(!this\.minimap\.isOpen\(\)\)(?: \{)?[\s\S]*?this\.controls\.update\(deltaSeconds\);/.test(
       app,
     ),
     "World controls must not advance while the minimap modal is open.",
