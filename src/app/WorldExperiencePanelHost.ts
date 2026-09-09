@@ -36,12 +36,12 @@ export class WorldExperiencePanelHostAdapter implements WorldExperiencePanelHost
     return this.options.weather?.setPreset(id) ?? false;
   }
 
-  setWindGain(value: number): void {
-    this.options.weather?.setWindIntensity(value);
+  setWindGain(value: number): boolean {
+    return this.options.weather?.setWindIntensity(value) ?? false;
   }
 
-  setSimulationSpeed(value: number): void {
-    this.options.weather?.setSimulationSpeed(value);
+  setSimulationSpeed(value: number): boolean {
+    return this.options.weather?.setSimulationSpeed(value) ?? false;
   }
 
   setRenderScale(value: number): void {
