@@ -85,12 +85,20 @@ try {
   await check("rain is one pooled depth-tested instanced draw", () => {
     const nodes = source("src/world/weather/WorldRainNodes.ts");
     const runtime = source("src/world/weather/WorldRainSystem.ts");
-    assert.match(runtime, /new THREE\.InstancedMesh\(this\.geometry, this\.material, options\.capacity\)/);
-    assert.match(runtime, /this\.mesh\.frustumCulled = false/);
+    assert.match(runtime, /new THREE\.InstancedMesh\(geometry, material, options\.capacity\)/);
+    assert.match(runtime, /mesh\.frustumCulled = false/);
     assert.match(nodes, /material\.depthTest = true/);
     assert.match(nodes, /material\.depthWrite = false/);
     assert.doesNotMatch(runtime, /requestAnimationFrame|setInterval|setTimeout/,
       "Rain must advance only from the world's existing experience update.");
+  });
+
+  await check("rain construction and disposal release every owned resource", () => {
+    const runtime = source("src/world/weather/WorldRainSystem.ts");
+    assert.match(runtime, /import \{ disposeResources \}/);
+    assert.match(runtime, /Rain construction cleanup failed/);
+    assert.match(runtime, /disposeResources\(\[[\s\S]*material,[\s\S]*geometry,[\s\S]*cache/);
+    assert.match(runtime, /waterContacts\?\.clear\(\)/);
   });
 
   await check("the ground cache is staged and includes hydrologic water", () => {
@@ -142,6 +150,12 @@ try {
     assert.match(tree, /applyWorldWetStandardMaterial\(leaves, context\)/);
   });
 
+  await check("water material cleans sampler placeholders after construction failure", () => {
+    const material = source("src/world/hydrology/WaterSurfaceNodeMaterial.ts");
+    assert.match(material, /catch \(error\) \{[\s\S]*this\.dispose\(\)/);
+    assert.match(material, /for \(const bound of this\.boundTextures\) bound\.dispose\(\)/);
+  });
+
   await check("rain and contact ripples are additive to existing water slope", () => {
     const surface = source("src/world/hydrology/WaterSurfaceNodes.ts");
     assert.match(surface, /waterResolveRainSlopeNode/);
@@ -173,6 +187,6 @@ if (failures.length > 0) {
 
 console.log(
   "[world-precipitation] Rain response and wetness are frame-rate independent, "
-  + "budgets are bounded, clipping includes terrain/water, opaque surfaces share "
-  + "wetness, and procedural/contact ripples layer onto the existing water graph.",
+  + "budgets and resource lifecycles are bounded, clipping includes terrain/water, "
+  + "opaque surfaces share wetness, and precipitation ripples preserve water flow.",
 );
