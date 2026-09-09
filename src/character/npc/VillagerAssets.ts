@@ -1,6 +1,7 @@
 import * as THREE from "three";
 import { mergeActorParts } from "../../actor/geometry/ActorPartMerge";
 import { applyActorEnvironmentNodeResponse } from "../../render/ActorEnvironmentNodeResponse";
+import type { WorldNodeMaterialContext } from "../../render/WorldNodeMaterialContext";
 import { MeshStandardNodeMaterial } from "three/webgpu";
 import {
   buildVillagerParts,
@@ -26,6 +27,8 @@ class VillagerAssetLibrary implements VillagerAssets {
   >();
   private disposed = false;
 
+  constructor(private readonly context?: WorldNodeMaterialContext) {}
+
   geometryFor(variant: number, slot: VillagerPartSlot): THREE.BufferGeometry {
     const geometry = this.require(variant).get(slot);
     if (geometry === undefined) {
@@ -41,7 +44,7 @@ class VillagerAssetLibrary implements VillagerAssets {
       metalness: 0,
     });
     try {
-      applyActorEnvironmentNodeResponse(material);
+      applyActorEnvironmentNodeResponse(material, this.context);
       return material;
     } catch (error) {
       material.dispose();
@@ -103,6 +106,6 @@ function disposeGeometries(
   }
 }
 
-export function createVillagerAssets(): VillagerAssets {
-  return new VillagerAssetLibrary();
+export function createVillagerAssets(context?: WorldNodeMaterialContext): VillagerAssets {
+  return new VillagerAssetLibrary(context);
 }
