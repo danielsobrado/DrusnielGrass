@@ -79,8 +79,7 @@ export class WorldLoadingPresentation {
     if (!state.ready) return;
     this.progress.value = 1;
     if (this.options.bypassStartGate || !this.element) {
-      // Automated captures stay silent; missing presentation DOM must fail open.
-      if (this.options.bypassStartGate) hudSettingsStore.setSoundEnabled(false);
+      // Automated captures are silent by policy without rewriting user preferences.
       this.releaseInput();
       this.reveal.reveal();
       return;
