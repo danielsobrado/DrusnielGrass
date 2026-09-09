@@ -222,16 +222,29 @@ try {
       "A failed foliage wetness binding must release both tree materials.");
   });
 
-  await check("water material and refraction resize clean partial allocations", () => {
+  await check("water materials isolate optional refraction failures", () => {
     const material = source("src/world/hydrology/WaterSurfaceNodeMaterial.ts");
+    const controller = source("src/world/hydrology/WaterMaterialController.ts");
     const refraction = source("src/world/hydrology/WaterRefractionNodePass.ts");
     assert.match(material, /catch \(error\) \{[\s\S]*this\.dispose\(\)/);
-    assert.match(material, /for \(const bound of this\.boundTextures\) bound\.dispose\(\)/);
+    assert.match(material, /const boundTextures = this\.boundTextures\.splice\(0\)/);
+    assert.match(material, /disposeResources\(\[[\s\S]*\.\.\.boundTextures,[\s\S]*super\.dispose\(\)/,
+      "Every sampler binding and the base material must be attempted during disposal.");
+    assert.match(controller, /private refractionFailed = false/);
+    assert.match(controller, /catch \(error\) \{\s*this\.disableRefraction\(error\);\s*\}/);
+    assert.match(controller, /this\.uniforms\.uWaterOpticsQuality\.value = 0/);
+    assert.match(controller, /!this\.refractionFailed && visuals\.waterQuality >= 1 \? 1 : 0/,
+      "A failed refraction path must not be re-enabled by a later live preset update.");
+    assert.match(controller, /Optional water refraction unavailable; using standard optics/);
+    assert.match(controller,
+      /disposeResources\(\[this\.refraction, this\.flowNoiseTexture, this\.material\]\)/);
     assert.match(refraction, /let target: RenderTarget \| undefined/);
     assert.match(refraction, /let depthTexture: DepthTexture \| undefined/);
     assert.match(refraction, /Water refraction resize cleanup failed/);
     assert.match(refraction, /disposeResources\(\[depthTexture, target\]\)/,
       "A failed resize must release both partial depth and color targets.");
+    assert.match(refraction, /Previous water refraction target cleanup failed/,
+      "Cleanup of a replaced target must not invalidate a successful replacement.");
   });
 
   await check("rain and contact ripples are additive to existing water slope", () => {
@@ -253,7 +266,7 @@ try {
     assert.match(contacts, /readonly activeUntil = uniform\(/);
     assert.match(contacts, /this\.activeUntil\.value = Math\.max/);
     assert.match(contacts, /this\.activeUntil\.value = INACTIVE_EVENT_TIME/);
-    assert.match(helpers, /If\(time\.lessThan\(contacts\.activeUntil\), \(\) => \{/,
+    assert.match(helpers, /If\(contacts\.activeUntil\.greaterThan\(time\), \(\) => \{/,
       "Inactive contact fields must skip the fixed shader array before entering its loop.");
     assert.doesNotMatch(contacts, /\.push\(/,
       "Per-event storage must overwrite the bounded pool rather than grow at runtime.");
@@ -272,5 +285,5 @@ if (failures.length > 0) {
 console.log(
   "[world-precipitation] Rain response, drift and wetness are frame-rate independent, "
   + "budgets and resource lifecycles are bounded, clipping is portable and conservative, "
-  + "dry/contact idle work is gated, and precipitation ripples preserve water flow.",
+  + "dry/contact idle work is gated, and optional refraction fails down to standard optics.",
 );
