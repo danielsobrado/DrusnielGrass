@@ -20,6 +20,8 @@ function assert(condition, message) {
 
 const source = read("src/grass/GrassGeometryFactory.ts");
 const patchSource = read("src/world/grass/WorldGrassPatchGeometryFactory.ts");
+const trailSource = read("src/grass/interaction/GrassTrailField.ts");
+const trailPassSource = read("src/grass/interaction/GrassTrailNodePass.ts");
 
 assert(
   source.includes('import { disposeResources } from "../render/ResourceDisposal"') &&
@@ -85,6 +87,27 @@ assert(
   "Shared patch geometry must dispose a partially configured BufferGeometry before rethrowing.",
 );
 
+assert(
+  /const delta = this\.accumulatedDeltaSeconds;[\s\S]*?const nextCenterX[\s\S]*?backend\.render\(this\.readTarget, writeTarget\)[\s\S]*?this\.previousCenter\.copy\(this\.center\);[\s\S]*?this\.center\.set\(nextCenterX, nextCenterZ\);[\s\S]*?this\.readTarget = writeTarget;[\s\S]*?this\.contactCount = 0;[\s\S]*?this\.accumulatedDeltaSeconds = 0;/.test(
+    trailSource,
+  ),
+  "Trail CPU state and ping-pong publication must commit only after the GPU update succeeds.",
+);
+
+assert(
+  /catch \(error\) \{[\s\S]*?this\.enabled = false;[\s\S]*?Grass trail rendering unavailable; continuing without trail updates/.test(
+    trailSource,
+  ),
+  "A trail-pass failure must disable only the optional trail updater instead of escaping into the grass frame phase.",
+);
+
+assert(
+  /catch \(error\) \{\s*try \{\s*disposeResources\(\[material, \.\.\.targets\]\);[\s\S]*?Grass trail node-pass rollback failed[\s\S]*?throw error;/.test(
+    trailPassSource,
+  ),
+  "Trail node-pass construction cleanup must preserve the original construction failure.",
+);
+
 console.log(
-  "[grass-geometry-lifecycle] Clump, instanced, optional shape, shared patch, and variant geometry ownership verified.",
+  "[grass-geometry-lifecycle] Clump, instanced, optional shape, shared patch, trail transaction, and variant geometry ownership verified.",
 );
