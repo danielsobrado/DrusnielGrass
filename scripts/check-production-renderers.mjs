@@ -42,7 +42,7 @@ IslandApp.create = function(...args) {
       }
       const label = `${scene}-${profile}-${backend}`;
       try {
-        await page.goto(`http://127.0.0.1:5192/?scene=${scene}&profile=${profile}&renderer=${backend}`);
+        await page.goto(`http://127.0.0.1:5192/?scene=${scene}&profile=${profile}&renderer=${backend}&capture=1`);
         await page.waitForFunction(() => window.__productionReviewApp?.running, null, { timeout: 120000 });
         await page.waitForTimeout(8000);
         await page.setViewportSize({ width: 900, height: 620 });
