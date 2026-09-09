@@ -25,6 +25,8 @@ export class WorldRevealController {
       this.state = { ready: true, degraded: true, message: "World ready" };
       return;
     }
+    delete this.element.dataset.revealed;
+    this.element.removeAttribute("aria-hidden");
     this.timeoutHandle = window.setTimeout(() => this.markReady(true), REVEAL_TIMEOUT_MS);
   }
 
@@ -70,7 +72,6 @@ export class WorldRevealController {
   dispose(): void {
     window.clearTimeout(this.timeoutHandle);
     this.listeners.clear();
-    this.element?.remove();
   }
 
   private markReady(degraded: boolean): void {
