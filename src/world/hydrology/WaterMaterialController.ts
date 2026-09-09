@@ -189,8 +189,7 @@ export class WaterMaterialController {
       return;
     }
     this.disposed = true;
-    this.refraction.dispose();
-    disposeResources([this.flowNoiseTexture, this.material]);
+    disposeResources([this.refraction, this.flowNoiseTexture, this.material]);
   }
 
 }
