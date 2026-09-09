@@ -53,6 +53,7 @@ export class WaterMaterialController {
     return this.uniforms;
   }
   private readonly detailScale: number;
+  private refractionFailed = false;
   private disposed = false;
   constructor(config: WorldConfig, compact = false, context?: WorldNodeMaterialContext) {
     const flowNoiseTexture = createWaterFlowNoiseTexture(
@@ -144,13 +145,23 @@ export class WaterMaterialController {
   }
 
   renderRefraction(...args: WaterRefractionArgs): void {
-    if (this.disposed || this.uniforms.uWaterOpticsQuality.value < 0.5) return;
-    this.refraction.render(...args);
-    this.uniforms.tWaterRefraction.value = this.refraction.texture ?? null;
-    this.uniforms.tWaterRefractionDepth.value =
-      this.refraction.depthTexture ?? null;
-    args[0].getDrawingBufferSize(this.uniforms.uWaterRefractionSize.value);
-    this.material.syncTextures();
+    if (
+      this.disposed ||
+      this.refractionFailed ||
+      this.uniforms.uWaterOpticsQuality.value < 0.5
+    ) {
+      return;
+    }
+    try {
+      this.refraction.render(...args);
+      this.uniforms.tWaterRefraction.value = this.refraction.texture ?? null;
+      this.uniforms.tWaterRefractionDepth.value =
+        this.refraction.depthTexture ?? null;
+      args[0].getDrawingBufferSize(this.uniforms.uWaterRefractionSize.value);
+      this.material.syncTextures();
+    } catch (error) {
+      this.disableRefraction(error);
+    }
   }
 
   setLiveVisuals(visuals: WaterSurfaceLiveVisuals): void {
@@ -159,9 +170,10 @@ export class WaterMaterialController {
     }
     this.material.roughness = visuals.waterRoughness;
     this.uniforms.uWaterRoughness.value = visuals.waterRoughness;
-    // Selects the optics branch; both presets share one program because the
-    // branch is on a uniform, so switching costs no recompile.
-    this.uniforms.uWaterOpticsQuality.value = visuals.waterQuality >= 1 ? 1 : 0;
+    // A failed optional capture stays disabled for this controller lifetime;
+    // repeated retries would turn one unsupported/failed GPU path into a frame hitch.
+    this.uniforms.uWaterOpticsQuality.value =
+      !this.refractionFailed && visuals.waterQuality >= 1 ? 1 : 0;
     this.uniforms.uWaterOpacity.value = visuals.waterOpacity;
     this.uniforms.uWaterRippleStrength.value = visuals.waterRippleStrength;
     this.uniforms.uWaterRippleScale.value = visuals.waterRippleScale;
@@ -190,6 +202,42 @@ export class WaterMaterialController {
     }
     this.disposed = true;
     disposeResources([this.refraction, this.flowNoiseTexture, this.material]);
+  }
+
+  private disableRefraction(error: unknown): void {
+    if (this.refractionFailed || this.disposed) {
+      return;
+    }
+    this.refractionFailed = true;
+    this.uniforms.uWaterOpticsQuality.value = 0;
+    this.uniforms.tWaterRefraction.value = null;
+    this.uniforms.tWaterRefractionDepth.value = null;
+    this.uniforms.uWaterRefractionSize.value.set(0, 0);
+
+    let samplersDetached = false;
+    try {
+      this.material.syncTextures();
+      samplersDetached = true;
+    } catch (cleanupError) {
+      console.warn(
+        "[Drusniel World] Water refraction sampler fallback failed.",
+        cleanupError,
+      );
+    }
+    if (samplersDetached) {
+      try {
+        this.refraction.dispose();
+      } catch (cleanupError) {
+        console.warn(
+          "[Drusniel World] Water refraction fallback cleanup failed.",
+          cleanupError,
+        );
+      }
+    }
+    console.warn(
+      "[Drusniel World] Optional water refraction unavailable; using standard optics.",
+      error,
+    );
   }
 
 }
