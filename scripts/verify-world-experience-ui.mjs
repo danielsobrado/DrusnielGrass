@@ -139,6 +139,12 @@ try {
   const productionRenderers = read("scripts/check-production-renderers.mjs");
   assert.ok(productionRenderers.includes("&capture=1"),
     "Production renderer screenshots must bypass the interactive Start gate.");
+  const bootstrapRecovery = read("scripts/check-bootstrap-recovery.mjs");
+  assert.ok(bootstrapRecovery.includes("getExperiencePanelHost()")
+    && bootstrapRecovery.includes("getRevealController()"),
+    "Bootstrap recovery's WorldApp mock must expose the T04 UI façade used by main.");
+  assert.ok(bootstrapRecovery.includes("&capture=1"),
+    "Bootstrap recovery must bypass the interactive Start gate.");
 
   const weather = read("src/world/weather/WorldWeatherState.ts");
   assert.ok(weather.includes("urlPreset ?? options.storedPreset ?? DEFAULT_WEATHER_PRESET"),
@@ -190,5 +196,5 @@ try {
 
 console.log(
   "[world-experience-ui] Iris coalescing/mask, truthful reveal/start gate, modal input/minimap isolation, "
-  + "settings migration, capture bypass, optional-weather availability, live controls and interaction lifecycle verified.",
+  + "settings migration, capture/recovery compatibility, optional-weather availability, live controls and interaction lifecycle verified.",
 );
