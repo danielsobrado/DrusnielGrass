@@ -68,6 +68,9 @@ export class WorldRainSystem {
 
   update(deltaSeconds: number): void {
     if (this.disposed) return;
+    if (!this.options.weather.isAvailable()) {
+      throw new Error("Rain weather source is unavailable.");
+    }
     const delta = Number.isFinite(deltaSeconds) && deltaSeconds > 0 ? deltaSeconds : 0;
     const snapshot = this.options.weather.getSnapshot();
     this.uniforms.setTime(this.options.weather.getElapsedSeconds());
