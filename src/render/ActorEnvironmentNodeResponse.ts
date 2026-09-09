@@ -5,6 +5,8 @@ import {
 import {
   ACTOR_BOUNCE_COLOR, ACTOR_BOUNCE_STRENGTH, ACTOR_RIM_COLOR, ACTOR_RIM_POWER, ACTOR_RIM_STRENGTH,
 } from "./ActorEnvironmentResponse";
+import type { WorldNodeMaterialContext } from "./WorldNodeMaterialContext";
+import { applyWorldWetStandardMaterial } from "./WorldWetSurfaceNodes";
 
 /**
  * The portable actor environment response.
@@ -42,11 +44,14 @@ export function actorEnvironmentResponseNode(): Node<"vec3"> {
 }
 
 /**
- * Applies the response to a node material, mirroring the shipped function's
- * shape so a caller switches one import rather than restructuring how its
- * actors are built.
+ * Applies the response to a node material. A world context is optional so
+ * reusable actor tests/tools retain the dry standalone construction path.
  */
-export function applyActorEnvironmentNodeResponse(material: MeshStandardNodeMaterial): void {
+export function applyActorEnvironmentNodeResponse(
+  material: MeshStandardNodeMaterial,
+  context?: WorldNodeMaterialContext,
+): void {
+  applyWorldWetStandardMaterial(material, context);
   const base = material.setupOutput.bind(material);
   material.setupOutput = (builder: NodeBuilder, outputNode: Node<"vec4">) =>
     base(builder, vec4(outputNode.rgb.add(actorEnvironmentResponseNode()), outputNode.a));
