@@ -44,6 +44,8 @@ export class WorldWeatherState {
 
   get windUniforms() { return this.wind?.uniforms; }
   getPresetId(): WeatherPresetId { return this.active.id; }
+  isAvailable(): boolean { return !this.disposed; }
+  hasWindControls(): boolean { return !this.disposed && this.wind !== undefined; }
 
   getSnapshot(): Readonly<WorldWeatherSnapshot> {
     const field = this.wind?.getField();
