@@ -100,19 +100,22 @@ export class WorldExperience {
   }
 
   /**
-   * Advances every filled system once.
+   * Advances every filled system once in attachment order.
    *
-   * A system that throws is released rather than retried: a per-frame failure
-   * would otherwise repeat sixty times a second, and the effect is optional.
+   * Weather is attached before effects that consume its frame state. Keeping
+   * that order makes the shared weather/wind snapshot authoritative for rain,
+   * leaves, birds and audio without any subsystem advancing it a second time.
+   * A system that throws is released rather than retried every frame.
    */
   update(deltaSeconds: number): void {
     if (this.disposed) {
       return;
     }
-    for (let index = this.updatable.length - 1; index >= 0; index--) {
+    for (let index = 0; index < this.updatable.length;) {
       const entry = this.updatable[index];
       try {
         entry.owner.update?.(deltaSeconds);
+        index += 1;
       } catch (error) {
         console.warn(`[Drusniel World] Optional ${entry.slot} system failed; releasing it.`, error);
         this.updatable.splice(index, 1);
