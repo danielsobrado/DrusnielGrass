@@ -1,10 +1,26 @@
 import type { Node, TextureNode } from "three/webgpu";
-import { Fn, cos, float, max, mix, sin, smoothstep, vec2, vec3, vec4 } from "three/tsl";
+import { Fn, cos, float, floor, fract, max, mix, sin, smoothstep, vec2, vec3, vec4 } from "three/tsl";
+import type { WorldWaterContactField } from "./WorldWaterContactField";
 import {
   WATER_LAKE_COVE_WAVE_SCALE, WATER_LAKE_SHORE_FOAM_EXPOSURE, WATER_LAKE_SHORE_WAVE_FREQUENCY,
   WATER_LAKE_SHORE_WAVE_WEIGHT, WATER_RAPID_FOAM_CUTOFF, WATER_RIFFLE_FOAM_CUTOFF,
   WATER_SHORE_FOAM_ENERGY_FLOOR,
 } from "./WaterMaterialTuning";
+import {
+  WORLD_WATER_CONTACT_DECAY_SECONDS,
+  WORLD_WATER_CONTACT_PROPAGATION_METERS_PER_SECOND,
+  WORLD_WATER_RAIN_RIPPLE_FADE_POWER,
+  WORLD_WATER_RAIN_RIPPLE_RING_WIDTH,
+  WORLD_WATER_RAIN_RIPPLE_SCALE,
+  WORLD_WATER_RAIN_RIPPLE_SPEED,
+  WORLD_WATER_RAIN_RIPPLE_STRENGTH,
+} from "../weather/WorldRainTuning";
+
+const RAIN_HASH_SCALE = 43758.5453;
+const RIPPLE_MIN_DISTANCE = 0.001;
+const CONTACT_RING_FREQUENCY = 15;
+const CONTACT_RING_FALLOFF = 6;
+const CONTACT_SLOPE_SCALE = 0.12;
 
 /**
  * Flow, wave and foam helpers for the surface, as nodes.
@@ -111,6 +127,55 @@ export const waterResolveMicroSlopeNode = Fn(([position, scale, time, detailWeig
   return directionA.mul(cos(phaseA)).mul(0.16).add(directionB.mul(cos(phaseB)).mul(0.11))
     .mul(detailWeight);
 });
+
+/** One low-cost procedural ring cell for rainfall on the water surface. */
+export const waterResolveRainSlopeNode = Fn(([position, time, intensity]:
+  [Node<"vec2">, Node<"float">, Node<"float">]) => {
+  const point = position.mul(WORLD_WATER_RAIN_RIPPLE_SCALE);
+  const cell = floor(point);
+  const local = fract(point).sub(0.5);
+  const randomA = fract(sin(cell.dot(vec2(127.1, 311.7))).mul(RAIN_HASH_SCALE));
+  const randomB = fract(sin(cell.dot(vec2(269.5, 183.3))).mul(RAIN_HASH_SCALE));
+  const offset = vec2(randomA.sub(0.5), randomB.sub(0.5)).mul(0.82);
+  const delta = local.sub(offset);
+  const distance = max(delta.length(), float(RIPPLE_MIN_DISTANCE));
+  const phase = fract(time.mul(WORLD_WATER_RAIN_RIPPLE_SPEED).add(randomA));
+  const radius = phase.mul(0.42);
+  const ring = smoothstep(
+    0,
+    WORLD_WATER_RAIN_RIPPLE_RING_WIDTH,
+    distance.sub(radius).abs(),
+  ).oneMinus();
+  const fade = phase.oneMinus().pow(WORLD_WATER_RAIN_RIPPLE_FADE_POWER);
+  const strength = ring.mul(fade).mul(WORLD_WATER_RAIN_RIPPLE_STRENGTH).mul(intensity);
+  return delta.div(distance).mul(strength);
+});
+
+/** Bounded local impact rings; distinct from persistent stone-obstacle wakes. */
+export function waterResolveContactSlopeNode(
+  position: Node<"vec2">,
+  time: Node<"float">,
+  contacts: WorldWaterContactField,
+): Node<"vec2"> {
+  return Fn(() => {
+    const offset = vec2(0).toVar();
+    for (let index = 0; index < contacts.capacity; index += 1) {
+      const event = contacts.events.element(index);
+      const strength = contacts.strengths.element(index).x;
+      const age = max(float(0), time.sub(event.z));
+      const delta = position.sub(event.xy);
+      const distance = max(delta.length(), float(0.01));
+      const ring = distance.sub(event.w.add(age.mul(WORLD_WATER_CONTACT_PROPAGATION_METERS_PER_SECOND)));
+      const wave = sin(ring.mul(CONTACT_RING_FREQUENCY))
+        .mul(ring.pow(2).mul(-CONTACT_RING_FALLOFF).exp())
+        .mul(age.div(WORLD_WATER_CONTACT_DECAY_SECONDS).negate().exp())
+        .mul(strength)
+        .mul(CONTACT_SLOPE_SCALE);
+      offset.addAssign(delta.div(distance).mul(wave));
+    }
+    return offset;
+  })();
+}
 
 /**
  * The shoreline band, weighted by what is happening at that waterline. A lake
