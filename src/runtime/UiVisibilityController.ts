@@ -41,6 +41,7 @@ export class UiVisibilityController {
   attachWorld(host: WorldExperiencePanelHost, reveal: WorldRevealController,
     bypassStartGate: boolean): void {
     this.loading?.dispose();
+    this.loading = undefined;
     this.settingsController.close();
     this.settingsController.attachWorld(host);
     const gateBypassed = bypassStartGate || this.startGateAccepted;
