@@ -52,6 +52,8 @@ try {
   "The iris must use the source's punched-out radial mask, not a normal clip circle.");
   assert.ok(css.includes("min-height: 44px"), "Interactive controls must retain 44px touch targets.");
   assert.ok(css.includes('html[data-ui-minimized="true"] .world-experience-root'));
+  assert.ok(css.includes(".world-experience-panel :disabled"),
+    "Runtime-unavailable controls must read visibly disabled rather than silently ignore input.");
 
   const panel = read("src/ui/WorldExperiencePanel.ts");
   for (const live of ["weather", "wind", "speed", "renderScale", "interaction", "invert", "sound"]) {
@@ -65,7 +67,17 @@ try {
   assert.ok(panel.includes('document.addEventListener("keydown", this.handleKeyDown)')
     && panel.includes('document.removeEventListener("keydown", this.handleKeyDown)'));
   assert.ok(panel.includes('event.key !== "Escape"') && panel.includes("isTextEditingTarget(event.target)"));
-  assert.ok(panel.includes("input.disabled = !this.host"), "World-bound controls must not act on a missing world.");
+  assert.ok(panel.includes("this.setDisabled(setting, !this.host)"),
+    "World-bound controls must not act on a missing world.");
+  assert.ok(panel.includes('this.setDisabled("weather", !live.weatherAvailable)')
+    && panel.includes('this.setDisabled("wind", !live.windControlsAvailable)')
+    && panel.includes('this.setDisabled("speed", !live.windControlsAvailable)'),
+    "Optional weather and legacy-wind failure modes must disable only controls that cannot apply.");
+  assert.ok(panel.includes('data-runtime-status="weather"')
+    && panel.includes('data-runtime-status="wind"'),
+    "Runtime-unavailable controls must explain why they are disabled.");
+  assert.ok(/try \{[\s\S]*?setWeatherPreset\(id\)[\s\S]*?\} finally \{[\s\S]*?this\.sync\(\);/.test(panel),
+    "Rejected weather commits must restore the selector to live state before the iris reopens.");
 
   const reveal = read("src/runtime/WorldRevealController.ts");
   assert.ok(reveal.includes("REVEAL_TIMEOUT_MS = 2800") && reveal.includes("HERO_NEAR_TILES = 4"));
@@ -100,6 +112,8 @@ try {
   assert.ok(weather.includes("urlPreset ?? options.storedPreset ?? DEFAULT_WEATHER_PRESET"),
     "Weather precedence must be built-in, then stored, then explicit URL.");
   assert.ok(weather.includes("setWindIntensity(value: number)") && weather.includes("setSimulationSpeed(value: number)"));
+  assert.ok(weather.includes("isAvailable(): boolean") && weather.includes("hasWindControls(): boolean"),
+    "Optional weather disposal and legacy wind must expose usable UI capabilities.");
 
   const interaction = read("src/grass/interaction/GrassInteractionField.ts");
   assert.ok(interaction.includes("setInteractionEnabled(enabled: boolean)"));
@@ -114,6 +128,8 @@ try {
   assert.ok(host.includes("this.options.viewState.getGameplayPose(this.pose)"));
   assert.ok(host.includes("grassInteractionField.reset(gameplay.position)"),
     "Re-enabling interaction must restart from the current gameplay pose.");
+  assert.ok(host.includes("weatherOwner?.isAvailable()") && host.includes("weatherOwner?.hasWindControls()"),
+    "The panel host must report optional-system capabilities from the actual owner.");
 
   const app = read("src/app/WorldApp.ts");
   assert.ok(app.includes("this.renderScale = hudSettingsStore.getRenderScale()"));
@@ -126,5 +142,5 @@ try {
 
 console.log(
   "[world-experience-ui] Iris coalescing/mask, truthful reveal/start gate, modal input, "
-  + "settings migration, weather precedence, live controls and interaction lifecycle verified.",
+  + "settings migration, optional-weather availability, live controls and interaction lifecycle verified.",
 );
