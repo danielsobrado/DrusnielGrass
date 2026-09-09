@@ -1,3 +1,4 @@
+import { disposeResources } from "../../render/ResourceDisposal";
 import { WorldWindField } from "./WorldWindField";
 import { WorldWindUniforms } from "./WorldWindUniforms";
 import { disposeWindGradientTexture } from "./WorldWindLattice";
@@ -30,10 +31,7 @@ export class WorldWindSystem {
     this.publish(deltaSeconds, false);
   }
 
-  /**
-   * Publishes a changed preset immediately without advancing the phase.
-   * Preset cuts are rare and atomic; ordinary frames retain the reduced bake cadence.
-   */
+  /** Requests a changed preset without advancing the phase. */
   refresh(): void {
     this.publish(0, true);
   }
@@ -43,8 +41,10 @@ export class WorldWindSystem {
   }
 
   dispose(): void {
-    this.bake?.dispose();
-    disposeWindGradientTexture();
+    disposeResources([
+      this.bake,
+      { dispose: disposeWindGradientTexture },
+    ]);
   }
 
   private publish(deltaSeconds: number, forceBake: boolean): void {
@@ -59,8 +59,8 @@ export class WorldWindSystem {
     }
 
     try {
-      this.bake.update(deltaSeconds, focus, this.field);
-      if (forceBake) {
+      const baked = this.bake.update(deltaSeconds, focus, this.field);
+      if (baked) {
         this.bakeFailureReported = false;
       }
     } catch (error) {
