@@ -72,6 +72,7 @@ export class WorldRainSystem {
     const snapshot = this.options.weather.getSnapshot();
     this.uniforms.setTime(this.options.weather.getElapsedSeconds());
     this.uniforms.setWind(snapshot.windDirectionDegrees, snapshot.windIntensity);
+    this.uniforms.advanceDrift(delta);
 
     this.intensity = approachRainIntensity(this.intensity, snapshot.rainIntensity, delta);
     this.uniforms.setIntensity(this.intensity);
