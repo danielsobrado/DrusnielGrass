@@ -114,10 +114,10 @@ assert(
 );
 
 assert(
-  /private finalize\(\): TerrainChunk \{[\s\S]*?const geometry = new THREE\.BufferGeometry\(\);[\s\S]*?let waterGeometry: THREE\.BufferGeometry \| undefined;[\s\S]*?try \{[\s\S]*?const chunk = new TerrainChunk\([\s\S]*?return chunk;[\s\S]*?\} catch \(error\) \{[\s\S]*?waterGeometry\?\.dispose\(\);[\s\S]*?geometry\.dispose\(\)/.test(
+  /private finalize\(\): TerrainChunk \{[\s\S]*?const geometry = new THREE\.BufferGeometry\(\);[\s\S]*?let waterGeometry: THREE\.BufferGeometry \| undefined;[\s\S]*?try \{[\s\S]*?const chunk = new TerrainChunk\([\s\S]*?return chunk;[\s\S]*?\} catch \(error\) \{[\s\S]*?try \{[\s\S]*?disposeResources\(\[waterGeometry, geometry\]\);[\s\S]*?\} catch \(cleanupError\) \{[\s\S]*?console\.warn\("\[Drusniel World\] Terrain chunk finalization cleanup failed\.", cleanupError\);[\s\S]*?throw error;/.test(
     terrainChunk,
   ),
-  "Failed terrain chunk finalization must release unpublished terrain and water geometry.",
+  "Failed terrain chunk finalization must attempt to release unpublished terrain and water geometry without replacing the original error.",
 );
 
 assert(
@@ -138,7 +138,7 @@ for (const [name, source, constructionCleanup, normalCleanup, cleanupLog] of [
     "Water material",
     waterMaterial,
     "disposeResources([material, flowNoiseTexture])",
-    "disposeResources([this.flowNoiseTexture, this.material])",
+    "disposeResources([this.refraction, this.flowNoiseTexture, this.material])",
     "Water material construction cleanup failed.",
   ],
   [
@@ -231,7 +231,7 @@ for (const [name, source] of [
   ["Villager assets", villagerAssets],
 ]) {
   assert(
-    /try \{[\s\S]*?applyActorEnvironmentNodeResponse\(material\);[\s\S]*?return material;[\s\S]*?\} catch \(error\) \{[\s\S]*?material\.dispose\(\);[\s\S]*?throw error;/.test(
+    /try \{[\s\S]*?applyActorEnvironmentNodeResponse\(material(?:, this\.context)?\);[\s\S]*?return material;[\s\S]*?\} catch \(error\) \{[\s\S]*?material\.dispose\(\);[\s\S]*?throw error;/.test(
       source,
     ) &&
       /try \{[\s\S]*?slots\.set\(slot, mergeActorParts\(list\)\);[\s\S]*?\} finally \{[\s\S]*?part\.geometry\.dispose\(\)/.test(

@@ -74,10 +74,10 @@ assert(
 );
 assert(
   faunaSystem.includes("interface FaunaResources") &&
-    faunaSystem.includes("const resources = createFaunaResources(field)") &&
+    faunaSystem.includes("const resources = createFaunaResources(field, context)") &&
     faunaSystem.includes("function createFaunaResources(") &&
-    faunaSystem.includes("const assets = createDeerAssets()") &&
-    faunaSystem.includes("villagerAssets = createVillagerAssets()") &&
+    faunaSystem.includes("const assets = createDeerAssets(context)") &&
+    faunaSystem.includes("villagerAssets = createVillagerAssets(context)") &&
     faunaSystem.includes('disposeResource(() => villagerAssets?.dispose(), "Villager assets")') &&
     faunaSystem.includes('disposeResource(() => assets.dispose(), "Deer assets")') &&
     faunaSystem.indexOf("const contact = new WorldTerrainContactSampler(field)") >

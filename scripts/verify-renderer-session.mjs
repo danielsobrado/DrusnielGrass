@@ -212,6 +212,72 @@ try {
   assert.equal(raster.target, initialTarget);
   assert.deepEqual(raster.viewport.toArray(), [1, 2, 3, 4]);
   assert.equal(raster.face, 2); assert.equal(raster.mip, 1); assert.equal(raster.autoClear, true);
+  const createRestoreRaster = () => {
+    let autoClear = true;
+    const mock = {
+      target: {}, face: 2, mip: 1, viewport: new Vector4(1, 2, 3, 4),
+      scissor: new Vector4(5, 6, 7, 8), scissorTest: true, color: new Color('#123456'), alpha: 0.4,
+      workComplete: false, restoreOrder: [],
+      getRenderTarget() { return this.target; }, getActiveCubeFace() { return this.face; },
+      getActiveMipmapLevel() { return this.mip; },
+      getViewport(out) { return out.copy(this.viewport); }, getScissor(out) { return out.copy(this.scissor); },
+      getScissorTest() { return this.scissorTest; }, getClearColor(out) { return out.copy(this.color); },
+      getClearAlpha() { return this.alpha; },
+      setRenderTarget(value, face = 0, mip = 0) {
+        if (this.workComplete) { this.restoreOrder.push('target'); throw new Error('restore target'); }
+        this.target = value; this.face = face; this.mip = mip;
+      },
+      setViewport(...args) {
+        if (this.workComplete) this.restoreOrder.push('viewport');
+        args.length === 1 ? this.viewport.copy(args[0]) : this.viewport.set(...args);
+      },
+      setScissor(value) {
+        if (this.workComplete) this.restoreOrder.push('scissor');
+        this.scissor.copy(value);
+      },
+      setScissorTest(value) {
+        if (this.workComplete) this.restoreOrder.push('scissorTest');
+        this.scissorTest = value;
+      },
+      setClearColor(value, alpha) {
+        if (this.workComplete) this.restoreOrder.push('clearColor');
+        this.color.copy(value); this.alpha = alpha;
+      },
+    };
+    Object.defineProperty(mock, 'autoClear', {
+      get() { return autoClear; },
+      set(value) {
+        if (mock.workComplete) mock.restoreOrder.push('autoClear');
+        autoClear = value;
+      },
+    });
+    return mock;
+  };
+  const expectedRestoreOrder = ['target', 'viewport', 'scissor', 'scissorTest', 'clearColor', 'autoClear'];
+  const workAndRestore = createRestoreRaster();
+  const restoreWarnings = [];
+  const originalWarn = console.warn;
+  console.warn = (...args) => { restoreWarnings.push(args); };
+  try {
+    assert.throws(() => withRendererState(workAndRestore, () => {
+      workAndRestore.setRenderTarget({});
+      workAndRestore.setViewport(9, 9, 9, 9);
+      workAndRestore.autoClear = false;
+      workAndRestore.workComplete = true;
+      throw new Error('offscreen failure');
+    }), /offscreen failure/);
+  } finally {
+    console.warn = originalWarn;
+  }
+  assert.equal(restoreWarnings.length, 1);
+  assert.match(String(restoreWarnings[0][0]), /Renderer state restoration also failed/);
+  assert.deepEqual(workAndRestore.restoreOrder, expectedRestoreOrder);
+  const restoreOnly = createRestoreRaster();
+  assert.throws(() => withRendererState(restoreOnly, () => {
+    restoreOnly.workComplete = true;
+    return 'ok';
+  }), /restore target/);
+  assert.deepEqual(restoreOnly.restoreOrder, expectedRestoreOrder);
   const { RuntimeConfigLoader } = await server.ssrLoadModule('/src/runtime/RuntimeConfigLoader.ts');
   const runtime = new RuntimeConfigLoader().parse(await readFile('public/config/runtime.yaml', 'utf8'));
   const { WorldCloudTemporalNodePass } = await server.ssrLoadModule('/src/world/sky/WorldCloudTemporalNodePass.ts');

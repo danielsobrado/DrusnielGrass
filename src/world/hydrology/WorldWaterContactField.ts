@@ -52,8 +52,8 @@ export class WorldWaterContactField {
       { length: capacity },
       () => new Vector4(0, 0, 0, 0),
     );
-    this.events = uniformArray(this.eventValues);
-    this.strengths = uniformArray(this.strengthValues);
+    this.events = uniformArray<"vec4">(this.eventValues, "vec4");
+    this.strengths = uniformArray<"vec4">(this.strengthValues, "vec4");
   }
 
   add(event: WorldWaterContactEvent): boolean {

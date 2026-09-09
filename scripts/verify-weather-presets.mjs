@@ -229,7 +229,7 @@ try {
     "this.queueEnvironmentRefresh()",
     "environmentRefreshQueued",
     "this.scene.environmentIntensity = this.lighting.environmentIntensity",
-    "previous?.dispose()",
+    "previous.dispose()",
   ], "Sky cuts must reset history and coalesce staged PMREM swaps.");
 
   assertContains(read("src/world/horizon/WorldHorizonNodeMaterial.ts"), [
@@ -251,7 +251,7 @@ try {
   const windBake = read("src/world/weather/WorldWindBake.ts");
   assert.ok(weatherSource.includes("this.wind.refresh()"),
     "A preset cut must publish the changed wind before the next rendered frame.");
-  assertContains(windSystem, ["refresh(): void", "this.bake.invalidate()"],
+  assertContains(windSystem, ["refresh(): void", "bake.invalidate()"],
     "Forced wind publication must invalidate the reduced-cadence GPU bake.");
   assert.ok(windBake.includes("invalidate(): void"));
 

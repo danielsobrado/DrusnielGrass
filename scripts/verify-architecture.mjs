@@ -54,7 +54,11 @@ const WATER_BED_MATERIAL_SHADER_MAX_LINES = 160;
 // the water's live visuals. The extra lines are the accessor exposing that
 // table and the base-roughness mirror the node path has no built-in for; the
 // surface composition itself still lives entirely in WaterShader.
-const WATER_MATERIAL_MAX_LINES = 240;
+// Raised from 240 when optional refraction capture gained a one-shot
+// standard-optics fallback and the controller started disposing that pass with
+// the rest of its owned GPU resources. Surface composition still lives in
+// WaterShader / WaterSurfaceNodes.
+const WATER_MATERIAL_MAX_LINES = 250;
 const WATER_SHADER_MAX_LINES = 360;
 const STONE_GEOMETRY_MAX_LINES = 400;
 // Raised for the streamed-ring coverage mask. Chunk residency lives in
@@ -431,7 +435,7 @@ assert(
     waterSurfaceNodeMaterial.includes("this.side = DoubleSide") &&
     waterMaterial.includes("createWaterFlowNoiseTexture") &&
     waterMaterial.includes(
-      "disposeResources([this.flowNoiseTexture, this.material])",
+      "disposeResources([this.refraction, this.flowNoiseTexture, this.material])",
     ) &&
     !waterMaterial.includes("createWaterBedTexture") &&
     !waterMaterial.includes("bedTexture") &&
