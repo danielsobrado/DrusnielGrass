@@ -66,20 +66,23 @@ export class WorldLoadingPresentation {
     this.progress.max = 1;
     this.status.className = "world-loading-status";
     this.status.setAttribute("aria-live", "polite");
+    content.append(eyebrow, title, this.progress, this.status);
 
-    const soundLabel = document.createElement("label");
-    soundLabel.className = "world-loading-sound";
-    this.sound.type = "checkbox";
-    this.sound.checked = hudSettingsStore.getSoundEnabled();
-    soundLabel.append(this.sound, document.createTextNode(" Enable sound when available"));
+    if (!this.options.bypassStartGate) {
+      const soundLabel = document.createElement("label");
+      soundLabel.className = "world-loading-sound";
+      this.sound.type = "checkbox";
+      this.sound.checked = hudSettingsStore.getSoundEnabled();
+      soundLabel.append(this.sound, document.createTextNode(" Enable sound when available"));
 
-    this.startButton.type = "button";
-    this.startButton.className = "world-loading-start";
-    this.startButton.textContent = "Enter the world";
-    this.startButton.disabled = true;
-    this.startButton.addEventListener("click", this.handleStart);
+      this.startButton.type = "button";
+      this.startButton.className = "world-loading-start";
+      this.startButton.textContent = "Enter the world";
+      this.startButton.disabled = true;
+      this.startButton.addEventListener("click", this.handleStart);
+      content.append(soundLabel, this.startButton);
+    }
 
-    content.append(eyebrow, title, this.progress, this.status, soundLabel, this.startButton);
     this.element.appendChild(content);
   }
 
