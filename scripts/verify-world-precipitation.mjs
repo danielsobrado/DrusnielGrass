@@ -90,7 +90,7 @@ try {
       "Changing wettingSeconds must change the response rather than being ignored.");
   });
 
-  await check("contact field rejects dry and vertically invalid events", () => {
+  await check("contact field rejects invalid events and bounds its active window", () => {
     const hydrology = { waterCoverage: 0, waterLevel: 3 };
     const terrain = {
       sampleHeight: () => 2,
@@ -102,6 +102,11 @@ try {
     hydrology.waterCoverage = 1;
     assert.equal(field.add({ x: 0, y: 20, z: 0, time: 1, radius: 0.4, strength: 1 }), false);
     assert.equal(field.add({ x: 0, y: 3, z: 0, time: 1, radius: 0.4, strength: 1 }), true);
+    assert.ok(field.activeUntil.value > 1,
+      "A valid contact must open only a bounded shader-active window.");
+    field.clear();
+    assert.ok(field.activeUntil.value < 0,
+      "Clearing contacts must close the shader-active window immediately.");
   });
 
   await check("precipitation budgets stay bounded", () => {
@@ -131,6 +136,18 @@ try {
       "Rain must advance only from the world's existing experience update.");
   });
 
+  await check("fully dry rain skips wind and drift work without freezing its event clock", () => {
+    const runtime = source("src/world/weather/WorldRainSystem.ts");
+    const setTime = runtime.indexOf("this.uniforms.setTime(");
+    const inactive = runtime.indexOf("if (!active)");
+    const setWind = runtime.indexOf("this.uniforms.setWind(");
+    const drift = runtime.indexOf("this.uniforms.advanceDrift(delta)");
+    assert.ok(setTime >= 0 && inactive > setTime,
+      "The shared rain/contact clock must advance before a dry-frame early return.");
+    assert.ok(setWind > inactive && drift > inactive,
+      "Wind and horizontal drift must run only after rain is known to be active.");
+  });
+
   await check("rain construction and disposal release every owned resource", () => {
     const runtime = source("src/world/weather/WorldRainSystem.ts");
     assert.match(runtime, /import \{ disposeResources \}/);
@@ -145,10 +162,19 @@ try {
       "A failed weather owner must cause rain to fail once and be released by WorldExperience.");
   });
 
-  await check("the ground cache is staged and includes hydrologic water", () => {
+  await check("the ground cache is portable, conservative, staged and hydrologic", () => {
     const cache = source("src/world/weather/WorldRainGroundCache.ts");
     assert.match(cache, /private readonly staging = new Float32Array/);
     assert.match(cache, /WORLD_RAIN_GROUND_CACHE_ROWS_PER_FRAME/);
+    assert.match(cache, /CONSERVATIVE_SAMPLE_OFFSET_RATIO = 0\.5/,
+      "Nearest-sampled cache texels must cover the full half-cell extent.");
+    assert.match(cache, /this\.texture\.minFilter = THREE\.NearestFilter/);
+    assert.match(cache, /this\.texture\.magFilter = THREE\.NearestFilter/);
+    assert.doesNotMatch(cache, /this\.texture\.(?:minFilter|magFilter) = THREE\.LinearFilter/,
+      "R32Float rain clipping must not require WebGPU float32-filterable support.");
+    assert.match(cache, /sampleSurfaceHeight\(x - offset, z - offset\)/);
+    assert.match(cache, /sampleSurfaceHeight\(x \+ offset, z \+ offset\)/,
+      "Conservative nearest cells must include diagonal corner heights.");
     assert.match(cache, /this\.active\.set\(this\.staging\)/);
     assert.match(cache, /Math\.max\(ground, this\.hydrology\.waterLevel\)/);
     assert.ok(cache.indexOf("this.active.set(this.staging)") < cache.indexOf("this.center.copy(this.pendingCenter)"));
@@ -196,10 +222,16 @@ try {
       "A failed foliage wetness binding must release both tree materials.");
   });
 
-  await check("water material cleans sampler placeholders after construction failure", () => {
+  await check("water material and refraction resize clean partial allocations", () => {
     const material = source("src/world/hydrology/WaterSurfaceNodeMaterial.ts");
+    const refraction = source("src/world/hydrology/WaterRefractionNodePass.ts");
     assert.match(material, /catch \(error\) \{[\s\S]*this\.dispose\(\)/);
     assert.match(material, /for \(const bound of this\.boundTextures\) bound\.dispose\(\)/);
+    assert.match(refraction, /let target: RenderTarget \| undefined/);
+    assert.match(refraction, /let depthTexture: DepthTexture \| undefined/);
+    assert.match(refraction, /Water refraction resize cleanup failed/);
+    assert.match(refraction, /disposeResources\(\[depthTexture, target\]\)/,
+      "A failed resize must release both partial depth and color targets.");
   });
 
   await check("rain and contact ripples are additive to existing water slope", () => {
@@ -213,10 +245,16 @@ try {
       "Precipitation ripples must layer after the existing flow/stone slope rather than replace it.");
   });
 
-  await check("contact ripple storage is fixed capacity", () => {
+  await check("contact ripple storage is fixed capacity and has zero idle loop cost", () => {
     const contacts = source("src/world/hydrology/WorldWaterContactField.ts");
+    const helpers = source("src/world/hydrology/WaterSurfaceHelperNodes.ts");
     assert.match(contacts, /Array\.from\([\s\S]*length: capacity/);
     assert.match(contacts, /this\.cursor = \(this\.cursor \+ 1\) % this\.capacity/);
+    assert.match(contacts, /readonly activeUntil = uniform\(/);
+    assert.match(contacts, /this\.activeUntil\.value = Math\.max/);
+    assert.match(contacts, /this\.activeUntil\.value = INACTIVE_EVENT_TIME/);
+    assert.match(helpers, /If\(time\.lessThan\(contacts\.activeUntil\), \(\) => \{/,
+      "Inactive contact fields must skip the fixed shader array before entering its loop.");
     assert.doesNotMatch(contacts, /\.push\(/,
       "Per-event storage must overwrite the bounded pool rather than grow at runtime.");
   });
@@ -233,6 +271,6 @@ if (failures.length > 0) {
 
 console.log(
   "[world-precipitation] Rain response, drift and wetness are frame-rate independent, "
-  + "budgets and resource lifecycles are bounded, clipping includes terrain/water, "
-  + "opaque surfaces share wetness, and precipitation ripples preserve water flow.",
+  + "budgets and resource lifecycles are bounded, clipping is portable and conservative, "
+  + "dry/contact idle work is gated, and precipitation ripples preserve water flow.",
 );
