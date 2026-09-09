@@ -52,6 +52,10 @@ try {
   "The iris must use the source's punched-out radial mask, not a normal clip circle.");
   assert.ok(css.includes("min-height: 44px"), "Interactive controls must retain 44px touch targets.");
   assert.ok(css.includes('html[data-ui-minimized="true"] .world-experience-root'));
+  assert.ok(css.includes('html[data-world-start-gate="true"] .world-experience-root'),
+    "Scene settings must not overlap the Start gate and release its modal input block.");
+  assert.ok(css.includes(".world-loading-presentation") && css.includes("z-index: 1300"),
+    "The Start presentation must remain above ordinary experience controls.");
   assert.ok(css.includes(".world-experience-panel :disabled"),
     "Runtime-unavailable controls must read visibly disabled rather than silently ignore input.");
 
@@ -78,6 +82,11 @@ try {
     "Runtime-unavailable controls must explain why they are disabled.");
   assert.ok(/try \{[\s\S]*?setWeatherPreset\(id\)[\s\S]*?\} finally \{[\s\S]*?this\.sync\(\);/.test(panel),
     "Rejected weather commits must restore the selector to live state before the iris reopens.");
+  assert.ok(panel.includes("!this.host?.setWindGain(value)")
+    && panel.includes("!this.host?.setSimulationSpeed(value)"),
+    "A mid-session weather failure must resync live sliders instead of leaving no-op controls enabled.");
+  assert.ok(/if \(open\) \{[\s\S]*?this\.sync\(\);[\s\S]*?setModalOverlay\(true\)/.test(panel),
+    "Opening settings must refresh optional-system availability before input is handed to the panel.");
 
   const reveal = read("src/runtime/WorldRevealController.ts");
   assert.ok(reveal.includes("REVEAL_TIMEOUT_MS = 2800") && reveal.includes("HERO_NEAR_TILES = 4"));
@@ -88,6 +97,11 @@ try {
 
   const loading = read("src/ui/WorldLoadingPresentation.ts");
   assert.ok(loading.includes("reveal.holdForStart()") && loading.includes("options.setModalOverlay(true)"));
+  assert.ok(loading.includes('document.documentElement.dataset.worldStartGate = "true"')
+    && loading.includes("delete document.documentElement.dataset.worldStartGate"),
+    "The Start gate must hide competing settings ownership for exactly its input-blocking lifetime.");
+  assert.ok(/constructor\([\s\S]*?try \{[\s\S]*?\} catch \(error\) \{[\s\S]*?this\.releaseInput\(\)/.test(loading),
+    "Loading presentation construction must roll back modal input and startup UI state if publication fails.");
   assert.ok(loading.includes("this.releaseInput()") && loading.includes("this.reveal.reveal()"));
   assert.ok(loading.includes("this.progress.removeAttribute(\"value\")"),
     "Unknown startup work must be shown as indeterminate rather than fake percentages.");
@@ -130,6 +144,9 @@ try {
     "Re-enabling interaction must restart from the current gameplay pose.");
   assert.ok(host.includes("weatherOwner?.isAvailable()") && host.includes("weatherOwner?.hasWindControls()"),
     "The panel host must report optional-system capabilities from the actual owner.");
+  assert.ok(/setWindGain\(value: number\): boolean[\s\S]*?setWindIntensity\(value\)/.test(host)
+    && /setSimulationSpeed\(value: number\): boolean[\s\S]*?setSimulationSpeed\(value\)/.test(host),
+    "Live wind controls must propagate rejection back to the UI.");
 
   const app = read("src/app/WorldApp.ts");
   assert.ok(app.includes("this.renderScale = hudSettingsStore.getRenderScale()"));
@@ -141,6 +158,6 @@ try {
 }
 
 console.log(
-  "[world-experience-ui] Iris coalescing/mask, truthful reveal/start gate, modal input, "
+  "[world-experience-ui] Iris coalescing/mask, truthful reveal/start gate, modal input isolation, "
   + "settings migration, optional-weather availability, live controls and interaction lifecycle verified.",
 );
