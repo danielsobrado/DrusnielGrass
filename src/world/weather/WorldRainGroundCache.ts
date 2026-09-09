@@ -9,7 +9,7 @@ import {
 } from "./WorldRainTuning";
 
 const WATER_COVERAGE_THRESHOLD = 0.01;
-const CONSERVATIVE_SAMPLE_OFFSET_RATIO = 0.36;
+const CONSERVATIVE_SAMPLE_OFFSET_RATIO = 0.5;
 
 /**
  * A stable local height texture used to clip rain against terrain and water.
@@ -115,13 +115,21 @@ export class WorldRainGroundCache {
 
     for (let column = 0; column < resolution; column += 1) {
       const x = minX + (column + 0.5) * cellSize;
-      let height = this.sampleSurfaceHeight(x, z);
-      height = Math.max(height, this.sampleSurfaceHeight(x - offset, z));
-      height = Math.max(height, this.sampleSurfaceHeight(x + offset, z));
-      height = Math.max(height, this.sampleSurfaceHeight(x, z - offset));
-      height = Math.max(height, this.sampleSurfaceHeight(x, z + offset));
-      this.staging[row * resolution + column] = height;
+      this.staging[row * resolution + column] = this.sampleCellSurfaceHeight(x, z, offset);
     }
+  }
+
+  private sampleCellSurfaceHeight(x: number, z: number, offset: number): number {
+    let height = this.sampleSurfaceHeight(x, z);
+    height = Math.max(height, this.sampleSurfaceHeight(x - offset, z));
+    height = Math.max(height, this.sampleSurfaceHeight(x + offset, z));
+    height = Math.max(height, this.sampleSurfaceHeight(x, z - offset));
+    height = Math.max(height, this.sampleSurfaceHeight(x, z + offset));
+    height = Math.max(height, this.sampleSurfaceHeight(x - offset, z - offset));
+    height = Math.max(height, this.sampleSurfaceHeight(x - offset, z + offset));
+    height = Math.max(height, this.sampleSurfaceHeight(x + offset, z - offset));
+    height = Math.max(height, this.sampleSurfaceHeight(x + offset, z + offset));
+    return height;
   }
 
   private sampleSurfaceHeight(x: number, z: number): number {
