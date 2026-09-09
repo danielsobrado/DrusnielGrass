@@ -1,7 +1,8 @@
 import * as THREE from "three";
 import type { WorldExperience } from "../../app/WorldExperience";
-import type { TerrainField } from "../TerrainField";
+import type { WorldWaterContactEvent } from "../hydrology/WorldWaterContactField";
 import { WorldWaterContactField } from "../hydrology/WorldWaterContactField";
+import type { TerrainField } from "../TerrainField";
 import type { WorldWeatherState } from "./WorldWeatherState";
 import { WorldRainGroundCache } from "./WorldRainGroundCache";
 import { createWorldRainMaterial } from "./WorldRainNodes";
@@ -22,12 +23,16 @@ export interface WorldRainSystemOptions {
   readonly capacity: number;
   readonly compact: boolean;
   readonly seed: number;
+  readonly wettingSeconds: number;
+  readonly dryingSeconds: number;
 }
+
+export type WorldWaterContactImpulse = Omit<WorldWaterContactEvent, "time">;
 
 /** One pooled local rain volume and the precipitation state it drives. */
 export class WorldRainSystem {
   readonly uniforms = new WorldRainUniforms();
-  readonly wetness = new WorldWetness();
+  readonly wetness: WorldWetness;
   readonly waterContacts: WorldWaterContactField;
 
   private readonly cache: WorldRainGroundCache;
@@ -42,6 +47,7 @@ export class WorldRainSystem {
       throw new Error("Rain capacity must be a positive integer.");
     }
 
+    this.wetness = new WorldWetness(options.wettingSeconds, options.dryingSeconds);
     this.cache = new WorldRainGroundCache(options.terrain);
     this.waterContacts = new WorldWaterContactField(
       options.terrain,
@@ -97,6 +103,12 @@ export class WorldRainSystem {
     this.mesh.count = visible ? resolveVisibleCount(this.options.capacity, this.intensity) : 0;
   }
 
+  /** Records a short-lived hydrologic surface hit using the shared weather clock. */
+  addWaterContact(impulse: WorldWaterContactImpulse): boolean {
+    if (this.disposed) return false;
+    return this.waterContacts.add({ ...impulse, time: this.uniforms.time.value });
+  }
+
   dispose(): void {
     if (this.disposed) return;
     this.disposed = true;
@@ -115,12 +127,17 @@ export class WorldRainSystem {
 /** Constructs nothing when rain is disabled, has no weather owner, or has zero budget. */
 export function attachWorldRain(
   experience: WorldExperience,
-  options: Omit<WorldRainSystemOptions, "capacity">,
+  options: Omit<WorldRainSystemOptions, "capacity" | "wettingSeconds" | "dryingSeconds">,
 ): WorldRainSystem | undefined {
   if (!options.weather || experience.budgets.rainCount < 1) return undefined;
   let rain: WorldRainSystem | undefined;
   experience.attach("rain", () => {
-    rain = new WorldRainSystem({ ...options, capacity: experience.budgets.rainCount });
+    rain = new WorldRainSystem({
+      ...options,
+      capacity: experience.budgets.rainCount,
+      wettingSeconds: experience.config.wettingSeconds,
+      dryingSeconds: experience.config.dryingSeconds,
+    });
     return rain;
   });
   return rain;
