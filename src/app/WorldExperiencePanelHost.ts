@@ -4,10 +4,12 @@ import type { WorldExperiencePanelHost, WorldExperiencePanelSnapshot } from "../
 import type { WorldViewState } from "../runtime/WorldViewState";
 import type { WorldWeatherState } from "../world/weather/WorldWeatherState";
 import type { WeatherPresetId } from "../world/experience/WorldExperienceCatalog";
+import type { WorldMinimap } from "./WorldMinimap";
 
 export interface WorldExperiencePanelHostOptions {
   readonly weather: WorldWeatherState | undefined;
   readonly viewState: WorldViewState;
+  readonly minimap: WorldMinimap;
   readonly getRenderScale: () => number;
   readonly setRenderScale: (value: number) => void;
 }
@@ -57,6 +59,7 @@ export class WorldExperiencePanelHostAdapter implements WorldExperiencePanelHost
   }
 
   setModalOverlay(open: boolean): void {
+    this.options.minimap.setEnabled(!open);
     this.options.viewState.setModalOverlay(open);
   }
 }
