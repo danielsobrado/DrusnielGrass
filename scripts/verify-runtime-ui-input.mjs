@@ -21,7 +21,8 @@ function assert(condition, message) {
 const main = read("src/main.ts");
 const hud = read("src/runtime/AnimationBlendingHud.ts");
 const uiVisibility = read("src/runtime/UiVisibilityController.ts");
-const hudSettingsUi = read("src/runtime/HudSettingsController.ts");
+const hudSettingsOwner = read("src/runtime/HudSettingsController.ts");
+const experiencePanel = read("src/ui/WorldExperiencePanel.ts");
 const hudSettingsStore = read("src/runtime/HudSettingsStore.ts");
 const input = read("src/controls/ThirdPersonInput.ts");
 const controller = read("src/controls/ThirdPersonController.ts");
@@ -61,25 +62,31 @@ assert(
   uiVisibility.includes('from "./HudSettingsController"') &&
     uiVisibility.includes("private readonly settingsController =") &&
     uiVisibility.includes("this.settingsController.initialize()") &&
+    uiVisibility.includes("this.settingsController.attachWorld(host)") &&
+    uiVisibility.includes("this.settingsController.detachWorld()") &&
     uiVisibility.includes("this.settingsController.dispose()") &&
     uiVisibility.includes("this.settingsController.close()"),
-  "HUD settings must share the interface lifecycle and close before the HUD is minimized.",
+  "Scene settings must share the interface lifecycle, rebind with the world, and close before the HUD is minimized.",
 );
 assert(
-  hudSettingsUi.includes('heading.textContent = "HUD Settings"') &&
-    hudSettingsUi.includes('movementText.textContent = "Invert left/right movement"') &&
-    hudSettingsUi.includes("hudSettingsStore.setInvertHorizontalMovement(") &&
-    hudSettingsUi.includes('document.addEventListener("keydown", this.handleKeyDown)') &&
-    hudSettingsUi.includes('document.removeEventListener("keydown", this.handleKeyDown)'),
-  "HUD settings must expose the movement preference with symmetric keyboard lifecycle cleanup.",
+  hudSettingsOwner.includes('from "../ui/WorldExperiencePanel"') &&
+    hudSettingsOwner.includes("new WorldExperiencePanel()") &&
+    hudSettingsOwner.includes("panel.initialize()") &&
+    hudSettingsOwner.includes("this.panel?.attachWorld(host)") &&
+    hudSettingsOwner.includes("this.panel?.detachWorld()") &&
+    hudSettingsOwner.includes("this.panel?.close()") &&
+    hudSettingsOwner.includes("this.panel?.dispose()"),
+  "HudSettingsController must remain a thin lifecycle owner rather than duplicate scene-settings DOM or behavior.",
 );
 assert(
-  // The store gained a versioned schema, so the persisted document now carries
-  // a version alongside the settings and every field is validated in one
-  // decoder. The contract here is unchanged: inversion defaults to normal
-  // controls and only ever persists a real boolean. The decoder's own coverage,
-  // including the migration of a document that had only this field, is in
-  // verify-experience-config.mjs.
+  experiencePanel.includes("Invert left/right movement") &&
+    experiencePanel.includes("hudSettingsStore.setInvertHorizontalMovement(target.checked)") &&
+    experiencePanel.includes('document.addEventListener("keydown", this.handleKeyDown)') &&
+    experiencePanel.includes('document.removeEventListener("keydown", this.handleKeyDown)') &&
+    experiencePanel.includes('event.key !== "Escape"'),
+  "The ordinary scene-settings panel must own the movement preference with symmetric keyboard lifecycle cleanup.",
+);
+assert(
   hudSettingsStore.includes("invertHorizontalMovement: false") &&
     hudSettingsStore.includes("localStorage.getItem(STORAGE_KEY)") &&
     hudSettingsStore.includes("localStorage.setItem(") &&
@@ -225,5 +232,6 @@ assert(
 );
 
 console.log(
-  "[runtime-ui-input] HUD movement settings, diagnostics ownership, mobile visual reset, action/coyote precedence, transactional compact/fly input, and tuning UI lifecycle verified.",
+  "[runtime-ui-input] scene-settings ownership, HUD movement settings, diagnostics ownership, "
+  + "mobile visual reset, action/coyote precedence, transactional compact/fly input, and tuning UI lifecycle verified.",
 );
