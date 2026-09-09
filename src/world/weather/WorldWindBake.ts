@@ -11,6 +11,7 @@ import type { WorldWindField } from "./WorldWindField";
 export const WIND_BAKE_WORLD_SIZE = 1024;
 export const WIND_BAKE_RESOLUTION = 256;
 export const WIND_BAKE_INTERVAL_SECONDS = 0.1;
+export const WIND_BAKE_FAILURE_RETRY_SECONDS = 1;
 
 /** The live origin node the sampling materials bind to. */
 export type WindBakeOrigin = ReturnType<typeof createOriginUniform>;
@@ -31,6 +32,7 @@ export class WorldWindBake {
   });
   private readonly quad = new QuadMesh(this.material);
   private secondsSinceBake = Number.POSITIVE_INFINITY;
+  private failureRetrySeconds = 0;
   private disposed = false;
 
   constructor(private readonly renderer: WebGPURenderer) {
@@ -82,6 +84,7 @@ export class WorldWindBake {
   invalidate(): void {
     if (!this.disposed) {
       this.secondsSinceBake = Number.POSITIVE_INFINITY;
+      this.failureRetrySeconds = 0;
     }
   }
 
@@ -90,11 +93,19 @@ export class WorldWindBake {
     if (this.disposed || !Number.isFinite(focus.x) || !Number.isFinite(focus.z)) {
       return;
     }
+    const delta = Number.isFinite(deltaSeconds) ? Math.max(0, deltaSeconds) : 0;
+    this.secondsSinceBake += delta;
+    if (this.failureRetrySeconds > 0) {
+      this.failureRetrySeconds = Math.max(0, this.failureRetrySeconds - delta);
+      if (this.failureRetrySeconds > 0) {
+        return;
+      }
+    }
+
     const texelSize = WIND_BAKE_WORLD_SIZE / WIND_BAKE_RESOLUTION;
     const snappedX = Math.round(focus.x / texelSize) * texelSize;
     const snappedZ = Math.round(focus.z / texelSize) * texelSize;
     const moved = snappedX !== this.origin.value.x || snappedZ !== this.origin.value.y;
-    this.secondsSinceBake += Number.isFinite(deltaSeconds) ? Math.max(0, deltaSeconds) : 0;
     if (!moved && this.secondsSinceBake < WIND_BAKE_INTERVAL_SECONDS) {
       return;
     }
@@ -114,6 +125,7 @@ export class WorldWindBake {
     this.noiseScale.value = field.getNoiseScale();
     try {
       renderNodePass(this.renderer, this.target, this.quad);
+      this.failureRetrySeconds = 0;
     } catch (error) {
       // The texture still represents the previously published field. Roll its
       // sampling metadata back with it so a failed optional bake cannot shift
@@ -123,6 +135,7 @@ export class WorldWindBake {
       this.directionDegrees.value = previousDirectionDegrees;
       this.intensity.value = previousIntensity;
       this.noiseScale.value = previousNoiseScale;
+      this.failureRetrySeconds = WIND_BAKE_FAILURE_RETRY_SECONDS;
       throw error;
     }
   }
