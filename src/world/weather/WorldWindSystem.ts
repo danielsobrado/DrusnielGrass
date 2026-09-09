@@ -56,13 +56,13 @@ export class WorldWindSystem {
 
     if (forceBake) {
       this.bake.invalidate();
-      this.bake.update(deltaSeconds, focus, this.field);
-      this.bakeFailureReported = false;
-      return;
     }
 
     try {
       this.bake.update(deltaSeconds, focus, this.field);
+      if (forceBake) {
+        this.bakeFailureReported = false;
+      }
     } catch (error) {
       // Keep the last valid texture alive. Disposing this optional owner would
       // leave already-compiled cinematic grass sampling a released texture.
