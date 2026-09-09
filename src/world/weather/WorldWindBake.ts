@@ -80,25 +80,24 @@ export class WorldWindBake {
     return this.origin;
   }
 
-  /** Forces the next update to publish new preset state without advancing phase. */
+  /** Forces the next healthy update to publish new preset state without advancing phase. */
   invalidate(): void {
     if (!this.disposed) {
       this.secondsSinceBake = Number.POSITIVE_INFINITY;
-      this.failureRetrySeconds = 0;
     }
   }
 
   /** Re-bakes when the field moved enough, the focus moved, or state was invalidated. */
-  update(deltaSeconds: number, focus: Vector3, field: WorldWindField): void {
+  update(deltaSeconds: number, focus: Vector3, field: WorldWindField): boolean {
     if (this.disposed || !Number.isFinite(focus.x) || !Number.isFinite(focus.z)) {
-      return;
+      return false;
     }
     const delta = Number.isFinite(deltaSeconds) ? Math.max(0, deltaSeconds) : 0;
     this.secondsSinceBake += delta;
     if (this.failureRetrySeconds > 0) {
       this.failureRetrySeconds = Math.max(0, this.failureRetrySeconds - delta);
       if (this.failureRetrySeconds > 0) {
-        return;
+        return false;
       }
     }
 
@@ -107,7 +106,7 @@ export class WorldWindBake {
     const snappedZ = Math.round(focus.z / texelSize) * texelSize;
     const moved = snappedX !== this.origin.value.x || snappedZ !== this.origin.value.y;
     if (!moved && this.secondsSinceBake < WIND_BAKE_INTERVAL_SECONDS) {
-      return;
+      return false;
     }
 
     const previousOriginX = this.origin.value.x;
@@ -126,6 +125,7 @@ export class WorldWindBake {
     try {
       renderNodePass(this.renderer, this.target, this.quad);
       this.failureRetrySeconds = 0;
+      return true;
     } catch (error) {
       // The texture still represents the previously published field. Roll its
       // sampling metadata back with it so a failed optional bake cannot shift
