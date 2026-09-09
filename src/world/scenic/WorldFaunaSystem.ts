@@ -20,6 +20,7 @@ import { createDeerBodyBuilder } from "../../creatures/deer/DeerBody";
 import type { DeerVariant } from "../../creatures/deer/DeerGeometry";
 import { setDeerCoatTint } from "../../creatures/deer/DeerPalette";
 import { QuadrupedActor } from "../../creatures/quadruped/QuadrupedActor";
+import type { WorldNodeMaterialContext } from "../../render/WorldNodeMaterialContext";
 import type { RuntimeProfile } from "../../runtime/RuntimeConfig";
 import type { TerrainField } from "../TerrainField";
 import type { WorldConfig } from "../WorldConfig";
@@ -93,8 +94,9 @@ export class WorldFaunaSystem {
     profile: RuntimeProfile,
     spawn: THREE.Vector3,
     shadows: boolean,
+    context?: WorldNodeMaterialContext,
   ) {
-    const resources = createFaunaResources(field);
+    const resources = createFaunaResources(field, context);
     this.assets = resources.assets;
     this.villagerAssets = resources.villagerAssets;
     this.habitat = resources.habitat;
@@ -460,11 +462,14 @@ export class WorldFaunaSystem {
   }
 }
 
-function createFaunaResources(field: TerrainField): FaunaResources {
-  const assets = createDeerAssets();
+function createFaunaResources(
+  field: TerrainField,
+  context?: WorldNodeMaterialContext,
+): FaunaResources {
+  const assets = createDeerAssets(context);
   let villagerAssets: VillagerAssets | undefined;
   try {
-    villagerAssets = createVillagerAssets();
+    villagerAssets = createVillagerAssets(context);
     return {
       assets,
       villagerAssets,
