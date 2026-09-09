@@ -99,8 +99,10 @@ html[data-ui-minimized="true"] .world-experience-root { display: none; }
 .world-experience-unavailable small,
 .world-experience-note,
 .world-experience-help { color: #8f9992; font-size: 12px; }
+.world-experience-runtime { margin: -2px 0 10px; color: #d4bd7b; font-size: 12px; }
 .world-experience-note,
 .world-experience-help { margin: 6px 0; }
+.world-experience-panel :disabled { cursor: not-allowed; opacity: .52; }
 .world-experience-panel :focus-visible,
 .world-experience-toggle:focus-visible { outline: 2px solid #d9f5ac; outline-offset: 2px; }
 
