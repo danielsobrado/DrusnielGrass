@@ -115,6 +115,8 @@ try {
   assert.ok(ui.includes("setModalOverlay: (open) => host.setModalOverlay(open)"));
   assert.ok(ui.includes("host.setModalOverlay(false)") && ui.includes("reveal.reveal()"),
     "Optional loading construction failure must fail open.");
+  assert.ok(ui.includes("if (this.minimized) this.settingsController.close()"),
+    "Minimizing the HUD must close settings before hiding its DOM so input cannot remain trapped.");
 
   const main = read("src/main.ts");
   assert.ok(main.includes("uiController.detachWorld()"));
@@ -137,6 +139,15 @@ try {
   assert.ok(interaction.includes("!this.interactionEnabled || !config"),
     "Landing pulses must not enqueue while interaction is disabled.");
 
+  const minimap = read("src/app/WorldMinimap.ts");
+  assert.ok(minimap.includes("setEnabled(enabled: boolean)"));
+  assert.ok(/this\.enabled = enabled;[\s\S]*?if \(!enabled && this\.open\) \{[\s\S]*?this\.setOpen\(false\)/.test(minimap),
+    "Disabling modal map input must close an already-open map without reopening it later.");
+  assert.ok(minimap.includes("if (!this.enabled || isTypingTarget(event.target))"),
+    "The global M shortcut must not open the minimap behind Start or Settings overlays.");
+  assert.ok(minimap.includes("(open && !this.enabled)"),
+    "All minimap open paths must reject publication while modal UI owns input.");
+
   const host = read("src/app/WorldExperiencePanelHost.ts");
   assert.ok(host.includes("grassInteractionField.setInteractionEnabled(enabled)"));
   assert.ok(host.includes("this.options.viewState.getGameplayPose(this.pose)"));
@@ -147,17 +158,21 @@ try {
   assert.ok(/setWindGain\(value: number\): boolean[\s\S]*?setWindIntensity\(value\)/.test(host)
     && /setSimulationSpeed\(value: number\): boolean[\s\S]*?setSimulationSpeed\(value\)/.test(host),
     "Live wind controls must propagate rejection back to the UI.");
+  assert.ok(/setModalOverlay\(open: boolean\)[\s\S]*?minimap\.setEnabled\(!open\)[\s\S]*?viewState\.setModalOverlay\(open\)/.test(host),
+    "One modal boundary must disable both the minimap shortcut and player controls.");
 
   const app = read("src/app/WorldApp.ts");
   assert.ok(app.includes("this.renderScale = hudSettingsStore.getRenderScale()"));
   assert.ok(app.includes("storedPreset: hudSettingsStore.getWeather()"));
   assert.ok(app.includes("grassInteractionField.setInteractionEnabled(hudSettingsStore.getInteractionEnabled())"));
   assert.ok(app.includes("this.profile.maxPixelRatio * this.renderScale"));
+  assert.ok(/minimap = new WorldMinimap[\s\S]*?this\.minimap = minimap[\s\S]*?new WorldExperiencePanelHostAdapter\([\s\S]*?minimap: this\.minimap/.test(app),
+    "The modal host must receive the fully constructed minimap it is responsible for gating.");
 } finally {
   await server.close();
 }
 
 console.log(
-  "[world-experience-ui] Iris coalescing/mask, truthful reveal/start gate, modal input isolation, "
+  "[world-experience-ui] Iris coalescing/mask, truthful reveal/start gate, modal input/minimap isolation, "
   + "settings migration, optional-weather availability, live controls and interaction lifecycle verified.",
 );
