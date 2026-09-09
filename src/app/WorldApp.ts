@@ -257,9 +257,12 @@ export class WorldApp {
       if (hudSettingsStore.getInteractionEnabled()) {
         grassInteractionField.reset(controls.getStreamingPosition());
       }
+      minimap = new WorldMinimap(this.field, config, this.controls);
+      this.minimap = minimap;
       this.experiencePanelHost = new WorldExperiencePanelHostAdapter({
         weather: this.weather,
         viewState: this.viewState,
+        minimap: this.minimap,
         getRenderScale: () => this.renderScale,
         setRenderScale: this.setRenderScale,
       });
@@ -280,8 +283,6 @@ export class WorldApp {
         this.development.attachWeatherPresetHook();
         this.development.attachTuningMenus(artKey, GRASS_ART_DIRECTIONS[artKey]);
       }
-      minimap = new WorldMinimap(this.field, config, this.controls);
-      this.minimap = minimap;
       scenic = new WorldScenicLayer(
         this.scene,
         this.field,
