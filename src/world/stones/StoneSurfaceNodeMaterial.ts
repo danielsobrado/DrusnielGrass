@@ -3,6 +3,7 @@ import {
   If, diffuseColor, max, mix, normalView, positionViewDirection, pow, smoothstep, vec3,
 } from "three/tsl";
 import type { WorldNodeMaterialContext } from "../../render/WorldNodeMaterialContext";
+import { worldWetColorNode } from "../../render/WorldWetSurfaceNodes";
 import {
   createStoneCoarseNodes, createStoneSurfaceNodes, type StoneSurfaceAttributes,
   type StoneSurfaceInputs,
@@ -34,13 +35,16 @@ export class StoneSurfaceNodeMaterial extends MeshLambertNodeMaterial {
     this.name = name;
     this.dithering = dithering;
     this.sheen = sheen;
-    this.wet = attributes.wet;
+    const rainWetness = context.worldWetness();
+    this.wet = rainWetness ? max(attributes.wet, rainWetness) : attributes.wet;
     this.context = context;
     // The vertex colour is the palette, and the surface starts from it, so the
     // material must not also multiply it in through the built-in path.
     this.vertexColors = false;
     const surface = createStoneSurfaceNodes(inputs, attributes, attributes.color);
-    this.colorNode = surface.color;
+    this.colorNode = rainWetness
+      ? worldWetColorNode(surface.color, rainWetness)
+      : surface.color;
     if (surface.normal) this.normalNode = surface.normal;
     context.applyTo(this);
   }
@@ -87,7 +91,9 @@ export class StoneCoarseNodeMaterial extends MeshLambertNodeMaterial {
     this.name = name;
     this.dithering = false;
     this.vertexColors = false;
-    this.colorNode = createStoneCoarseNodes(wetDarken, attributes, attributes.color);
+    const baseColor = createStoneCoarseNodes(wetDarken, attributes, attributes.color);
+    const rainWetness = context.worldWetness();
+    this.colorNode = rainWetness ? worldWetColorNode(baseColor, rainWetness) : baseColor;
     this.context = context;
     context.applyTo(this);
   }
