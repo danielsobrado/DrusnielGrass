@@ -20,11 +20,14 @@ function assert(condition, message) {
 
 const source = read("src/main.ts");
 const isolationHarness = read("src/runtime/WorldIsolationHarness.ts");
+const reveal = read("src/runtime/WorldRevealController.ts");
 const listener = source.indexOf('window.addEventListener("pagehide", handlePageHide)');
 const runtimeConfigLoad = source.indexOf("await new RuntimeConfigLoader().load(");
 const islandImport = source.indexOf('await import("./app/IslandApp")');
 const worldImport = source.indexOf('await import("./app/WorldApp")');
 const appStart = source.indexOf("app.start()");
+const rendererHarnessBranch = source.indexOf('params.get("rendererHarness") === "1"');
+const runtimeStatus = source.indexOf("setBootstrapStatus(BOOTSTRAP_STATUS.runtime)");
 
 assert(
   source.includes("let disposed = false") &&
@@ -46,13 +49,33 @@ assert(
 assert(
   // The session is created by the bootstrap now and handed to the app; the
   // ownership contract under test is unchanged.
-  /const world = await WorldApp\.create\(session, profile, lifetime.signal\);[\s\S]*?app = world;[\s\S]*?if \(disposed\) \{[\s\S]*?disposeRuntime\(\);[\s\S]*?return;/.test(
+  /const world = await WorldApp\.create\(nextSession, profile, lifetime.signal\);[\s\S]*?app = world;[\s\S]*?if \(disposed\) \{[\s\S]*?disposeRuntime\(\);[\s\S]*?return;/.test(
     source,
   ) &&
     /await island\.initialize\(\);[\s\S]*?if \(disposed\) \{[\s\S]*?return;/.test(
       source,
     ),
   "Applications resolving after pagehide must not continue bootstrap or start without an owner.",
+);
+
+assert(
+  rendererHarnessBranch >= 0 && runtimeStatus > rendererHarnessBranch &&
+    source.includes('runtime: "Loading runtime settings…"') &&
+    source.includes('renderer: "Starting the renderer…"') &&
+    source.includes('world: "Preparing the world and character…"') &&
+    source.includes('grass: "Growing the near meadow…"') &&
+    source.includes('recovery: "Restoring the renderer…"') &&
+    /restart: async \(backend, state\) => \{[\s\S]*?setBootstrapStatus\(BOOTSTRAP_STATUS\.recovery\)[\s\S]*?cloneNode\(false\)/.test(source) &&
+    /function setBootstrapStatus\(message: string\)[\s\S]*?delete reveal\.dataset\.revealed;[\s\S]*?removeAttribute\("aria-hidden"\);[\s\S]*?reveal\.textContent = message;/.test(source),
+  "Bootstrap and renderer recovery must expose truthful shell-owned loading stages without changing the isolated renderer harness.",
+);
+
+assert(
+  reveal.includes('document.querySelector("#world-reveal")') &&
+    reveal.includes("delete this.element.dataset.revealed") &&
+    reveal.includes('this.element.removeAttribute("aria-hidden")') &&
+    !reveal.includes("this.element?.remove()"),
+  "World reveal disposal must preserve the static application-shell element so renderer recovery can show readiness and an unaccepted Start gate again.",
 );
 
 for (const modulePath of [
@@ -105,5 +128,5 @@ assert(
 );
 
 console.log(
-  "[bootstrap-lifecycle] First-await navigation ownership, lazy diagnostics, reversible idempotent isolation state, async setup checks, and startup rollback verified.",
+  "[bootstrap-lifecycle] First-await navigation ownership, truthful reusable reveal stages, lazy diagnostics, reversible idempotent isolation state, async setup checks, and startup rollback verified.",
 );
