@@ -48,7 +48,11 @@ export class UiVisibilityController {
         setModalOverlay: (open) => host.setModalOverlay(open),
       });
     } catch (error) {
-      host.setModalOverlay(false);
+      try {
+        host.setModalOverlay(false);
+      } catch (cleanupError) {
+        console.warn("[Drusniel World] Loading modal rollback failed.", cleanupError);
+      }
       reveal.reveal();
       console.warn("[Drusniel World] Optional loading presentation unavailable.", error);
     }
