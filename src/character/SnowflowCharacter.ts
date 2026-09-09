@@ -1,7 +1,10 @@
 import * as THREE from "three";
+import { MeshStandardNodeMaterial } from "three/webgpu";
 import { createActorAnimationInput } from "../actor/animation/ActorAnimationInput";
 import { ActorAnimationRuntime } from "../actor/animation/ActorAnimationRuntime";
 import type { ActorTerrainContactSampler } from "../actor/ik/ActorTerrainContact";
+import type { WorldNodeMaterialContext } from "../render/WorldNodeMaterialContext";
+import { applyWorldWetStandardMaterial } from "../render/WorldWetSurfaceNodes";
 import { createHumanoidContactIk } from "./animation/HumanoidContactIk";
 import { addDrowCharacterFeatures } from "./DrowCharacterFeatures";
 import {
@@ -71,6 +74,7 @@ export class SnowflowCharacter {
     this.groundNormal,
   );
   private disposed = false;
+  private materialContextBound = false;
 
   constructor(
     scene: THREE.Scene,
@@ -88,6 +92,15 @@ export class SnowflowCharacter {
     this.profile = resources.profile;
     this.runtime = resources.runtime;
     this.cloth = resources.cloth;
+  }
+
+  /** Binds the player's opaque material set to shared world lighting/wetness once. */
+  bindMaterialContext(context: WorldNodeMaterialContext): void {
+    if (this.disposed || this.materialContextBound) return;
+    for (const material of this.rig.materials) {
+      applyWorldWetStandardMaterial(material as MeshStandardNodeMaterial, context);
+    }
+    this.materialContextBound = true;
   }
 
   update(deltaSeconds: number, pose: SnowflowCharacterPose): void {
