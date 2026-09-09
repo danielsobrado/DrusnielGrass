@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import { disposeResources } from "../render/ResourceDisposal";
 import { WATER_REFRACTION_LAYER } from "./hydrology/WaterRefractionPass";
 import {
   createEcologySample,
@@ -79,10 +80,9 @@ export class TerrainChunk {
   }
 
   dispose(): void {
-    this.mesh.geometry.dispose();
     const sharedWaterGeometry =
       this.waterMesh?.geometry ?? this.waterBedMesh?.geometry;
-    sharedWaterGeometry?.dispose();
+    disposeResources([this.mesh.geometry, sharedWaterGeometry]);
   }
 }
 
@@ -435,8 +435,11 @@ export class TerrainChunkBuilder {
       this.stage += 1;
       return chunk;
     } catch (error) {
-      waterGeometry?.dispose();
-      geometry.dispose();
+      try {
+        disposeResources([waterGeometry, geometry]);
+      } catch (cleanupError) {
+        console.warn("[Drusniel World] Terrain chunk finalization cleanup failed.", cleanupError);
+      }
       throw error;
     }
   }
