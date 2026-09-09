@@ -20,6 +20,13 @@ interface Disposable { dispose(): void; }
 const WORLD_NAME = "Drusniel World";
 const THIRD_PERSON_HELP = "Click to look · WASD move · Shift run · Space jump · F reset · M map";
 const FLY_HELP = "Click to look · WASD move · Q/E altitude · Shift boost · F reset";
+const BOOTSTRAP_STATUS = Object.freeze({
+  runtime: "Loading runtime settings…",
+  renderer: "Starting the renderer…",
+  world: "Preparing the world and character…",
+  grass: "Growing the near meadow…",
+  recovery: "Restoring the renderer…",
+});
 
 async function bootstrap(): Promise<void> {
   let canvas = document.querySelector<HTMLCanvasElement>("#canvas");
@@ -77,6 +84,7 @@ async function bootstrap(): Promise<void> {
       return;
     }
 
+    setBootstrapStatus(BOOTSTRAP_STATUS.runtime);
     const runtimeConfig = await new RuntimeConfigLoader().load(
       `./config/runtime.yaml?v=${encodeURIComponent(APP_VERSION)}`,
     );
@@ -113,6 +121,7 @@ async function bootstrap(): Promise<void> {
 
     uiController.initialize();
     const rendererRequest = resolveRendererRequest(window.location.search);
+    setBootstrapStatus(BOOTSTRAP_STATUS.renderer);
     session = await createWorldRendererSession(canvas, rendererRequest,
       window.location.search, lifetime.signal);
     if (disposed) { session.dispose(); session = undefined; return; }
@@ -128,12 +137,14 @@ async function bootstrap(): Promise<void> {
         return;
       }
 
+      setBootstrapStatus(BOOTSTRAP_STATUS.world);
       const { WorldApp } = await import("./app/WorldApp");
       if (disposed) return;
       const world = await WorldApp.create(nextSession, profile, lifetime.signal);
       app = world;
       if (disposed) { disposeRuntime(); return; }
 
+      setBootstrapStatus(BOOTSTRAP_STATUS.grass);
       uiController.attachWorld(
         world.getExperiencePanelHost(),
         world.getRevealController(),
@@ -185,6 +196,7 @@ async function bootstrap(): Promise<void> {
       release: releaseApp,
       restart: async (backend, state) => {
         if (disposed) return;
+        setBootstrapStatus(BOOTSTRAP_STATUS.recovery);
         const replacement = canvas!.cloneNode(false) as HTMLCanvasElement;
         canvas!.replaceWith(replacement);
         canvas = replacement;
@@ -227,6 +239,14 @@ async function bootstrap(): Promise<void> {
 
 function shouldBypassStartGate(params: URLSearchParams): boolean {
   return params.has("qa") || params.get("capture") === "1";
+}
+
+function setBootstrapStatus(message: string): void {
+  const reveal = document.querySelector<HTMLElement>("#world-reveal");
+  if (!reveal) return;
+  delete reveal.dataset.revealed;
+  reveal.removeAttribute("aria-hidden");
+  reveal.textContent = message;
 }
 
 function disposeRuntimeSafely(
