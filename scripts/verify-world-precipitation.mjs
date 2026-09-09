@@ -116,10 +116,19 @@ try {
 
   await check("weather updates before rain in the experience owner", () => {
     const experience = source("src/app/WorldExperience.ts");
-    assert.match(experience, /for \(let index = 0; index < this\.updatable\.length; index \+= 1\)/);
+    assert.match(experience, /for \(let index = 0; index < this\.updatable\.length;\)/);
+    assert.match(experience, /entry\.owner\.update\?\.\(deltaSeconds\);\s*index \+= 1;/);
+    assert.match(experience, /this\.updatable\.splice\(index, 1\)/,
+      "A failed owner must be removed without advancing the index and skipping its successor.");
     const app = source("src/app/WorldApp.ts");
     assert.ok(app.indexOf("attachWorldWeather(this.experience") <
       app.indexOf("attachWorldRain(this.experience"));
+  });
+
+  await check("experience config drives wetting and drying", () => {
+    const runtime = source("src/world/weather/WorldRainSystem.ts");
+    assert.match(runtime, /wettingSeconds: experience\.config\.wettingSeconds/);
+    assert.match(runtime, /dryingSeconds: experience\.config\.dryingSeconds/);
   });
 
   await check("wet materials are bounded and foliage remains opaque", () => {
