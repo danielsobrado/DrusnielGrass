@@ -95,7 +95,18 @@ export class WaterRefractionNodePass {
     this.target = target;
     this.width = width;
     this.height = height;
-    if (previous) disposeResources([previous.depthTexture ?? undefined, previous]);
+    if (previous) {
+      try {
+        disposeResources([previous.depthTexture ?? undefined, previous]);
+      } catch (error) {
+        // The replacement is already valid and published. Cleanup of the old
+        // target must not turn a successful resize into a frame failure.
+        console.warn(
+          "[Drusniel World] Previous water refraction target cleanup failed.",
+          error,
+        );
+      }
+    }
   }
 
   dispose(): void {
