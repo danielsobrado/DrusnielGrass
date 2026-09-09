@@ -18,6 +18,7 @@ import { createWaterSurfaceNodes } from "./WaterSurfaceNodes";
  */
 export class WaterSurfaceNodeMaterial extends MeshPhysicalNodeMaterial {
   private readonly boundTextures: UniformTexture[] = [];
+
   constructor(values: Record<string, IUniform>, context?: WorldNodeMaterialContext) {
     super();
     this.name = "world-hydrology-water-node-material";
@@ -46,54 +47,67 @@ export class WaterSurfaceNodeMaterial extends MeshPhysicalNodeMaterial {
       this.boundTextures.push(bound);
       return bound.node;
     };
-    const rain = context?.worldRainUniforms();
-    const surface = createWaterSurfaceNodes({
-      time: number("uWaterTime"),
-      opacity: number("uWaterOpacity"),
-      roughnessBase: number("uWaterRoughness"),
-      rippleStrength: number("uWaterRippleStrength"),
-      rippleScale: number("uWaterRippleScale"),
-      flowSpeed: number("uWaterFlowSpeed"),
-      riverReferenceDepth: number("uWaterRiverReferenceDepth"),
-      riverPoolFlowScale: number("uWaterRiverPoolFlowScale"),
-      riverRiffleFlowScale: number("uWaterRiverRiffleFlowScale"),
-      foamStrength: number("uWaterFoamStrength"),
-      shoreFoamWeight: number("uWaterShoreFoamWeight"),
-      riffleFoamWeight: number("uWaterRiffleFoamWeight"),
-      stoneFoamWeight: number("uWaterStoneFoamWeight"),
-      fresnelStrength: number("uWaterFresnelStrength"),
-      detailDistance: number("uWaterDetailDistance"),
-      lakeWaveStrength: number("uWaterLakeWaveStrength"),
-      flowNoise: sampler("uWaterFlowNoise"),
-      flowNoiseScale: number("uWaterFlowNoiseScale"),
-      flowNoiseStrength: number("uWaterFlowNoiseStrength"),
-      glintStrength: number("uWaterGlintStrength"),
-      stoneWakeStrength: number("uWaterStoneWakeStrength"),
-      shallow: color("uWaterShallow"),
-      deep: color("uWaterDeep"),
-      reflection: color("uWaterReflection"),
-      foam: color("uWaterFoam"),
-      sunDirection: reference("value", "vec3", values.uWaterSunDirection),
-      quality: number("uWaterOpticsQuality"),
-      absorption: color("uWaterAbsorption"),
-      depthFade: number("uWaterDepthFade"),
-      fresnelF0: number("uWaterFresnelF0"),
-      shoreFade: number("uWaterOpticsShoreFade"),
-      deepStart: number("uWaterOpticsDeepStart"),
-      reflectionGain: number("uWaterOpticsReflectionGain"),
-      refraction: sampler("tWaterRefraction"),
-      refractionDepth: sampler("tWaterRefractionDepth", true),
-      refractionSize: reference("value", "vec2", values.uWaterRefractionSize),
-      refractionStrength: number("uWaterRefractionStrength"),
-      rainTime: rain?.time,
-      rainIntensity: rain?.intensity,
-      waterContacts: context?.worldWaterContacts(),
-    });
-    this.normalNode = surface.normal;
-    this.colorNode = surface.color;
-    this.roughnessNode = surface.roughness;
-    this.opacityNode = surface.alpha;
-    context?.applyTo(this);
+
+    try {
+      const rain = context?.worldRainUniforms();
+      const surface = createWaterSurfaceNodes({
+        time: number("uWaterTime"),
+        opacity: number("uWaterOpacity"),
+        roughnessBase: number("uWaterRoughness"),
+        rippleStrength: number("uWaterRippleStrength"),
+        rippleScale: number("uWaterRippleScale"),
+        flowSpeed: number("uWaterFlowSpeed"),
+        riverReferenceDepth: number("uWaterRiverReferenceDepth"),
+        riverPoolFlowScale: number("uWaterRiverPoolFlowScale"),
+        riverRiffleFlowScale: number("uWaterRiverRiffleFlowScale"),
+        foamStrength: number("uWaterFoamStrength"),
+        shoreFoamWeight: number("uWaterShoreFoamWeight"),
+        riffleFoamWeight: number("uWaterRiffleFoamWeight"),
+        stoneFoamWeight: number("uWaterStoneFoamWeight"),
+        fresnelStrength: number("uWaterFresnelStrength"),
+        detailDistance: number("uWaterDetailDistance"),
+        lakeWaveStrength: number("uWaterLakeWaveStrength"),
+        flowNoise: sampler("uWaterFlowNoise"),
+        flowNoiseScale: number("uWaterFlowNoiseScale"),
+        flowNoiseStrength: number("uWaterFlowNoiseStrength"),
+        glintStrength: number("uWaterGlintStrength"),
+        stoneWakeStrength: number("uWaterStoneWakeStrength"),
+        shallow: color("uWaterShallow"),
+        deep: color("uWaterDeep"),
+        reflection: color("uWaterReflection"),
+        foam: color("uWaterFoam"),
+        sunDirection: reference("value", "vec3", values.uWaterSunDirection),
+        quality: number("uWaterOpticsQuality"),
+        absorption: color("uWaterAbsorption"),
+        depthFade: number("uWaterDepthFade"),
+        fresnelF0: number("uWaterFresnelF0"),
+        shoreFade: number("uWaterOpticsShoreFade"),
+        deepStart: number("uWaterOpticsDeepStart"),
+        reflectionGain: number("uWaterOpticsReflectionGain"),
+        refraction: sampler("tWaterRefraction"),
+        refractionDepth: sampler("tWaterRefractionDepth", true),
+        refractionSize: reference("value", "vec2", values.uWaterRefractionSize),
+        refractionStrength: number("uWaterRefractionStrength"),
+        rainTime: rain?.time,
+        rainIntensity: rain?.intensity,
+        waterContacts: context?.worldWaterContacts(),
+      });
+      this.normalNode = surface.normal;
+      this.colorNode = surface.color;
+      this.roughnessNode = surface.roughness;
+      this.opacityNode = surface.alpha;
+      context?.applyTo(this);
+    } catch (error) {
+      try {
+        this.dispose();
+      } catch (cleanupError) {
+        console.warn(
+          "[Drusniel World] Water node material construction cleanup failed.",
+          cleanupError,
+        );
+      }
+      throw error;
+    }
   }
 
   /** The refraction capture is swapped whenever the pass re-renders it. */
