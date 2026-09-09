@@ -53,9 +53,15 @@ export class WorldRainGroundCache {
   update(focus: THREE.Vector3): void {
     if (this.disposed || !Number.isFinite(focus.x) || !Number.isFinite(focus.z)) return;
 
-    const anchor = this.isBuilding() ? this.pendingCenter : this.center;
-    if (!this.ready || anchor.distanceToSquared(focus) >=
-      WORLD_RAIN_RECENTER_DISTANCE_METERS * WORLD_RAIN_RECENTER_DISTANCE_METERS) {
+    const thresholdSquared =
+      WORLD_RAIN_RECENTER_DISTANCE_METERS * WORLD_RAIN_RECENTER_DISTANCE_METERS;
+    if (!this.ready && !this.isBuilding()) {
+      this.begin(focus.x, focus.z);
+    } else if (this.isBuilding()) {
+      if (distanceSquaredXZ(this.pendingCenter, focus) >= thresholdSquared) {
+        this.begin(focus.x, focus.z);
+      }
+    } else if (distanceSquaredXZ(this.center, focus) >= thresholdSquared) {
       this.begin(focus.x, focus.z);
     }
 
@@ -129,4 +135,10 @@ export class WorldRainGroundCache {
     this.ready = true;
     this.texture.needsUpdate = true;
   }
+}
+
+function distanceSquaredXZ(center: THREE.Vector2, focus: THREE.Vector3): number {
+  const dx = focus.x - center.x;
+  const dz = focus.z - center.y;
+  return dx * dx + dz * dz;
 }
