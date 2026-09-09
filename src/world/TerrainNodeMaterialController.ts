@@ -1,9 +1,10 @@
 import { MeshLambertNodeMaterial } from "three/webgpu";
 import type { DataTexture, IUniform } from "three";
-import { Fn, If, normalView, positionViewDirection, vec3 } from "three/tsl";
+import { Fn, If, max, normalView, positionViewDirection, vec3 } from "three/tsl";
 import type { GrassArtDirection } from "../grass/GrassArtDirection";
 import { disposeResources } from "../render/ResourceDisposal";
 import type { WorldNodeMaterialContext } from "../render/WorldNodeMaterialContext";
+import { worldWetColorNode } from "../render/WorldWetSurfaceNodes";
 import { resolveGrassPlacementGrid } from "./grass/GrassClumpLattice";
 import type { WorldConfig } from "./WorldConfig";
 import { TerrainSurfacePalette } from "./terrain/TerrainSurfacePalette";
@@ -32,23 +33,27 @@ export class TerrainNodeMaterialController {
         basePlacementGrid: resolveGrassPlacementGrid(config.grassNearTileSize, density, 1) });
       const u = createTerrainNodeUniforms(this.uniforms);
       const surface = createTerrainSurfaceNodes(u, createTerrainNodeAttributes(this.palette), compact);
+      const worldWetness = context?.worldWetness();
       this.material.name = "world-terrain-node-material";
-      this.material.colorNode = surface.color;
+      this.material.colorNode = worldWetness
+        ? worldWetColorNode(surface.color, worldWetness)
+        : surface.color;
       this.material.normalNode = surface.normal;
       this.material.dithering = true;
       if (context) {
         context.applyTo(this.material);
         const sun = context.directionalSurfaceLight();
+        const wet = worldWetness ? max(surface.wetBand, worldWetness) : surface.wetBand;
         const emissiveNode = Fn(() => {
           // Force shared normal initialization outside the wet-only branch;
           // direct lighting also consumes it on dry ground.
           const surfaceNormal = normalView.toVar();
           surfaceNormal.append();
           const sheen = vec3(0).toVar();
-          If(surface.wetBand.greaterThan(0.001), () => {
+          If(wet.greaterThan(0.001), () => {
             const half = sun.direction.add(positionViewDirection).normalize();
             const lobe = surfaceNormal.dot(half).clamp(0, 1).pow(u.number("uTerrainWetSheenPower"));
-            sheen.assign(sun.color.mul(lobe).mul(u.number("uTerrainWetSheenStrength")).mul(surface.wetBand));
+            sheen.assign(sun.color.mul(lobe).mul(u.number("uTerrainWetSheenStrength")).mul(wet));
           });
           return sheen;
         })();
