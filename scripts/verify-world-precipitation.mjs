@@ -139,6 +139,12 @@ try {
     assert.match(runtime, /waterContacts\?\.clear\(\)/);
   });
 
+  await check("rain releases itself when its weather dependency is gone", () => {
+    const runtime = source("src/world/weather/WorldRainSystem.ts");
+    assert.match(runtime, /if \(!this\.options\.weather\.isAvailable\(\)\) \{\s*throw new Error/,
+      "A failed weather owner must cause rain to fail once and be released by WorldExperience.");
+  });
+
   await check("the ground cache is staged and includes hydrologic water", () => {
     const cache = source("src/world/weather/WorldRainGroundCache.ts");
     assert.match(cache, /private readonly staging = new Float32Array/);
