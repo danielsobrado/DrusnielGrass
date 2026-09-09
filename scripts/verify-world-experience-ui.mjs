@@ -120,8 +120,8 @@ try {
   const ui = read("src/runtime/UiVisibilityController.ts");
   assert.ok(ui.includes("this.settingsController.attachWorld(host)"));
   assert.ok(ui.includes("setModalOverlay: (open) => host.setModalOverlay(open)"));
-  assert.ok(ui.includes("host.setModalOverlay(false)") && ui.includes("reveal.reveal()"),
-    "Optional loading construction failure must fail open.");
+  assert.ok(/catch \(error\) \{[\s\S]*?try \{[\s\S]*?host\.setModalOverlay\(false\);[\s\S]*?\} catch \(cleanupError\) \{[\s\S]*?Loading modal rollback failed[\s\S]*?\}[\s\S]*?reveal\.reveal\(\);/.test(ui),
+    "Loading construction failure must reveal even when modal rollback itself fails.");
   assert.ok(ui.includes("if (this.minimized) this.settingsController.close()"),
     "Minimizing the HUD must close settings before hiding its DOM so input cannot remain trapped.");
   assert.ok(/attachWorld\([\s\S]*?this\.loading\?\.dispose\(\);[\s\S]*?this\.settingsController\.close\(\);[\s\S]*?this\.settingsController\.attachWorld\(host\)/.test(ui),
