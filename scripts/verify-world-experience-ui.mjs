@@ -70,7 +70,10 @@ try {
   assert.ok(panel.includes("this.host?.setModalOverlay(true)") && panel.includes("this.host?.setModalOverlay(false)"));
   assert.ok(panel.includes('document.addEventListener("keydown", this.handleKeyDown)')
     && panel.includes('document.removeEventListener("keydown", this.handleKeyDown)'));
-  assert.ok(panel.includes('event.key !== "Escape"') && panel.includes("isTextEditingTarget(event.target)"));
+  assert.ok(panel.includes('event.key !== "Escape" || this.panel.hidden'),
+    "Escape must close Settings even when a select, range or checkbox owns focus.");
+  assert.ok(!panel.includes("isTextEditingTarget"),
+    "The Settings Escape command must not be suppressed merely because a form control has focus.");
   assert.ok(panel.includes("this.setDisabled(setting, !this.host)"),
     "World-bound controls must not act on a missing world.");
   assert.ok(panel.includes('this.setDisabled("weather", !live.weatherAvailable)')
@@ -117,6 +120,8 @@ try {
     "Optional loading construction failure must fail open.");
   assert.ok(ui.includes("if (this.minimized) this.settingsController.close()"),
     "Minimizing the HUD must close settings before hiding its DOM so input cannot remain trapped.");
+  assert.ok(/attachWorld\([\s\S]*?this\.loading\?\.dispose\(\);[\s\S]*?this\.settingsController\.close\(\);[\s\S]*?this\.settingsController\.attachWorld\(host\)/.test(ui),
+    "A Settings panel opened before world construction must close before the Start gate takes modal ownership.");
 
   const main = read("src/main.ts");
   assert.ok(main.includes("uiController.detachWorld()"));
