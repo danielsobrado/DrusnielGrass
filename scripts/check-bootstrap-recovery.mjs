@@ -21,6 +21,26 @@ export async function createWorldRendererSession(canvas, request, search, signal
   return session;
 }`;
 const appModule = `
+const readyRevealState = { ready: true, degraded: false, message: 'ready' };
+const panelHost = {
+  snapshot() {
+    return { weather: 'drusniel', weatherAvailable: false, windControlsAvailable: false,
+      windGain: 1, simulationSpeed: 1, renderScale: 1, interactionEnabled: true };
+  },
+  setWeatherPreset() { return false; },
+  setWindGain() { return false; },
+  setSimulationSpeed() { return false; },
+  setRenderScale() {},
+  setInteractionEnabled() {},
+  setModalOverlay() {},
+};
+const reveal = {
+  holdForStart() {},
+  subscribe(listener) { listener(readyRevealState); return () => {}; },
+  getState() { return readyRevealState; },
+  reveal() {},
+  dispose() {},
+};
 export class WorldApp {
   static async create(session) {
     const state = window.__runtimeReview;
@@ -31,6 +51,8 @@ export class WorldApp {
     return app;
   }
   getThirdPersonCharacter() { return undefined; }
+  getExperiencePanelHost() { return panelHost; }
+  getRevealController() { return reveal; }
   captureRecoveryState() { return { mode: 'fly', position: [123, 45, -67], yaw: 0.4, pitch: -0.2, speed: 12 }; }
   restoreRecoveryState(state) { this.restored = state; }
   start() { this.started++; }
@@ -51,7 +73,7 @@ async function open(settings = {}) {
   await page.route('**/src/app/WorldRendererSession.ts*', route => route.fulfill({ contentType: 'text/javascript', body: sessionModule }));
   await page.route('**/src/app/WorldApp.ts*', route => route.fulfill({ contentType: 'text/javascript', body: appModule }));
   await page.route('**/src/runtime/WorldDiagnosticsController.ts*', route => route.fulfill({ contentType: 'text/javascript', body: diagnosticsModule }));
-  await page.goto('http://127.0.0.1:5192/?profile=compact&renderer=auto&diagnostics=1');
+  await page.goto('http://127.0.0.1:5192/?profile=compact&renderer=auto&diagnostics=1&capture=1');
   return page;
 }
 const hide = page => page.evaluate(() => window.dispatchEvent(new PageTransitionEvent('pagehide', { persisted: false })));
