@@ -17,8 +17,8 @@ export interface WorldExperiencePanelSnapshot {
 export interface WorldExperiencePanelHost {
   snapshot(): WorldExperiencePanelSnapshot;
   setWeatherPreset(id: WeatherPresetId): boolean;
-  setWindGain(value: number): void;
-  setSimulationSpeed(value: number): void;
+  setWindGain(value: number): boolean;
+  setSimulationSpeed(value: number): boolean;
   setRenderScale(value: number): void;
   setInteractionEnabled(enabled: boolean): void;
   setModalOverlay(open: boolean): void;
@@ -197,9 +197,15 @@ export class WorldExperiencePanel {
     const value = Number(target.value);
     if (!Number.isFinite(value)) return;
     const setting = target.dataset.setting;
-    if (setting === "wind") this.host?.setWindGain(value);
-    else if (setting === "speed") this.host?.setSimulationSpeed(value);
-    else if (setting === "renderScale") {
+    if (setting === "wind" && !this.host?.setWindGain(value)) {
+      this.sync();
+      return;
+    }
+    if (setting === "speed" && !this.host?.setSimulationSpeed(value)) {
+      this.sync();
+      return;
+    }
+    if (setting === "renderScale") {
       hudSettingsStore.setRenderScale(value);
       this.host?.setRenderScale(value);
     }
@@ -209,6 +215,7 @@ export class WorldExperiencePanel {
   private setOpen(open: boolean): void {
     if (this.panel.hidden === !open) return;
     if (open) {
+      this.sync();
       this.previousFocus = document.activeElement instanceof HTMLElement ? document.activeElement : undefined;
       if (document.pointerLockElement) void document.exitPointerLock();
       this.host?.setModalOverlay(true);
@@ -247,7 +254,10 @@ export class WorldExperiencePanel {
       this.setDisabled("speed", !live.windControlsAvailable);
     }
     this.setRuntimeStatus("weather", Boolean(this.host && live && !live.weatherAvailable));
-    this.setRuntimeStatus("wind", Boolean(this.host && live && !live.windControlsAvailable));
+    this.setRuntimeStatus(
+      "wind",
+      Boolean(this.host && live && live.weatherAvailable && !live.windControlsAvailable),
+    );
   }
 
   private setValue(setting: string, value: string | number): void {
