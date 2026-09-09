@@ -41,6 +41,7 @@ export class WorldMinimap {
   private readonly worldScratch: WorldPoint = { x: 0, z: 0 };
   private raster?: WorldMinimapRaster;
   private terrainPainted = false;
+  private enabled = true;
   private open = false;
   private disposed = false;
 
@@ -98,6 +99,16 @@ export class WorldMinimap {
     return this.open;
   }
 
+  setEnabled(enabled: boolean): void {
+    if (this.disposed || enabled === this.enabled) {
+      return;
+    }
+    this.enabled = enabled;
+    if (!enabled && this.open) {
+      this.setOpen(false);
+    }
+  }
+
   /** Called every frame; does nothing measurable while the map is closed. */
   update(): void {
     if (!this.open || this.disposed) {
@@ -123,6 +134,7 @@ export class WorldMinimap {
       return;
     }
     this.disposed = true;
+    this.enabled = false;
     this.open = false;
     this.canvas.removeEventListener("pointerdown", this.handlePointerDown);
     this.canvas.removeEventListener("keydown", this.handleCanvasKey);
@@ -131,11 +143,13 @@ export class WorldMinimap {
   }
 
   toggle(): void {
-    this.setOpen(!this.open);
+    if (this.enabled) {
+      this.setOpen(!this.open);
+    }
   }
 
   private setOpen(open: boolean): void {
-    if (this.disposed || open === this.open) {
+    if (this.disposed || open === this.open || (open && !this.enabled)) {
       return;
     }
     if (!open) {
@@ -175,7 +189,7 @@ export class WorldMinimap {
   }
 
   private readonly handleKeyDown = (event: KeyboardEvent): void => {
-    if (isTypingTarget(event.target)) {
+    if (!this.enabled || isTypingTarget(event.target)) {
       return;
     }
     const hasModifier = event.altKey || event.ctrlKey || event.metaKey;
