@@ -44,32 +44,7 @@ export class WorldTreeSystem {
     this.radius = profile.compact ? TREE_COMPACT_RADIUS : TREE_DESKTOP_RADIUS;
     this.maxCount = profile.compact ? 36 : 96;
 
-    const bark = new MeshStandardNodeMaterial({
-      color: BARK,
-      roughness: 0.92,
-      metalness: 0,
-    });
-    let leaves: MeshStandardNodeMaterial;
-    try {
-      applyWorldWetStandardMaterial(bark, context);
-      leaves = new MeshStandardNodeMaterial({
-        color: FOLIAGE,
-        roughness: 0.78,
-        metalness: 0,
-      });
-      applyWorldWetStandardMaterial(leaves, context);
-    } catch (error) {
-      try {
-        bark.dispose();
-      } catch (cleanupError) {
-        console.warn(
-          "[Drusniel World] Tree material cleanup failed.",
-          cleanupError,
-        );
-      }
-      throw error;
-    }
-
+    const { bark, leaves } = createTreeMaterials(context);
     let trunk: THREE.CylinderGeometry | undefined;
     let canopy: THREE.IcosahedronGeometry | undefined;
     let trunkMesh: THREE.InstancedMesh | undefined;
@@ -170,6 +145,39 @@ export class WorldTreeSystem {
       { dispose: () => disposeMaterial(this.trunkMesh.material) },
       { dispose: () => disposeMaterial(this.canopyMesh.material) },
     ]);
+  }
+}
+
+function createTreeMaterials(context?: WorldNodeMaterialContext): {
+  bark: MeshStandardNodeMaterial;
+  leaves: MeshStandardNodeMaterial;
+} {
+  let bark: MeshStandardNodeMaterial | undefined;
+  let leaves: MeshStandardNodeMaterial | undefined;
+  try {
+    bark = new MeshStandardNodeMaterial({
+      color: BARK,
+      roughness: 0.92,
+      metalness: 0,
+    });
+    applyWorldWetStandardMaterial(bark, context);
+    leaves = new MeshStandardNodeMaterial({
+      color: FOLIAGE,
+      roughness: 0.78,
+      metalness: 0,
+    });
+    applyWorldWetStandardMaterial(leaves, context);
+    return { bark, leaves };
+  } catch (error) {
+    try {
+      disposeResources([leaves, bark]);
+    } catch (cleanupError) {
+      console.warn(
+        "[Drusniel World] Tree material cleanup failed.",
+        cleanupError,
+      );
+    }
+    throw error;
   }
 }
 
