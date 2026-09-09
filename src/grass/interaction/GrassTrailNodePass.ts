@@ -95,7 +95,11 @@ export function createGrassTrailNodePass(renderer: WebGPURenderer,
       },
     };
   } catch (error) {
-    disposeResources([material, ...targets]);
+    try {
+      disposeResources([material, ...targets]);
+    } catch (cleanupError) {
+      console.warn("[Drusniel World] Grass trail node-pass rollback failed.", cleanupError);
+    }
     throw error;
   }
 }
