@@ -34,26 +34,40 @@ export class WorldWindBake {
   private disposed = false;
 
   constructor(private readonly renderer: WebGPURenderer) {
-    this.target = new RenderTarget(WIND_BAKE_RESOLUTION, WIND_BAKE_RESOLUTION, {
-      depthBuffer: false,
-      stencilBuffer: false,
-      type: HalfFloatType,
-      minFilter: LinearFilter,
-      magFilter: LinearFilter,
-    });
-    this.target.texture.name = "world-wind-field";
+    let target: RenderTarget | undefined;
+    try {
+      target = new RenderTarget(WIND_BAKE_RESOLUTION, WIND_BAKE_RESOLUTION, {
+        depthBuffer: false,
+        stencilBuffer: false,
+        type: HalfFloatType,
+        minFilter: LinearFilter,
+        magFilter: LinearFilter,
+      });
+      this.target = target;
+      this.target.texture.name = "world-wind-field";
 
-    const worldXZ = uv().sub(0.5).mul(WIND_BAKE_WORLD_SIZE).add(this.origin);
-    const field = createWorldWindFieldNodes({
-      positionXZ: vec2(worldXZ.x, worldXZ.y),
-      time: this.time,
-      directionDegrees: this.directionDegrees,
-      intensity: this.intensity,
-      noiseScale: this.noiseScale,
-    });
-    this.material.fragmentNode = vec4(
-      field.direction.x, field.direction.y, field.strength, field.gust,
-    );
+      const worldXZ = uv().sub(0.5).mul(WIND_BAKE_WORLD_SIZE).add(this.origin);
+      const field = createWorldWindFieldNodes({
+        positionXZ: vec2(worldXZ.x, worldXZ.y),
+        time: this.time,
+        directionDegrees: this.directionDegrees,
+        intensity: this.intensity,
+        noiseScale: this.noiseScale,
+      });
+      this.material.fragmentNode = vec4(
+        field.direction.x, field.direction.y, field.strength, field.gust,
+      );
+    } catch (error) {
+      try {
+        disposeResources([this.material, target]);
+      } catch (cleanupError) {
+        console.warn(
+          "[Drusniel World] Wind bake construction cleanup failed.",
+          cleanupError,
+        );
+      }
+      throw error;
+    }
   }
 
   get texture() {
@@ -84,13 +98,33 @@ export class WorldWindBake {
     if (!moved && this.secondsSinceBake < WIND_BAKE_INTERVAL_SECONDS) {
       return;
     }
+
+    const previousOriginX = this.origin.value.x;
+    const previousOriginY = this.origin.value.y;
+    const previousTime = this.time.value;
+    const previousDirectionDegrees = this.directionDegrees.value;
+    const previousIntensity = this.intensity.value;
+    const previousNoiseScale = this.noiseScale.value;
+
     this.secondsSinceBake = 0;
     this.origin.value.set(snappedX, snappedZ);
     this.time.value = field.getPhaseSeconds();
     this.directionDegrees.value = field.getDirectionDegrees();
     this.intensity.value = field.getIntensity();
     this.noiseScale.value = field.getNoiseScale();
-    renderNodePass(this.renderer, this.target, this.quad);
+    try {
+      renderNodePass(this.renderer, this.target, this.quad);
+    } catch (error) {
+      // The texture still represents the previously published field. Roll its
+      // sampling metadata back with it so a failed optional bake cannot shift
+      // an old texture under every already-compiled wind material.
+      this.origin.value.set(previousOriginX, previousOriginY);
+      this.time.value = previousTime;
+      this.directionDegrees.value = previousDirectionDegrees;
+      this.intensity.value = previousIntensity;
+      this.noiseScale.value = previousNoiseScale;
+      throw error;
+    }
   }
 
   dispose(): void {
