@@ -19,9 +19,12 @@ export class WorldExperiencePanelHostAdapter implements WorldExperiencePanelHost
   constructor(private readonly options: WorldExperiencePanelHostOptions) {}
 
   snapshot(): WorldExperiencePanelSnapshot {
-    const weather = this.options.weather?.getSnapshot();
+    const weatherOwner = this.options.weather;
+    const weather = weatherOwner?.getSnapshot();
     return {
       weather: weather?.presetId ?? "drusniel",
+      weatherAvailable: weatherOwner?.isAvailable() ?? false,
+      windControlsAvailable: weatherOwner?.hasWindControls() ?? false,
       windGain: weather?.windIntensity ?? 1,
       simulationSpeed: weather?.windSimulationSpeed ?? 1,
       renderScale: this.options.getRenderScale(),
