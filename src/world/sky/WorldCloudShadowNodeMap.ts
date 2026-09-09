@@ -4,6 +4,7 @@ import { Fn, float, max, mix, uniform, uv, vec4 } from "three/tsl";
 import type { RuntimeCloudConfig, RuntimeProfile } from "../../runtime/RuntimeConfig";
 import type { RendererCapabilities } from "../../render/RendererCapabilities";
 import type { WorldLightingState } from "../../render/WorldLightingState";
+import { disposeResources } from "../../render/ResourceDisposal";
 import { renderNodePass } from "../../render/RenderNodePass";
 import { readRenderTargetRgba8 } from "../../render/RenderTargetReadback";
 import { WORLD_SUN_DIRECTION } from "../../app/WorldEnvironmentTuning";
@@ -34,29 +35,42 @@ export class WorldCloudShadowNodeMap {
     if (lighting) this.cloud.coverage = lighting.cloudThreshold;
     const cloud = this.cloud;
     const resolution = Math.min(cloud.shadowMapResolution, capabilities.maxTextureSize);
-    this.target = new RenderTarget(resolution, resolution, { depthBuffer: false,
-      stencilBuffer: false, minFilter: LinearFilter, magFilter: LinearFilter });
-    this.target.texture.name = "world-cloud-shadow-transmittance";
-    this.sun = uniform(lighting?.sunDirection ?? new Vector3(...WORLD_SUN_DIRECTION).normalize());
-    this.uniforms = createWorldCloudShadowUniforms(cloud, this.sun.value);
-    this.uniforms.uCloudShadowMap.value = this.target.texture;
-    this.nodes = new WorldCloudShadowNodes(this.uniforms);
-    const field = this.field = createCloudFieldNodes(cloud, profile.compact);
-    const sun = this.sun;
-    this.material.fragmentNode = Fn(() => {
-      const plane = this.origin.add(uv().sub(0.5).mul(cloud.shadowWorldSize));
-      const optical = float(0).toVar();
-      for (let i = 0; i < cloud.shadowSteps; i++) {
-        const fraction = float((i + 0.5) / cloud.shadowSteps);
-        const sample = plane.add(sun.xz.mul(fraction.mul(cloud.thickness).div(max(sun.y, 0.08))));
-        optical.addAssign(field.density(sample).x.mul(field.verticalProfile(sample, fraction)));
+    let target: RenderTarget | undefined;
+    let nodes: WorldCloudShadowNodes | undefined;
+    try {
+      target = new RenderTarget(resolution, resolution, { depthBuffer: false,
+        stencilBuffer: false, minFilter: LinearFilter, magFilter: LinearFilter });
+      this.target = target;
+      this.target.texture.name = "world-cloud-shadow-transmittance";
+      this.sun = uniform(lighting?.sunDirection ?? new Vector3(...WORLD_SUN_DIRECTION).normalize());
+      this.uniforms = createWorldCloudShadowUniforms(cloud, this.sun.value);
+      this.uniforms.uCloudShadowMap.value = this.target.texture;
+      nodes = new WorldCloudShadowNodes(this.uniforms);
+      this.nodes = nodes;
+      const field = this.field = createCloudFieldNodes(cloud, profile.compact);
+      const sun = this.sun;
+      this.material.fragmentNode = Fn(() => {
+        const plane = this.origin.add(uv().sub(0.5).mul(cloud.shadowWorldSize));
+        const optical = float(0).toVar();
+        for (let i = 0; i < cloud.shadowSteps; i++) {
+          const fraction = float((i + 0.5) / cloud.shadowSteps);
+          const sample = plane.add(sun.xz.mul(fraction.mul(cloud.thickness).div(max(sun.y, 0.08))));
+          optical.addAssign(field.density(sample).x.mul(field.verticalProfile(sample, fraction)));
+        }
+        optical.divAssign(cloud.shadowSteps);
+        const physical = optical.mul(-cloud.extinction).exp();
+        const transmittance = max(cloud.minimumDirectTransmittance, mix(1, physical, cloud.shadowStrength));
+        return vec4(transmittance, optical.clamp(0, 1), 0, 1);
+      })();
+      this.setEnabled(cloud.enabled);
+    } catch (error) {
+      try {
+        disposeResources([nodes, this.material, target]);
+      } catch (cleanupError) {
+        console.warn("[Drusniel World] Cloud shadow map construction cleanup failed.", cleanupError);
       }
-      optical.divAssign(cloud.shadowSteps);
-      const physical = optical.mul(-cloud.extinction).exp();
-      const transmittance = max(cloud.minimumDirectTransmittance, mix(1, physical, cloud.shadowStrength));
-      return vec4(transmittance, optical.clamp(0, 1), 0, 1);
-    })();
-    this.setEnabled(cloud.enabled);
+      throw error;
+    }
   }
 
   applyLightingState(lighting: WorldLightingState): void {
@@ -86,16 +100,31 @@ export class WorldCloudShadowNodeMap {
     const texelSize = cloud.shadowWorldSize / this.target.width;
     const nextX = Math.round((focus.x + sun.x * altitude) / texelSize) * texelSize;
     const nextZ = Math.round((focus.z + sun.z * altitude) / texelSize) * texelSize;
-    if (this.forceRefresh || nextX !== this.origin.value.x || nextZ !== this.origin.value.y) {
+    const refresh = this.forceRefresh || nextX !== this.origin.value.x || nextZ !== this.origin.value.y;
+    const previousX = this.origin.value.x;
+    const previousZ = this.origin.value.y;
+    if (refresh) {
       this.origin.value.set(nextX, nextZ);
-      this.uniforms.uCloudShadowOriginXZ.value.copy(this.origin.value);
-      this.forceRefresh = false;
     }
     this.uniforms.uCloudFocusTransmittance.value = sampleCloudPointDirectTransmittance(cloud,
       this.profile.compact, focus.x, focus.y, focus.z, elapsedSeconds, sun);
     this.uniforms.uCloudShadowEnabled.value = 1;
     this.field.time.value = elapsedSeconds;
-    renderNodePass(this.renderer, this.target, this.quad);
+    try {
+      // The opaque full-screen map overwrites every pixel. Keep the last valid
+      // texture intact if a new optional shadow draw fails.
+      renderNodePass(this.renderer, this.target, this.quad, false);
+    } catch (error) {
+      if (refresh) {
+        this.origin.value.set(previousX, previousZ);
+      }
+      this.forceRefresh = true;
+      throw error;
+    }
+    if (refresh) {
+      this.uniforms.uCloudShadowOriginXZ.value.copy(this.origin.value);
+      this.forceRefresh = false;
+    }
   }
 
   async readDebugPixels(target: Uint8Array): Promise<boolean> {
@@ -121,6 +150,6 @@ export class WorldCloudShadowNodeMap {
     this.disposed = true;
     this.setEnabled(false);
     this.uniforms.uCloudShadowMap.value = null;
-    this.nodes.dispose(); this.material.dispose(); this.target.dispose();
+    disposeResources([this.nodes, this.material, this.target]);
   }
 }
