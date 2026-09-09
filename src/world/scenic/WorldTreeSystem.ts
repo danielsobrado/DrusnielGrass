@@ -1,4 +1,7 @@
 import * as THREE from "three";
+import { MeshStandardNodeMaterial } from "three/webgpu";
+import type { WorldNodeMaterialContext } from "../../render/WorldNodeMaterialContext";
+import { applyWorldWetStandardMaterial } from "../../render/WorldWetSurfaceNodes";
 import { disposeResources } from "../../render/ResourceDisposal";
 import type { RuntimeProfile } from "../../runtime/RuntimeConfig";
 import type { TerrainField } from "../TerrainField";
@@ -35,23 +38,26 @@ export class WorldTreeSystem {
     config: WorldConfig,
     profile: RuntimeProfile,
     shadows: boolean,
+    context?: WorldNodeMaterialContext,
   ) {
     this.field = new WorldTreeField(terrain, config);
     this.radius = profile.compact ? TREE_COMPACT_RADIUS : TREE_DESKTOP_RADIUS;
     this.maxCount = profile.compact ? 36 : 96;
 
-    const bark = new THREE.MeshStandardMaterial({
+    const bark = new MeshStandardNodeMaterial({
       color: BARK,
       roughness: 0.92,
       metalness: 0,
     });
-    let leaves: THREE.MeshStandardMaterial;
+    let leaves: MeshStandardNodeMaterial;
     try {
-      leaves = new THREE.MeshStandardMaterial({
+      applyWorldWetStandardMaterial(bark, context);
+      leaves = new MeshStandardNodeMaterial({
         color: FOLIAGE,
         roughness: 0.78,
         metalness: 0,
       });
+      applyWorldWetStandardMaterial(leaves, context);
     } catch (error) {
       try {
         bark.dispose();
