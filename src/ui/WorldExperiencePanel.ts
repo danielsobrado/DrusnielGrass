@@ -6,6 +6,8 @@ import { WorldIrisTransition } from "./WorldIrisTransition";
 
 export interface WorldExperiencePanelSnapshot {
   readonly weather: WeatherPresetId;
+  readonly weatherAvailable: boolean;
+  readonly windControlsAvailable: boolean;
   readonly windGain: number;
   readonly simulationSpeed: number;
   readonly renderScale: number;
@@ -117,10 +119,12 @@ export class WorldExperiencePanel {
       <div class="world-experience-scroll">
         <fieldset><legend>Weather</legend>
           <label>Atmosphere<select data-setting="weather">${weatherOptions}</select></label>
+          <p class="world-experience-runtime" data-runtime-status="weather" hidden>Weather controls are unavailable; the base environment remains active.</p>
         </fieldset>
         <fieldset><legend>Grass</legend>
           <label>Wind strength<div class="world-experience-range"><input data-setting="wind" type="range" min="${WIND_MIN}" max="${WIND_MAX}" step="${WIND_STEP}"><output data-output="wind"></output></div></label>
           <label>Simulation speed<div class="world-experience-range"><input data-setting="speed" type="range" min="${SPEED_MIN}" max="${SPEED_MAX}" step="${SPEED_STEP}"><output data-output="speed"></output></div></label>
+          <p class="world-experience-runtime" data-runtime-status="wind" hidden>Live wind controls require the cinematic wind model.</p>
           <label class="world-experience-check"><span>Foot interaction</span><input data-setting="interaction" type="checkbox"></label>
           ${unavailable("Grass shape", "Available after T09 grass-shape migration")}
           ${unavailable("Grass height", "Available after T09 LOD bounds")}
@@ -168,9 +172,14 @@ export class WorldExperiencePanel {
     if (setting === "weather" && target instanceof HTMLSelectElement) {
       const id = target.value as WeatherPresetId;
       void this.iris.run(() => {
-        if (!this.host?.setWeatherPreset(id)) throw new Error(`Weather preset ${id} was rejected.`);
-        hudSettingsStore.setWeather(id);
-        this.sync();
+        try {
+          if (!this.host?.setWeatherPreset(id)) {
+            throw new Error(`Weather preset ${id} was rejected.`);
+          }
+          hudSettingsStore.setWeather(id);
+        } finally {
+          this.sync();
+        }
       }, "weather");
     } else if (setting === "interaction" && target instanceof HTMLInputElement) {
       hudSettingsStore.setInteractionEnabled(target.checked);
@@ -228,10 +237,17 @@ export class WorldExperiencePanel {
     this.setOutput("wind", live?.windGain ?? 1);
     this.setOutput("speed", live?.simulationSpeed ?? 1);
     this.setOutput("renderScale", live?.renderScale ?? stored.renderScale);
+
     for (const setting of WORLD_BOUND_SETTINGS) {
-      const input = this.panel.querySelector<HTMLInputElement | HTMLSelectElement>(`[data-setting="${setting}"]`);
-      if (input) input.disabled = !this.host;
+      this.setDisabled(setting, !this.host);
     }
+    if (this.host && live) {
+      this.setDisabled("weather", !live.weatherAvailable);
+      this.setDisabled("wind", !live.windControlsAvailable);
+      this.setDisabled("speed", !live.windControlsAvailable);
+    }
+    this.setRuntimeStatus("weather", Boolean(this.host && live && !live.weatherAvailable));
+    this.setRuntimeStatus("wind", Boolean(this.host && live && !live.windControlsAvailable));
   }
 
   private setValue(setting: string, value: string | number): void {
@@ -242,6 +258,16 @@ export class WorldExperiencePanel {
   private setChecked(setting: string, value: boolean): void {
     const input = this.panel.querySelector<HTMLInputElement>(`[data-setting="${setting}"]`);
     if (input) input.checked = value;
+  }
+
+  private setDisabled(setting: string, disabled: boolean): void {
+    const input = this.panel.querySelector<HTMLInputElement | HTMLSelectElement>(`[data-setting="${setting}"]`);
+    if (input) input.disabled = disabled;
+  }
+
+  private setRuntimeStatus(name: string, visible: boolean): void {
+    const status = this.panel.querySelector<HTMLElement>(`[data-runtime-status="${name}"]`);
+    if (status) status.hidden = !visible;
   }
 
   private setOutput(setting: string | undefined, value: number): void {
