@@ -70,16 +70,32 @@ export class WaterRefractionNodePass {
 
   private resize(width: number, height: number): void {
     const previous = this.target;
-    const target = new RenderTarget(width, height, { depthBuffer: true });
-    // Depth is not incidental here: the surface treats depth 1 as "nothing was
-    // drawn" and keeps its own colour there. Without a readable depth texture
-    // the capture's clear colour is sampled as radiance, which is what turned
-    // grazing-angle water pure black before the depth test was added.
-    target.depthTexture = new DepthTexture(width, height, UnsignedIntType);
+    let target: RenderTarget | undefined;
+    let depthTexture: DepthTexture | undefined;
+    try {
+      target = new RenderTarget(width, height, { depthBuffer: true });
+      // Depth is not incidental here: the surface treats depth 1 as "nothing was
+      // drawn" and keeps its own colour there. Without a readable depth texture
+      // the capture's clear colour is sampled as radiance, which is what turned
+      // grazing-angle water pure black before the depth test was added.
+      depthTexture = new DepthTexture(width, height, UnsignedIntType);
+      target.depthTexture = depthTexture;
+    } catch (error) {
+      try {
+        disposeResources([depthTexture, target]);
+      } catch (cleanupError) {
+        console.warn(
+          "[Drusniel World] Water refraction resize cleanup failed.",
+          cleanupError,
+        );
+      }
+      throw error;
+    }
+
     this.target = target;
     this.width = width;
     this.height = height;
-    if (previous) disposeResources([previous, previous.depthTexture ?? undefined]);
+    if (previous) disposeResources([previous.depthTexture ?? undefined, previous]);
   }
 
   dispose(): void {
@@ -89,6 +105,6 @@ export class WaterRefractionNodePass {
     this.target = undefined;
     this.width = 0;
     this.height = 0;
-    if (target) disposeResources([target, target.depthTexture ?? undefined]);
+    if (target) disposeResources([target.depthTexture ?? undefined, target]);
   }
 }
