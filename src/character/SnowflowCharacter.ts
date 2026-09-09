@@ -152,6 +152,11 @@ export class SnowflowCharacter {
     }
   }
 
+  /** What `setVisible` last left, so a temporary mode can put it back. */
+  isVisible(): boolean {
+    return !this.disposed && this.rig.root.visible;
+  }
+
   getState(): string {
     return this.runtime.getStateName();
   }

@@ -22,11 +22,17 @@ export interface HudSettings {
 const STORAGE_KEY = "drusniel-world-hud-settings";
 
 /**
- * The stored schema version.
+ * The stored schema version, written for a future reader.
  *
- * Bumped only when an existing field changes meaning. Adding a field does not
- * need it: an old document simply lacks the key and takes the default, which is
- * what every reader below does anyway.
+ * Nothing consults it today, and that is a design decision rather than an
+ * oversight: every field below validates itself against its catalog or range
+ * and falls back on its own, so no document is rejected wholesale — not an old
+ * one missing keys, and not one from a newer build carrying extra ones.
+ *
+ * What the number cannot do by itself is rescue a field whose *meaning*
+ * changed, because `decodeHudSettings` would read the stale value as current.
+ * Changing a meaning means giving the field a new key, or adding an explicit
+ * `raw.version` branch here. Bumping this constant alone changes nothing.
  */
 export const HUD_SETTINGS_VERSION = 2;
 

@@ -58,9 +58,15 @@ export class WorldDevelopmentHooks {
 
   constructor(private readonly host: WorldDevelopmentHost) {}
 
-  /** The grass art and detail foliage menus, behind `?diagnostics=1`. */
-  attachTuningMenus(artKey: GrassArtDirectionKey, direction: GrassArtDirection): void {
-    if (this.disposed || !this.host.profile.showGui) {
+  /**
+   * The grass art and detail foliage menus, behind `?diagnostics=1`.
+   *
+   * The key is enough: `GrassArtMenu` reads the direction it names out of the
+   * shipped catalog itself, so passing the resolved direction alongside it
+   * would be a second source for the same value.
+   */
+  attachTuningMenus(artKey: GrassArtDirectionKey): void {
+    if (this.disposed || this.artMenu || !this.host.profile.showGui) {
       return;
     }
     this.artMenu = new GrassArtMenu(artKey, this.host.applyGrassArtDirection);
@@ -68,7 +74,6 @@ export class WorldDevelopmentHooks {
       this.host.getDetailFoliageTuning(),
       (tuning) => this.host.setDetailFoliageTuning(tuning),
     );
-    void direction;
   }
 
   /** Console hook used by T03 until the ordinary settings UI lands in T04. */

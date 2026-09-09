@@ -160,9 +160,10 @@ try {
   // --- View state -----------------------------------------------------------
 
   /** A controller that records what was asked of it, and in what order. */
-  function createController() {
+  function createController(characterVisible = true) {
     const calls = [];
     let framing = { mode: "third-person", value: 1 };
+    let visible = characterVisible;
     return {
       calls,
       setFraming: (value) => { framing = { mode: "third-person", value }; },
@@ -170,7 +171,8 @@ try {
       setEnabled: (enabled) => calls.push(`setEnabled:${enabled}`),
       saveViewState: () => { calls.push("save"); return framing; },
       restoreViewState: (state) => { calls.push(`restore:${state.value}`); framing = state; },
-      setCharacterVisible: (visible) => calls.push(`visible:${visible}`),
+      setCharacterVisible: (next) => { visible = next; calls.push(`visible:${next}`); },
+      isCharacterVisible: () => visible,
       getGameplayPose: (target) => ({ position: target, facing: 0 }),
       getStreamingPosition: () => ({ x: 0, y: 0, z: 0 }),
     };
@@ -198,6 +200,19 @@ try {
     const enableAt = controller.calls.lastIndexOf("setEnabled:true");
     assert.ok(enableAt > restoreAt,
       "Input must be re-enabled only after the view is restored.");
+  });
+
+  await check("an actor hidden before the mode stays hidden after it", () => {
+    // The failure this guards is silent: a snapshot that assumed the actor was
+    // visible would put a hidden actor back on screen on the way out, and only
+    // whoever hid it would ever notice.
+    const controller = createController(false);
+    const view = new WorldViewState(controller, "play");
+    view.enterTemporaryMode("tour");
+    controller.setCharacterVisible(true);
+    view.exitTemporaryMode();
+    assert.equal(controller.isCharacterVisible(), false,
+      "Exiting must restore the visibility found on entry, not force the actor on.");
   });
 
   await check("a second temporary mode is refused, not nested", () => {

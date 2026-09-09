@@ -1,12 +1,7 @@
 import { WorldWindField } from "./WorldWindField";
 import { WorldWindUniforms } from "./WorldWindUniforms";
-import { disposeWindGradientTexture } from "./WorldWindLattice";
 import { WorldWindBake, WIND_BAKE_WORLD_SIZE } from "./WorldWindBake";
 import type { Vector3, WebGPURenderer } from "three/webgpu";
-import type { WorldExperience } from "../../app/WorldExperience";
-import {
-  DEFAULT_WIND_MODEL, WIND_MODEL_IDS, resolveCatalogId,
-} from "../experience/WorldExperienceCatalog";
 
 /** One shared wind field, clock and optional GPU bake for the whole world. */
 export class WorldWindSystem {
@@ -42,9 +37,19 @@ export class WorldWindSystem {
     return this.field;
   }
 
+  /**
+   * Releases what this system owns, which is the bake and nothing else.
+   *
+   * The shared gradient lattice is deliberately not released here. It is a
+   * module-level immutable texture that every already-compiled cinematic grass
+   * material samples, and this is an optional owner: `WorldExperience` releases
+   * it on a single failed frame while the grass keeps drawing. Freeing the
+   * lattice from here would leave those materials reading a released texture —
+   * the same hazard `publish` already refuses for the bake. The world releases
+   * the lattice at teardown, after the materials that read it are gone.
+   */
   dispose(): void {
     this.bake?.dispose();
-    disposeWindGradientTexture();
   }
 
   private publish(deltaSeconds: number, forceBake: boolean): void {
@@ -75,18 +80,4 @@ export class WorldWindSystem {
       }
     }
   }
-}
-
-/** Legacy comparison attachment retained for `windModel=legacy|cinematic` harnesses. */
-export function attachSharedWind(experience: WorldExperience,
-  renderer: WebGPURenderer, params: URLSearchParams,
-  focus: () => Vector3): WorldWindSystem | undefined {
-  const model = resolveCatalogId(WIND_MODEL_IDS, params.get("windModel"))
-    ?? DEFAULT_WIND_MODEL;
-  if (model !== "cinematic") {
-    return undefined;
-  }
-  let wind: WorldWindSystem | undefined;
-  experience.attach("weather", () => (wind = new WorldWindSystem(renderer, focus)));
-  return wind;
 }

@@ -51,7 +51,9 @@ try {
     && css.includes("#000 calc(var(--world-iris-radius) + 1px)"),
   "The iris must use the source's punched-out radial mask, not a normal clip circle.");
   assert.ok(css.includes("min-height: 44px"), "Interactive controls must retain 44px touch targets.");
-  assert.ok(css.includes('html[data-ui-minimized="true"] .world-experience-root'));
+  assert.ok(!css.includes('html[data-ui-minimized="true"] .world-experience-root'),
+    "The HUD starts minimized on a first visit, so hiding Settings with the HUD "
+    + "would leave an ordinary player no route to weather at all.");
   assert.ok(css.includes('html[data-world-start-gate="true"] .world-experience-root'),
     "Scene settings must not overlap the Start gate and release its modal input block.");
   assert.ok(css.includes(".world-loading-presentation") && css.includes("z-index: 1300"),
@@ -135,7 +137,7 @@ try {
   assert.ok(ui.includes("if (!bypassStartGate) this.startGateAccepted = true"),
     "A failed-open interactive Start presentation must not reappear on recovery.");
   assert.ok(ui.includes("if (this.minimized) this.settingsController.close()"),
-    "Minimizing the HUD must close settings before hiding its DOM so input cannot remain trapped.");
+    "Minimizing the HUD must close settings so its modal input block is released with the gesture.");
   assert.ok(/attachWorld\([\s\S]*?this\.loading\?\.dispose\(\);[\s\S]*?this\.settingsController\.close\(\);[\s\S]*?this\.settingsController\.attachWorld\(host\)/.test(ui),
     "A Settings panel opened before world construction must close before the Start gate takes modal ownership.");
 
@@ -163,7 +165,7 @@ try {
 
   const weather = read("src/world/weather/WorldWeatherState.ts");
   assert.ok(weather.includes("urlPreset ?? options.storedPreset ?? DEFAULT_WEATHER_PRESET"),
-    "Weather precedence must be built-in, then stored, then explicit URL.");
+    "Weather precedence must be an explicit valid URL, then the stored preference, then the built-in default.");
   assert.ok(weather.includes("setWindIntensity(value: number)") && weather.includes("setSimulationSpeed(value: number)"));
   assert.ok(weather.includes("isAvailable(): boolean") && weather.includes("hasWindControls(): boolean"),
     "Optional weather disposal and legacy wind must expose usable UI capabilities.");

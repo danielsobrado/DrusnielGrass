@@ -67,6 +67,11 @@ export class FlyWorldController
   /** No character to hide; accepted so callers need no mode branch. */
   setCharacterVisible(): void {}
 
+  /** There is no actor in flight, so there is never one on screen to restore. */
+  isCharacterVisible(): boolean {
+    return false;
+  }
+
   /**
    * Free flight has no collision, so the world edge and the ground are enforced
    * here rather than by the composition root. The controller owns where it may

@@ -51,7 +51,9 @@
   z-index: 1100;
   font: 500 14px/1.35 Inter, system-ui, sans-serif;
 }
-html[data-ui-minimized="true"] .world-experience-root,
+/* Not hidden by data-ui-minimized: the HUD starts minimized on a first visit,
+   and Settings is the only ordinary route to weather. Minimizing still closes
+   an open panel — see UiVisibilityController.toggle. */
 html[data-world-start-gate="true"] .world-experience-root { display: none; }
 
 .world-experience-toggle,

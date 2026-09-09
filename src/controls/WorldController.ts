@@ -25,7 +25,7 @@ export interface WorldController {
    */
   setEnabled(enabled: boolean): void;
   isEnabled(): boolean;
-  /** Saves framing and actor visibility for a temporary mode to restore. */
+  /** Saves the framing a temporary mode has to restore. */
   saveViewState(): WorldControllerViewState;
   restoreViewState(state: WorldControllerViewState): void;
   /**
@@ -37,6 +37,13 @@ export interface WorldController {
   getGameplayPose(target: THREE.Vector3): { position: THREE.Vector3; facing: number };
   /** Hides the actor for a mode that frames the world without them in it. */
   setCharacterVisible(visible: boolean): void;
+  /**
+   * Whether the actor is on screen right now.
+   *
+   * Read before a temporary mode takes the camera, so exiting restores what was
+   * there rather than forcing the actor visible on the way out.
+   */
+  isCharacterVisible(): boolean;
   captureRecoveryState(): ControllerRecoveryState;
   restoreRecoveryState(state: ControllerRecoveryState): void;
   update(deltaSeconds: number): void;

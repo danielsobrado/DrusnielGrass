@@ -60,6 +60,65 @@ The review found and fixed these concrete defects:
 16. Renderer recovery after a successful Start asked the user to enter the world a second time.
 17. Replacing a loading presentation could leave a stale disposed instance retained when construction of its replacement failed.
 
+## T01–T04 cross-cutting review, 2026-09-09
+
+A review of the four completed tickets together found and fixed these defects.
+`npm run build` passes at exit 0 with every gate below.
+
+1. **T02, shared-resource ownership.** `WorldWindSystem.dispose()` released the
+   process-wide wind gradient lattice. That system is an *optional* owner:
+   `WorldExperience` releases it after a single failed frame while the grass
+   keeps drawing, so the release could leave every already-compiled cinematic
+   grass material sampling a freed texture — the exact hazard `publish()`
+   already refuses for the bake. The lattice release moved to `WorldApp.dispose`,
+   after the materials that read it are gone.
+2. **T02, dead and now-wrong export.** `attachSharedWind` was unreferenced and
+   claimed the `weather` experience slot that `attachWorldWeather` now owns.
+   Removed.
+3. **T04, ordinary-user route to weather.** `world-experience.css` hid
+   `.world-experience-root` under `data-ui-minimized`, and the HUD starts
+   minimized on a first visit (`readStoredMinimized` returns true when nothing
+   is stored). A player arriving with a clean profile saw no Settings button at
+   all. The manual pass missed it because the browser used already had
+   `drusniel-world-hud-minimized="0"`. Settings is no longer hidden with the
+   diagnostic HUD; minimizing still closes an open panel.
+4. **T01, disposal order.** `WorldApp.dispose` released the controls before the
+   view state, so a temporary mode still holding the camera would hand it back
+   through an already-released controller. View state now disposes first.
+5. **T01, snapshot honesty.** `WorldViewState.enterTemporaryMode` hard-coded
+   `characterVisible: true`, so exiting any temporary mode would force a
+   deliberately hidden actor back on screen. `WorldController` gained
+   `isCharacterVisible()`; the snapshot reads it. The dead `inputEnabled` field
+   is gone — exit recomputes input from the live overlay state on purpose, and
+   the reason is now recorded.
+6. **T01, versioning that could not work.** `HUD_SETTINGS_VERSION` is written
+   but never read, so its own docstring promise ("bumped when a field changes
+   meaning") could not be kept. The comment now states what a meaning change
+   actually requires.
+7. **T01, misleading rollback.** `WorldApp`'s construction catch called
+   `this.development.dispose()` on a field only assigned two thirds of the way
+   through the constructor, reporting a rollback fault of its own making over
+   the real error.
+8. **T04, dead parameter and re-entry.** `attachTuningMenus` took a resolved
+   direction it discarded (`void direction`) and would leak a second menu pair
+   if called twice.
+9. **Duplicated constants.** `WorldApp.setRenderScale` clamped with literal
+   `0.5, 1`, and the panel host fell back to a literal `"drusniel"`.
+10. **Two verifier messages stated the opposite of what they assert.** The
+    weather-precedence message had the precedence reversed against both the code
+    and this document; the HUD-minimize message described DOM hiding that fix 3
+    removes.
+
+New regression cover: `verify-experience-lifecycle.mjs` asserts an actor hidden
+before a temporary mode is still hidden after it (this check fails against the
+previous `characterVisible: true`), and `verify-world-experience-ui.mjs` now
+asserts Settings is *not* hidden with the diagnostic HUD.
+
+Reviewed and deliberately left alone: `WorldViewState.getStreamingFocus()` is an
+unused pass-through kept as the seam T10–T13 need, and `UiVisibilityController`
+still builds the Settings panel only when `#ui-toggle` exists — a coupling that
+cannot fire against the checked-in `index.html`.
+
 ## Verification executed 2026-09-09
 
 All named gates from a working tree at `28dc0bf` plus three local verifier-regex updates (`scripts/verify-runtime-safety.mjs`, `scripts/verify-bootstrap-lifecycle.mjs`, `scripts/verify-navigation.mjs`) required after T04 compacted `WorldApp` control flow. Those regexes were not reverted; they now match the shipped source.

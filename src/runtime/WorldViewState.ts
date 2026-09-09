@@ -19,12 +19,16 @@ const PLAYER_DRIVEN: ReadonlySet<WorldViewMode> = new Set<WorldViewMode>(["play"
  * update recomputes the camera from the controller's own yaw, pitch and
  * distance and would overwrite whatever was restored. The controller state is
  * what actually determines where the camera ends up, so it is what is saved.
+ *
+ * Input state is deliberately not saved. It is recomputed on exit from the
+ * restored mode and the live overlay state, because a modal opened during a
+ * tour must still be blocking movement when the tour ends — restoring the
+ * captured value would hand control back to a player who cannot see the world.
  */
 export interface WorldViewSnapshot {
   readonly mode: WorldViewMode;
   readonly controller: unknown;
   readonly characterVisible: boolean;
-  readonly inputEnabled: boolean;
 }
 
 /**
@@ -48,6 +52,7 @@ export interface WorldViewController {
   restoreViewState(state: unknown): void;
   getGameplayPose(target: THREE.Vector3): WorldGameplayPose;
   setCharacterVisible(visible: boolean): void;
+  isCharacterVisible(): boolean;
   getStreamingPosition(): THREE.Vector3;
 }
 
@@ -106,8 +111,9 @@ export class WorldViewState {
     this.snapshot = {
       mode: this.mode,
       controller: this.controller.saveViewState(),
-      characterVisible: true,
-      inputEnabled: this.isPlayerDriven(),
+      // Read, not assumed: a cinematic that hides the actor must not be able to
+      // hand back a world where an actor hidden before it started is showing.
+      characterVisible: this.controller.isCharacterVisible(),
     };
     this.mode = mode;
     this.controller.setEnabled(false);

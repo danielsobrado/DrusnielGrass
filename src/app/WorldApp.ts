@@ -16,8 +16,11 @@ import {
   attachWorldWeather,
   type WorldWeatherState,
 } from "../world/weather/WorldWeatherState";
+import { disposeWindGradientTexture } from "../world/weather/WorldWindLattice";
 import { WorldLightingState } from "../render/WorldLightingState";
-import { hudSettingsStore } from "../runtime/HudSettingsStore";
+import {
+  hudSettingsStore, MAXIMUM_RENDER_SCALE, MINIMUM_RENDER_SCALE,
+} from "../runtime/HudSettingsStore";
 import { WorldViewState } from "../runtime/WorldViewState";
 import type { WorldExperiencePanelHost } from "../ui/WorldExperiencePanel";
 import type { WorldExperienceConfig } from "../world/experience/WorldExperienceConfig";
@@ -281,7 +284,7 @@ export class WorldApp {
       });
       if (params.get("diagnostics") === "1") {
         this.development.attachWeatherPresetHook();
-        this.development.attachTuningMenus(artKey, GRASS_ART_DIRECTIONS[artKey]);
+        this.development.attachTuningMenus(artKey);
       }
       scenic = new WorldScenicLayer(
         this.scene,
@@ -327,7 +330,9 @@ export class WorldApp {
       disposeConstructionSafely("Minimap", () => minimap?.dispose());
       disposeConstructionSafely("World controls", () => controls?.dispose());
       disposeConstructionSafely("Experience", () => this.experience?.dispose());
-      disposeConstructionSafely("Development hooks", () => this.development.dispose());
+      // Definitely assigned only once construction reaches the hooks; a failure
+      // before that must not report a rollback fault of its own making.
+      disposeConstructionSafely("Development hooks", () => this.development?.dispose());
       disposeConstructionSafely("Grass trail field", () => grassTrailField.dispose());
       disposeConstructionSafely("Grass system", () => grass?.dispose());
       disposeConstructionSafely("Stone system", () => stones?.dispose());
@@ -431,15 +436,19 @@ export class WorldApp {
     this.disposeSafely("World reveal", () => this.reveal.dispose());
     this.disposeSafely("Scenic layer", () => this.scenic.dispose());
     this.disposeSafely("Minimap", () => this.minimap.dispose());
+    // Before the controls: a temporary mode still holding the camera hands it
+    // back through the controller, which cannot restore a pose once released.
+    this.disposeSafely("View state", () => this.viewState?.dispose());
     this.disposeSafely("World controls", () => this.controls.dispose());
     this.disposeSafely("Terrain streamer", () => this.terrain.dispose());
     this.disposeSafely("Stone system", () => this.stones.dispose());
     this.disposeGrassResources();
     this.disposeSafely("Experience", () => this.experience?.dispose());
+    // Only now that every material sampling it is gone. See `WorldWindSystem`.
+    this.disposeSafely("Wind lattice", () => disposeWindGradientTexture());
     this.weather = undefined;
     this.experience = undefined;
     this.experiencePanelHost = undefined;
-    this.disposeSafely("View state", () => this.viewState?.dispose());
     this.disposeSafely("Development hooks", () => this.development.dispose());
     this.disposeSafely("Environment", () => this.environment.dispose());
     this.disposeSafely("Renderer", () => this.session.dispose());
@@ -626,7 +635,7 @@ export class WorldApp {
 
   private readonly setRenderScale = (value: number): void => {
     if (this.disposed || !Number.isFinite(value)) return;
-    const next = THREE.MathUtils.clamp(value, 0.5, 1);
+    const next = THREE.MathUtils.clamp(value, MINIMUM_RENDER_SCALE, MAXIMUM_RENDER_SCALE);
     if (next === this.renderScale) return;
     this.renderScale = next;
     this.applyRendererSize();

@@ -291,6 +291,10 @@ export class ThirdPersonController implements WorldController {
     }
   }
 
+  isCharacterVisible(): boolean {
+    return !this.disposed && this.character.isVisible();
+  }
+
   captureRecoveryState(): ControllerRecoveryState {
     return { mode: "third-person", x: this.position.x, z: this.position.z,
       facing: this.facing, yaw: this.cameraYaw, elevation: this.cameraElevation,

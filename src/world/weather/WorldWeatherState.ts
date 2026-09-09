@@ -60,7 +60,14 @@ export class WorldWeatherState {
     };
   }
 
-  /** Returns false for an invalid or unavailable command; current state remains. */
+  /**
+   * Returns false for an invalid or unavailable command; current state remains.
+   *
+   * A preset that is valid but fails to apply is a different case and rethrows
+   * after rolling the previous one back: the caller asked for something the
+   * catalog offers, so a silent false would leave it unable to tell "no such
+   * preset" from "this preset broke". The iris swap reports it and reopens.
+   */
   setPreset(value: string): boolean {
     if (this.disposed) return false;
     const id = resolveCatalogId(WEATHER_PRESET_IDS, value);

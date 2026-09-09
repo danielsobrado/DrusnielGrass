@@ -3,7 +3,9 @@ import { grassInteractionField } from "../grass/interaction/GrassInteractionFiel
 import type { WorldExperiencePanelHost, WorldExperiencePanelSnapshot } from "../ui/WorldExperiencePanel";
 import type { WorldViewState } from "../runtime/WorldViewState";
 import type { WorldWeatherState } from "../world/weather/WorldWeatherState";
-import type { WeatherPresetId } from "../world/experience/WorldExperienceCatalog";
+import {
+  DEFAULT_WEATHER_PRESET, type WeatherPresetId,
+} from "../world/experience/WorldExperienceCatalog";
 import type { WorldMinimap } from "./WorldMinimap";
 
 export interface WorldExperiencePanelHostOptions {
@@ -24,7 +26,7 @@ export class WorldExperiencePanelHostAdapter implements WorldExperiencePanelHost
     const weatherOwner = this.options.weather;
     const weather = weatherOwner?.getSnapshot();
     return {
-      weather: weather?.presetId ?? "drusniel",
+      weather: weather?.presetId ?? DEFAULT_WEATHER_PRESET,
       weatherAvailable: weatherOwner?.isAvailable() ?? false,
       windControlsAvailable: weatherOwner?.hasWindControls() ?? false,
       windGain: weather?.windIntensity ?? 1,
