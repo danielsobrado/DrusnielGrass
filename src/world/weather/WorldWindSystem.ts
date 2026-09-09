@@ -12,16 +12,14 @@ import {
 /** One shared wind field, clock and optional GPU bake for the whole world. */
 export class WorldWindSystem {
   private readonly field = new WorldWindField();
-  private readonly bake?: WorldWindBake;
+  private bake?: WorldWindBake;
+  private bakePublished = false;
   private bakeFailureReported = false;
   readonly uniforms = new WorldWindUniforms();
 
   constructor(renderer?: WebGPURenderer, private readonly focus?: () => Vector3) {
     if (renderer) {
       this.bake = new WorldWindBake(renderer);
-      this.uniforms.bakedField = this.bake.texture;
-      this.uniforms.bakedOriginXZ = this.bake.originUniform;
-      this.uniforms.bakedWorldSize = WIND_BAKE_WORLD_SIZE;
     }
   }
 
@@ -45,34 +43,65 @@ export class WorldWindSystem {
       this.bake,
       { dispose: disposeWindGradientTexture },
     ]);
+    this.bake = undefined;
   }
 
   private publish(deltaSeconds: number, forceBake: boolean): void {
     this.uniforms.syncFrom(this.field);
     const focus = this.focus?.();
-    if (!focus || !this.bake) {
+    const bake = this.bake;
+    if (!focus || !bake) {
       return;
     }
 
     if (forceBake) {
-      this.bake.invalidate();
+      bake.invalidate();
     }
 
     try {
-      const baked = this.bake.update(deltaSeconds, focus, this.field);
+      const baked = bake.update(deltaSeconds, focus, this.field);
       if (baked) {
+        if (!this.bakePublished) {
+          // The graph chooses baked versus analytic wind when a material is
+          // constructed. Publish only a texture that has actually rendered.
+          this.uniforms.bakedField = bake.texture;
+          this.uniforms.bakedOriginXZ = bake.originUniform;
+          this.uniforms.bakedWorldSize = WIND_BAKE_WORLD_SIZE;
+          this.bakePublished = true;
+        }
         this.bakeFailureReported = false;
+      } else if (forceBake && !this.bakePublished) {
+        // Initial material construction follows immediately after the first
+        // refresh. If no valid bake exists at that boundary, keep every material
+        // on the analytic path for the session instead of mixing graph types.
+        this.disableUnpublishedBake();
       }
     } catch (error) {
-      // Keep the last valid texture alive. Disposing this optional owner would
-      // leave already-compiled cinematic grass sampling a released texture.
+      if (!this.bakePublished) {
+        this.disableUnpublishedBake();
+      }
       if (!this.bakeFailureReported) {
         console.warn(
-          "[Drusniel World] Wind bake unavailable; retaining the previous field.",
+          this.bakePublished
+            ? "[Drusniel World] Wind bake unavailable; retaining the previous field."
+            : "[Drusniel World] Wind bake unavailable; using the analytic field.",
           error,
         );
         this.bakeFailureReported = true;
       }
+    }
+  }
+
+  private disableUnpublishedBake(): void {
+    const bake = this.bake;
+    if (!bake || this.bakePublished) {
+      return;
+    }
+    this.bake = undefined;
+    try {
+      bake.dispose();
+    } catch (error) {
+      console.warn("[Drusniel World] Unpublished wind bake cleanup failed.", error);
     }
   }
 }
