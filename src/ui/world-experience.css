@@ -10,6 +10,7 @@
 }
 
 .world-loading-presentation {
+  z-index: 1300;
   background: radial-gradient(circle at 50% 35%, #263a2b 0%, #101812 48%, #070a08 100%);
   color: #f1f4ed;
   letter-spacing: normal;
@@ -50,7 +51,8 @@
   z-index: 1100;
   font: 500 14px/1.35 Inter, system-ui, sans-serif;
 }
-html[data-ui-minimized="true"] .world-experience-root { display: none; }
+html[data-ui-minimized="true"] .world-experience-root,
+html[data-world-start-gate="true"] .world-experience-root { display: none; }
 
 .world-experience-toggle,
 .world-experience-panel button,
