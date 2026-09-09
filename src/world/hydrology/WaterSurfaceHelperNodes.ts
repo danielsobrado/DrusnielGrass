@@ -172,24 +172,26 @@ export function waterResolveContactSlopeNode(
 ): Node<"vec2"> {
   return Fn(() => {
     const offset = vec2(0).toVar();
-    for (let index = 0; index < contacts.capacity; index += 1) {
-      const event = contacts.events.element(index);
-      const strength = contacts.strengths.element(index).x;
-      const age = max(float(0), time.sub(event.z));
-      If(event.w.greaterThan(0).and(age.lessThan(CONTACT_MAX_AGE_SECONDS)), () => {
-        const delta = position.sub(event.xy);
-        const distance = max(delta.length(), float(0.01));
-        const ring = distance.sub(
-          event.w.add(age.mul(WORLD_WATER_CONTACT_PROPAGATION_METERS_PER_SECOND)),
-        );
-        const wave = sin(ring.mul(CONTACT_RING_FREQUENCY))
-          .mul(ring.pow(2).mul(-CONTACT_RING_FALLOFF).exp())
-          .mul(age.div(WORLD_WATER_CONTACT_DECAY_SECONDS).negate().exp())
-          .mul(strength)
-          .mul(CONTACT_SLOPE_SCALE);
-        offset.addAssign(delta.div(distance).mul(wave));
-      });
-    }
+    If(contacts.activeUntil.greaterThan(time), () => {
+      for (let index = 0; index < contacts.capacity; index += 1) {
+        const event = contacts.events.element(index);
+        const strength = contacts.strengths.element(index).x;
+        const age = max(float(0), time.sub(event.z));
+        If(event.w.greaterThan(0).and(age.lessThan(CONTACT_MAX_AGE_SECONDS)), () => {
+          const delta = position.sub(event.xy);
+          const distance = max(delta.length(), float(0.01));
+          const ring = distance.sub(
+            event.w.add(age.mul(WORLD_WATER_CONTACT_PROPAGATION_METERS_PER_SECOND)),
+          );
+          const wave = sin(ring.mul(CONTACT_RING_FREQUENCY))
+            .mul(ring.pow(2).mul(-CONTACT_RING_FALLOFF).exp())
+            .mul(age.div(WORLD_WATER_CONTACT_DECAY_SECONDS).negate().exp())
+            .mul(strength)
+            .mul(CONTACT_SLOPE_SCALE);
+          offset.addAssign(delta.div(distance).mul(wave));
+        });
+      }
+    });
     return offset;
   })();
 }
