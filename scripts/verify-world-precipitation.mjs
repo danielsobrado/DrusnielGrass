@@ -26,6 +26,9 @@ const server = await createServer({
 try {
   const wetness = await server.ssrLoadModule("/src/world/weather/WorldWetness.ts");
   const rainSystem = await server.ssrLoadModule("/src/world/weather/WorldRainSystem.ts");
+  const { WorldRainUniforms } = await server.ssrLoadModule(
+    "/src/world/weather/WorldRainUniforms.ts",
+  );
   const tuning = await server.ssrLoadModule("/src/world/weather/WorldRainTuning.ts");
   const { WorldWaterContactField } = await server.ssrLoadModule(
     "/src/world/hydrology/WorldWaterContactField.ts",
@@ -43,6 +46,37 @@ try {
     const twenty = simulate(1 / 20);
     assert.ok(Math.abs(sixty - twenty) < 1e-12,
       `Rain gain must depend on elapsed time, not frame count; ${sixty} vs ${twenty}.`);
+  });
+
+  await check("horizontal rain drift is stable across frame rates and wind turns", () => {
+    const simulate = (step) => {
+      const state = new WorldRainUniforms();
+      state.setWind(0, 1);
+      for (let elapsed = 0; elapsed < 1 - 1e-9; elapsed += step) {
+        state.advanceDrift(Math.min(step, 1 - elapsed));
+      }
+      return state.driftOffset.value.clone();
+    };
+    const sixty = simulate(1 / 60);
+    const twenty = simulate(1 / 20);
+    assert.ok(sixty.distanceTo(twenty) < 1e-9,
+      `Horizontal travel must depend on elapsed time, not frame count; ${sixty.toArray()} vs ${twenty.toArray()}.`);
+
+    const state = new WorldRainUniforms();
+    state.setWind(0, 1);
+    state.advanceDrift(1);
+    const beforeTurn = state.driftOffset.value.clone();
+    state.setWind(90, 1);
+    state.advanceDrift(0);
+    assert.deepEqual(state.driftOffset.value.toArray(), beforeTurn.toArray(),
+      "Changing wind direction alone must not rewrite prior rain travel.");
+    state.advanceDrift(0.25);
+    assert.ok(Math.abs(state.driftOffset.value.x - beforeTurn.x) < 1e-9,
+      "After a ninety-degree turn, future drift must stop advancing the old axis.");
+    assert.ok(state.driftOffset.value.y > beforeTurn.y + 0.1,
+      "After a ninety-degree turn, future drift must advance the new axis.");
+    assert.ok(state.driftOffset.value.x >= 0 && state.driftOffset.value.x < tuning.WORLD_RAIN_AREA_METERS);
+    assert.ok(state.driftOffset.value.y >= 0 && state.driftOffset.value.y < tuning.WORLD_RAIN_AREA_METERS);
   });
 
   await check("wetting and drying honor configured time constants", () => {
@@ -87,6 +121,10 @@ try {
     const runtime = source("src/world/weather/WorldRainSystem.ts");
     assert.match(runtime, /new THREE\.InstancedMesh\(geometry, material, options\.capacity\)/);
     assert.match(runtime, /mesh\.frustumCulled = false/);
+    assert.match(runtime, /uniforms\.advanceDrift\(delta\)/);
+    assert.match(nodes, /inputs\.rain\.driftOffset/);
+    assert.doesNotMatch(nodes, /rain\.time\.mul\(wind\.strength\)/,
+      "Changing wind direction must not multiply the full elapsed clock into horizontal travel.");
     assert.match(nodes, /material\.depthTest = true/);
     assert.match(nodes, /material\.depthWrite = false/);
     assert.doesNotMatch(runtime, /requestAnimationFrame|setInterval|setTimeout/,
@@ -148,6 +186,8 @@ try {
       "Tree rain response must not introduce transparent foliage overdraw.");
     assert.match(tree, /applyWorldWetStandardMaterial\(bark, context\)/);
     assert.match(tree, /applyWorldWetStandardMaterial\(leaves, context\)/);
+    assert.match(tree, /disposeResources\(\[leaves, bark\]\)/,
+      "A failed foliage wetness binding must release both tree materials.");
   });
 
   await check("water material cleans sampler placeholders after construction failure", () => {
@@ -186,7 +226,7 @@ if (failures.length > 0) {
 }
 
 console.log(
-  "[world-precipitation] Rain response and wetness are frame-rate independent, "
+  "[world-precipitation] Rain response, drift and wetness are frame-rate independent, "
   + "budgets and resource lifecycles are bounded, clipping includes terrain/water, "
   + "opaque surfaces share wetness, and precipitation ripples preserve water flow.",
 );
