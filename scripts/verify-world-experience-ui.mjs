@@ -79,9 +79,10 @@ try {
   assert.ok(loading.includes("this.releaseInput()") && loading.includes("this.reveal.reveal()"));
   assert.ok(loading.includes("this.progress.removeAttribute(\"value\")"),
     "Unknown startup work must be shown as indeterminate rather than fake percentages.");
-  assert.ok(loading.includes("if (this.options.bypassStartGate) hudSettingsStore.setSoundEnabled(false)"));
   assert.ok(loading.includes("this.options.bypassStartGate || !this.element"),
     "QA and a missing reveal DOM must not trap the world behind a Start gate.");
+  assert.ok(!loading.includes("hudSettingsStore.setSoundEnabled(false)"),
+    "Silent QA must be session-local and must not overwrite the user's persisted sound preference.");
 
   const ui = read("src/runtime/UiVisibilityController.ts");
   assert.ok(ui.includes("this.settingsController.attachWorld(host)"));
