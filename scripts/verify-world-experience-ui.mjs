@@ -133,6 +133,13 @@ try {
   assert.ok(main.includes("shouldBypassStartGate(params)"));
   assert.ok(main.includes('params.has("qa")') && main.includes('params.get("capture") === "1"'));
 
+  const rendererMatrix = read("scripts/check-renderer-matrix.mjs");
+  assert.ok(rendererMatrix.includes('new URLSearchParams({ capture: "1", ...params })'),
+    "Renderer-matrix screenshots must bypass the interactive Start gate.");
+  const productionRenderers = read("scripts/check-production-renderers.mjs");
+  assert.ok(productionRenderers.includes("&capture=1"),
+    "Production renderer screenshots must bypass the interactive Start gate.");
+
   const weather = read("src/world/weather/WorldWeatherState.ts");
   assert.ok(weather.includes("urlPreset ?? options.storedPreset ?? DEFAULT_WEATHER_PRESET"),
     "Weather precedence must be built-in, then stored, then explicit URL.");
@@ -183,5 +190,5 @@ try {
 
 console.log(
   "[world-experience-ui] Iris coalescing/mask, truthful reveal/start gate, modal input/minimap isolation, "
-  + "settings migration, optional-weather availability, live controls and interaction lifecycle verified.",
+  + "settings migration, capture bypass, optional-weather availability, live controls and interaction lifecycle verified.",
 );
