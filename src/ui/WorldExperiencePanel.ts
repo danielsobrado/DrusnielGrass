@@ -158,11 +158,9 @@ export class WorldExperiencePanel {
   };
 
   private readonly handleKeyDown = (event: KeyboardEvent): void => {
-    if (event.key !== "Escape" || isTextEditingTarget(event.target)) return;
-    if (!this.panel.hidden) {
-      event.preventDefault();
-      this.close();
-    }
+    if (event.key !== "Escape" || this.panel.hidden) return;
+    event.preventDefault();
+    this.close();
   };
 
   private readonly handleChange = (event: Event): void => {
@@ -289,9 +287,4 @@ export class WorldExperiencePanel {
 
 function unavailable(label: string, reason: string): string {
   return `<div class="world-experience-unavailable"><span>${label}</span><small>${reason}</small></div>`;
-}
-
-function isTextEditingTarget(target: EventTarget | null): boolean {
-  return target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement
-    || target instanceof HTMLSelectElement || (target instanceof HTMLElement && target.isContentEditable);
 }
