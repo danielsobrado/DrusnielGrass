@@ -46,6 +46,7 @@ export class WaterSurfaceNodeMaterial extends MeshPhysicalNodeMaterial {
       this.boundTextures.push(bound);
       return bound.node;
     };
+    const rain = context?.worldRainUniforms();
     const surface = createWaterSurfaceNodes({
       time: number("uWaterTime"),
       opacity: number("uWaterOpacity"),
@@ -84,6 +85,9 @@ export class WaterSurfaceNodeMaterial extends MeshPhysicalNodeMaterial {
       refractionDepth: sampler("tWaterRefractionDepth", true),
       refractionSize: reference("value", "vec2", values.uWaterRefractionSize),
       refractionStrength: number("uWaterRefractionStrength"),
+      rainTime: rain?.time,
+      rainIntensity: rain?.intensity,
+      waterContacts: context?.worldWaterContacts(),
     });
     this.normalNode = surface.normal;
     this.colorNode = surface.color;
