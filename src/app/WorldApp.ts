@@ -554,7 +554,12 @@ export class WorldApp {
   private readonly updateGrass = (deltaSeconds: number): void => {
     grassTrailField.render(deltaSeconds);
     const cameraGroundHeight = this.flyMode ? this.sampleGroundHeight(this.camera.position) : undefined;
-    this.grass.update(deltaSeconds, this.camera, cameraGroundHeight, this.streamingBuildDeadline);
+    this.grass.update(
+      deltaSeconds,
+      this.camera,
+      cameraGroundHeight,
+      this.streamingBuildDeadline,
+    );
   };
 
   private readonly renderScene = (): void => {
