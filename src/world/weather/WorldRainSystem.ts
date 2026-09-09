@@ -74,8 +74,6 @@ export class WorldRainSystem {
     const delta = Number.isFinite(deltaSeconds) && deltaSeconds > 0 ? deltaSeconds : 0;
     const snapshot = this.options.weather.getSnapshot();
     this.uniforms.setTime(this.options.weather.getElapsedSeconds());
-    this.uniforms.setWind(snapshot.windDirectionDegrees, snapshot.windIntensity);
-    this.uniforms.advanceDrift(delta);
 
     this.intensity = approachRainIntensity(this.intensity, snapshot.rainIntensity, delta);
     this.uniforms.setIntensity(this.intensity);
@@ -90,6 +88,8 @@ export class WorldRainSystem {
       return;
     }
 
+    this.uniforms.setWind(snapshot.windDirectionDegrees, snapshot.windIntensity);
+    this.uniforms.advanceDrift(delta);
     const focus = this.options.focus();
     this.cache.update(focus);
     const visible = this.intensity > WORLD_RAIN_ACTIVE_THRESHOLD &&
