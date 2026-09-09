@@ -19,7 +19,7 @@ const WARMUP_MS = 9000;
 const SAMPLE_MS = 6000;
 
 function url(params) {
-  return BASE + "?" + new URLSearchParams(params).toString();
+  return BASE + "?" + new URLSearchParams({ capture: "1", ...params }).toString();
 }
 
 /** Frame intervals from inside the page, after the world has warmed. */
