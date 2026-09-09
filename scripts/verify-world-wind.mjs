@@ -25,6 +25,7 @@ import { createServer } from "vite";
  */
 const SCRIPT_DIRECTORY = dirname(fileURLToPath(import.meta.url));
 const REPOSITORY_ROOT = resolve(SCRIPT_DIRECTORY, "..");
+const source = (path) => readFileSync(resolve(REPOSITORY_ROOT, path), "utf8");
 
 const server = await createServer({
   configFile: false,
@@ -243,6 +244,22 @@ try {
     const second = field.sample(40, -18);
     assert.deepEqual({ ...second }, { ...first });
   });
+
+  await check("the optional bake publishes only successfully rendered fields", () => {
+    const bake = source("src/world/weather/WorldWindBake.ts");
+    const system = source("src/world/weather/WorldWindSystem.ts");
+    assert.match(bake, /renderNodePass\(this\.renderer, this\.target, this\.quad, false\)/,
+      "A failed bake must not erase the previous texture with a pre-clear.");
+    assert.match(bake, /update\(deltaSeconds: number, focus: Vector3, field: WorldWindField\): boolean/);
+    assert.match(bake, /this\.failureRetrySeconds = WIND_BAKE_FAILURE_RETRY_SECONDS/,
+      "Persistent GPU bake failures must be rate-limited rather than retried every frame.");
+    assert.match(system,
+      /const baked = bake\.update[\s\S]*?if \(baked\) \{[\s\S]*?if \(!this\.bakePublished\) \{[\s\S]*?this\.uniforms\.bakedField = bake\.texture/,
+      "The baked texture must not be exposed to material construction before a successful draw.");
+    assert.match(system,
+      /else if \(forceBake && !this\.bakePublished\) \{[\s\S]*?this\.disableUnpublishedBake\(\)/,
+      "An unavailable initial bake must lock the session onto the analytic graph rather than mix material graph types.");
+  });
 } finally {
   await server.close();
 }
@@ -257,6 +274,6 @@ if (failures.length > 0) {
 console.log(
   "[world-wind] The port reproduces the source model exactly over 960 samples, the "
   + "shared lattice is periodic and unit-normed, the field stays bounded over the "
-  + "world and long sessions, and the integrated phase survives speed changes, "
-  + "freezing and bad deltas.",
+  + "world and long sessions, the integrated phase survives speed changes, and "
+  + "optional bake publication remains transactional across failures.",
 );
