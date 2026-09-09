@@ -1,6 +1,8 @@
 import { DirectionalLightNode, type AmbientLight, type Color, type DirectionalLight, type HemisphereLight, type Light, type Node, type NodeBuilder, type NodeMaterial, type Vector3 } from "three/webgpu";
 import { lights, positionWorld, cameraPosition, cameraViewMatrix, vec3, mix, uniform, reference, lightPosition, lightTargetDirection } from "three/tsl";
 import type { WorldCloudShadowNodes } from "../world/sky/WorldCloudShadowNodes";
+import type { WorldRainUniforms } from "../world/weather/WorldRainUniforms";
+import type { WorldWetness } from "../world/weather/WorldWetness";
 import type { WorldWindUniforms } from "../world/weather/WorldWindUniforms";
 import type { WorldLightingState } from "./WorldLightingState";
 
@@ -20,6 +22,8 @@ const composeLights = lights as (sources: (Light | DirectionalLightNode)[]) => R
 /** Shared per-world render state borrowed by every streamed node material. */
 export class WorldNodeMaterialContext {
   private wind?: WorldWindUniforms;
+  private rain?: WorldRainUniforms;
+  private wetness?: WorldWetness;
 
   constructor(private readonly sun: DirectionalLight,
     private readonly otherLights: readonly Light[], private readonly clouds?: WorldCloudShadowNodes,
@@ -39,6 +43,19 @@ export class WorldNodeMaterialContext {
 
   worldWindUniforms(): WorldWindUniforms | undefined {
     return this.wind;
+  }
+
+  setWorldPrecipitation(rain: WorldRainUniforms | undefined, wetness: WorldWetness | undefined): void {
+    this.rain = rain;
+    this.wetness = wetness;
+  }
+
+  worldRainUniforms(): WorldRainUniforms | undefined {
+    return this.rain;
+  }
+
+  worldWetness() {
+    return this.wetness?.uniform;
   }
 
   directionalSurfaceLight(cloudResponseStrength = 1) {
