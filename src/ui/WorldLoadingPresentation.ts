@@ -25,8 +25,8 @@ export class WorldLoadingPresentation {
       const startGateAvailable = this.element !== null && !options.bypassStartGate;
       if (startGateAvailable) {
         reveal.holdForStart();
-        options.setModalOverlay(true);
         this.blockedInput = true;
+        options.setModalOverlay(true);
         document.documentElement.dataset.worldStartGate = "true";
       }
       if (this.element) this.build();
@@ -108,6 +108,10 @@ export class WorldLoadingPresentation {
     if (!this.blockedInput) return;
     this.blockedInput = false;
     delete document.documentElement.dataset.worldStartGate;
-    this.options.setModalOverlay(false);
+    try {
+      this.options.setModalOverlay(false);
+    } catch (error) {
+      console.warn("[Drusniel World] Modal input release failed.", error);
+    }
   }
 }
