@@ -16,16 +16,16 @@ import { instanceMatrixColumns } from "../../render/InstanceMatrixNode";
 import type { WorldNodeMaterialContext } from "../../render/WorldNodeMaterialContext";
 import { disposeResources } from "../../render/ResourceDisposal";
 import { applyWorldWetStandardMaterial } from "../../render/WorldWetSurfaceNodes";
+import { WORLD_WIND_RESPONSE } from "../weather/WorldWindMath";
+import {
+  createBakedWorldWindNodes,
+  createWorldWindFieldNodes,
+} from "../weather/WorldWindNodes";
 import {
   TREE_FAR_ALPHA_TEST,
   TREE_LEAF_ALPHA_TEST,
   TREE_WIND_FAR_SCALE,
-  TREE_WIND_HEIGHT_START,
-  TREE_WIND_MAX_INTENSITY,
-  TREE_WIND_PHASE_SPEED,
-  TREE_WIND_SECONDARY_GAIN,
-  TREE_WIND_SECONDARY_SPEED,
-  TREE_WIND_SWAY_METERS,
+  TREE_WIND_RESPONSE_VARIATION,
 } from "./WorldTreeTuning";
 
 export interface WorldTreeMaterials {
@@ -71,7 +71,7 @@ export function createWorldTreeMaterials(
 function createLeafMaterial(
   atlas: THREE.Texture,
   alphaTest: number,
-  swayScale: number,
+  responseScale: number,
   context?: WorldNodeMaterialContext,
 ): MeshStandardNodeMaterial {
   const material = new MeshStandardNodeMaterial({
@@ -94,33 +94,64 @@ function createLeafMaterial(
       const scaleX = worldAxisX.length().max(0.0001).toVar();
       const scaleY = worldAxisY.length().max(0.0001).toVar();
       const scaleZ = worldAxisZ.length().max(0.0001).toVar();
-      const directionRadians = wind.directionDegrees.mul(Math.PI / 180);
-      const worldDirection = vec3(
-        cos(directionRadians),
+      const worldRoot = modelWorldMatrix.mul(vec4(columns[3].xyz, 1)).xyz.toVar();
+      const field = wind.bakedField && wind.bakedOriginXZ
+        ? createBakedWorldWindNodes({
+          positionXZ: worldRoot.xz,
+          bakedField: wind.bakedField,
+          originXZ: wind.bakedOriginXZ,
+          worldSize: wind.bakedWorldSize,
+          time: wind.time,
+          noiseScale: wind.noiseScale,
+        })
+        : createWorldWindFieldNodes({
+          positionXZ: worldRoot.xz,
+          time: wind.time,
+          directionDegrees: wind.directionDegrees,
+          intensity: wind.intensity,
+          noiseScale: wind.noiseScale,
+        });
+      const response = WORLD_WIND_RESPONSE.trees;
+      const heightMeters = positionGeometry.y.max(0).mul(scaleY);
+      const radialMeters = vec3(
+        positionGeometry.x.mul(scaleX),
         0,
-        sin(directionRadians),
-      ).toVar();
-      const localDirection = vec3(
-        worldDirection.dot(worldAxisX.div(scaleX)).div(scaleX),
-        worldDirection.dot(worldAxisY.div(scaleY)).div(scaleY),
-        worldDirection.dot(worldAxisZ.div(scaleZ)).div(scaleZ),
+        positionGeometry.z.mul(scaleZ),
+      ).length();
+      const heightWeight = smoothstep(0, response.heightMeters, heightMeters);
+      const outerWeight = smoothstep(0, response.outerRadius, radialMeters);
+      const canopyWeight = heightWeight.mul(0.7).add(outerWeight.mul(0.3)).clamp(0, 1);
+      const treeVariation = sin(attribute("treePhase", "float"))
+        .mul(TREE_WIND_RESPONSE_VARIATION)
+        .add(1);
+      const bendMeters = field.strength
+        .mul(response.bendScale * responseScale)
+        .mul(canopyWeight)
+        .mul(treeVariation);
+      const perpendicularX = field.direction.y.negate();
+      const perpendicularZ = field.direction.x;
+      const flutterMeters = field.flutter
+        .mul(response.flutterScale * responseScale)
+        .mul(outerWeight);
+      const prevailingRadians = wind.directionDegrees.mul(Math.PI / 180);
+      const restMeters = wind.restBendGain
+        .mul(response.bendScale * responseScale)
+        .mul(canopyWeight);
+      const displacementWorld = vec3(
+        field.direction.x.mul(bendMeters)
+          .add(perpendicularX.mul(flutterMeters))
+          .add(cos(prevailingRadians).mul(restMeters)),
+        0,
+        field.direction.y.mul(bendMeters)
+          .add(perpendicularZ.mul(flutterMeters))
+          .add(sin(prevailingRadians).mul(restMeters)),
       );
-      const phase = wind.time
-        .mul(TREE_WIND_PHASE_SPEED)
-        .add(attribute("treePhase", "float"));
-      const wave = sin(phase).add(
-        sin(phase.mul(TREE_WIND_SECONDARY_SPEED).add(0.83)).mul(
-          TREE_WIND_SECONDARY_GAIN,
-        ),
+      const localDisplacement = vec3(
+        displacementWorld.dot(worldAxisX.div(scaleX)).div(scaleX),
+        displacementWorld.dot(worldAxisY.div(scaleY)).div(scaleY),
+        displacementWorld.dot(worldAxisZ.div(scaleZ)).div(scaleZ),
       );
-      const height = smoothstep(TREE_WIND_HEIGHT_START, 1, positionGeometry.y);
-      const intensity = wind.intensity.clamp(0, TREE_WIND_MAX_INTENSITY);
-      const bendMeters = wave
-        .add(wind.restBendGain.mul(0.2))
-        .mul(height)
-        .mul(intensity)
-        .mul(TREE_WIND_SWAY_METERS * swayScale);
-      const deformed = positionGeometry.add(localDirection.mul(bendMeters));
+      const deformed = positionGeometry.add(localDisplacement);
       return columns[0].xyz.mul(deformed.x)
         .add(columns[1].xyz.mul(deformed.y))
         .add(columns[2].xyz.mul(deformed.z))

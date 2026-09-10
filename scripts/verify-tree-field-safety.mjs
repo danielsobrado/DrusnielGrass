@@ -69,16 +69,28 @@ assert(
     material.includes("const worldAxisX = modelWorldMatrix.mul") &&
     material.includes("const worldAxisY = modelWorldMatrix.mul") &&
     material.includes("const worldAxisZ = modelWorldMatrix.mul") &&
-    material.includes("const height = smoothstep(TREE_WIND_HEIGHT_START, 1, positionGeometry.y)") &&
-    material.includes("const deformed = positionGeometry.add(localDirection.mul(bendMeters))") &&
-    material.includes("columns[0].xyz.mul(deformed.x)") &&
-    !material.includes("smoothstep(TREE_WIND_HEIGHT_START, 1, positionLocal.y)"),
+    material.includes("const deformed = positionGeometry.add(localDisplacement)") &&
+    material.includes("columns[0].xyz.mul(deformed.x)"),
   "Tree wind must deform source geometry before reconstructing the instance transform; Three applies instancing before positionNode.",
 );
 assert(
-  tuning.includes("TREE_WIND_SWAY_METERS = 0.12") &&
-    !tuning.includes("TREE_WIND_SWAY_LOCAL"),
-  "Tree sway must stay expressed in world metres rather than accidentally inheriting instance scale.",
+  material.includes("createBakedWorldWindNodes") &&
+    material.includes("createWorldWindFieldNodes") &&
+    material.includes("WORLD_WIND_RESPONSE.trees") &&
+    material.includes("field.strength") &&
+    material.includes("field.direction") &&
+    material.includes("field.flutter") &&
+    material.includes("positionXZ: worldRoot.xz") &&
+    material.includes("bakedField: wind.bakedField") &&
+    material.includes("originXZ: wind.bakedOriginXZ"),
+  "Tree crowns must consume the same spatial wind field and baked-field fallback contract as grass.",
+);
+assert(
+  tuning.includes("TREE_WIND_RESPONSE_VARIATION = 0.1") &&
+    !tuning.includes("TREE_WIND_SWAY_METERS") &&
+    !tuning.includes("TREE_WIND_PHASE_SPEED") &&
+    !tuning.includes("TREE_WIND_SECONDARY_SPEED"),
+  "Per-tree phase may vary response but must not reintroduce a second temporal wind model.",
 );
 assert(
   material.includes("material.alphaHash = true") &&
@@ -89,5 +101,5 @@ assert(
 );
 
 console.log(
-  "[tree-field-safety] Tree bounds, deterministic species, renderer/shade parity, wind coordinates, and LOD alpha verified.",
+  "[tree-field-safety] Tree bounds, deterministic species, renderer/shade parity, shared wind, and LOD alpha verified.",
 );
