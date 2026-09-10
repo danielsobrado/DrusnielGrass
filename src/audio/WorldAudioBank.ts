@@ -1,7 +1,10 @@
 import type { WorldAudioClip } from "./WorldAudioCatalog";
 import { WORLD_AUDIO_CLIPS, worldAudioClip } from "./WorldAudioCatalog";
 
-export type WorldAudioDecode = (url: string) => Promise<AudioBuffer | undefined>;
+export type WorldAudioDecode = (
+  url: string,
+  signal: AbortSignal,
+) => Promise<AudioBuffer | undefined>;
 
 interface BankEntry {
   readonly clip: WorldAudioClip;
@@ -20,6 +23,7 @@ interface BankEntry {
 export class WorldAudioBank {
   private readonly entries = new Map<string, BankEntry>();
   private readonly reportedMissing = new Set<string>();
+  private readonly abort = new AbortController();
   private clock = 0;
   private disposed = false;
 
@@ -82,7 +86,9 @@ export class WorldAudioBank {
   }
 
   dispose(): void {
+    if (this.disposed) return;
     this.disposed = true;
+    this.abort.abort();
     for (const entry of this.entries.values()) {
       entry.buffer = undefined;
       entry.bytes = 0;
@@ -94,8 +100,9 @@ export class WorldAudioBank {
   private async decodeOne(entry: BankEntry): Promise<AudioBuffer | undefined> {
     let buffer: AudioBuffer | undefined;
     try {
-      buffer = await this.decode(entry.clip.path);
+      buffer = await this.decode(entry.clip.path, this.abort.signal);
     } catch (error) {
+      if (this.disposed || this.abort.signal.aborted) return undefined;
       this.reportMissing(entry.clip, error);
       entry.missing = true;
       return undefined;
