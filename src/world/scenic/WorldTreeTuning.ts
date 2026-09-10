@@ -8,6 +8,7 @@ export const TREE_NEAR_RADIUS_COMPACT = 28;
 export const TREE_LOD_OVERLAP_METERS = 6;
 export const TREE_LOD_UPDATE_STEP = 0.1;
 export const TREE_LOD_VISIBLE_THRESHOLD = 0.015;
+export const TREE_STREAM_FADE_METERS = 8;
 export const TREE_WOOD_HORIZONTAL_SCALE = 0.48;
 export const TREE_WIND_FAR_SCALE = 0.45;
 export const TREE_WIND_RESPONSE_VARIATION = 0.1;

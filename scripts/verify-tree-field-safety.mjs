@@ -15,6 +15,7 @@ const source = read("src/world/scenic/WorldTreeField.ts");
 const tuning = read("src/world/scenic/WorldTreeTuning.ts");
 const material = read("src/world/scenic/WorldTreeMaterialFactory.ts");
 const resources = read("src/world/scenic/WorldTreeRenderResources.ts");
+const system = read("src/world/scenic/WorldTreeSystem.ts");
 
 function assert(condition, message) {
   if (!condition) {
@@ -108,7 +109,16 @@ assert(
     /disposeResources\(\[\s*\.\.\.meshes\.map\(\(mesh\) => \(\{ dispose: \(\) => mesh\.removeFromParent\(\) \}\)\),\s*\.\.\.meshes,/.test(resources),
   "Tree rollback and normal teardown must dispose InstancedMesh owners as well as geometry/material resources.",
 );
+assert(
+  tuning.includes("TREE_STREAM_FADE_METERS = 8") &&
+    system.includes("this.radius + TREE_REBUILD_STEP") &&
+    system.includes("this.radius - TREE_STREAM_FADE_METERS") &&
+    system.includes("const streamOpacity = 1 - smoothstep") &&
+    system.includes("* streamOpacity") &&
+    system.includes("streamOpacity <= TREE_LOD_VISIBLE_THRESHOLD"),
+  "Tree streaming must keep a rebuild guard band and fade the visible edge before roster membership changes.",
+);
 
 console.log(
-  "[tree-field-safety] Tree bounds, deterministic species, renderer/shade parity, shared wind, LOD alpha, and GPU ownership verified.",
+  "[tree-field-safety] Tree bounds, deterministic species, renderer/shade parity, shared wind, LOD alpha, GPU ownership, and stream continuity verified.",
 );

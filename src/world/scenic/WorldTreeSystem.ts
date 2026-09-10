@@ -26,6 +26,7 @@ import {
   TREE_PHASE_X_SCALE,
   TREE_PHASE_Z_SCALE,
   TREE_SPECIES_CANOPY_RADIUS,
+  TREE_STREAM_FADE_METERS,
   TREE_WOOD_HORIZONTAL_SCALE,
   WORLD_TREE_SPECIES,
   type WorldTreeSpecies,
@@ -93,7 +94,11 @@ export class WorldTreeSystem {
   private rebuildRoster(focus: THREE.Vector3): void {
     this.builtX = focus.x;
     this.builtZ = focus.z;
-    this.trees = this.field.collect(focus.x, focus.z, this.radius);
+    this.trees = this.field.collect(
+      focus.x,
+      focus.z,
+      this.radius + TREE_REBUILD_STEP,
+    );
     this.trees.sort(
       (a, b) => distanceSquared(a, focus) - distanceSquared(b, focus),
     );
@@ -110,11 +115,15 @@ export class WorldTreeSystem {
     const overlapHalf = TREE_LOD_OVERLAP_METERS * 0.5;
     const fadeStart = Math.max(0, this.nearRadius - overlapHalf);
     const fadeEnd = this.nearRadius + overlapHalf;
+    const streamFadeStart = Math.max(0, this.radius - TREE_STREAM_FADE_METERS);
 
     for (const tree of this.trees) {
       const distance = Math.sqrt(distanceSquared(tree, focus));
-      const farOpacity = smoothstep(fadeStart, fadeEnd, distance);
-      const nearOpacity = 1 - farOpacity;
+      const streamOpacity = 1 - smoothstep(streamFadeStart, this.radius, distance);
+      if (streamOpacity <= TREE_LOD_VISIBLE_THRESHOLD) continue;
+      const farBlend = smoothstep(fadeStart, fadeEnd, distance);
+      const farOpacity = farBlend * streamOpacity;
+      const nearOpacity = (1 - farBlend) * streamOpacity;
       const canopyRadius =
         tree.canopyScale *
         TREE_CANOPY_RADIUS_SCALE *
