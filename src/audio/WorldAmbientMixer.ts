@@ -99,7 +99,7 @@ export class WorldAmbientMixer {
     return this.fade;
   }
 
-  update(deltaSeconds: number): WorldAmbientGains {
+  update(deltaSeconds: number, outputEnabled = true): WorldAmbientGains {
     if (this.disposed) return this.current;
     const delta = Math.max(0, deltaSeconds);
     if (this.fade < 1) {
@@ -109,7 +109,7 @@ export class WorldAmbientMixer {
       );
       this.current = mixGains(this.start, this.target, this.fade);
     }
-    this.syncVoices();
+    if (outputEnabled) this.syncVoices();
     return this.current;
   }
 
@@ -188,6 +188,11 @@ export class WorldAmbientMixer {
         loop: true,
       });
       if (voice) this.playing.set(bed.clipId, voice);
+    } catch (error) {
+      console.warn(
+        `[Drusniel World] Ambient audio bed unavailable: ${bed.clipId}.`,
+        error,
+      );
     } finally {
       this.loading.delete(bed.clipId);
     }
