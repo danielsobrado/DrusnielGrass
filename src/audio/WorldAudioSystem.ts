@@ -69,6 +69,7 @@ export class WorldAudioSystem {
   private habitatTarget: WorldHabitatWeights = { ...EMPTY_AUDIO_HABITAT };
   private habitatAge = 1;
   private presetId?: WorldWeatherSnapshot["presetId"];
+  private essentialsWarmed = false;
   private disposed = false;
 
   constructor(
@@ -92,9 +93,6 @@ export class WorldAudioSystem {
       }
       throw error;
     }
-    for (const clip of worldAudioPresetEssentials()) {
-      void this.resources.bank.load(clip.id);
-    }
   }
 
   update(deltaSeconds: number): void {
@@ -105,6 +103,9 @@ export class WorldAudioSystem {
     this.permission.update();
     const ambientAudible = this.permission.isAmbientAudible();
     const effectsAudible = this.permission.isEffectsAudible();
+    if (!this.essentialsWarmed && (ambientAudible || effectsAudible)) {
+      this.warmEssentials();
+    }
     const focus = this.options.focus();
 
     this.habitatAge += delta;
@@ -198,6 +199,13 @@ export class WorldAudioSystem {
         wetness,
       );
       this.resources.footsteps.play(event, surface, 1);
+    }
+  }
+
+  private warmEssentials(): void {
+    this.essentialsWarmed = true;
+    for (const clip of worldAudioPresetEssentials()) {
+      void this.resources.bank.load(clip.id);
     }
   }
 
