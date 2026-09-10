@@ -132,11 +132,12 @@ function disposeAudioListener(listener: THREE.AudioListener): void {
 }
 
 function decodeWith(listener: THREE.AudioListener): WorldAudioDecode {
-  return async (url) => {
+  return async (url, signal) => {
     try {
-      const response = await fetch(url);
-      if (!response.ok) return undefined;
+      const response = await fetch(url, { signal });
+      if (!response.ok || signal.aborted) return undefined;
       const bytes = await response.arrayBuffer();
+      if (signal.aborted) return undefined;
       return await listener.context.decodeAudioData(bytes.slice(0));
     } catch {
       return undefined;
