@@ -82,7 +82,7 @@ export function createWorldAudioResources(
         mixer,
         voices,
         bank,
-        { dispose: () => listener.removeFromParent() },
+        { dispose: () => disposeAudioListener(listener) },
       ]);
     } catch (cleanupError) {
       console.warn(
@@ -101,8 +101,34 @@ export function disposeWorldAudioResources(resources: WorldAudioResources): void
     resources.mixer,
     resources.voices,
     resources.bank,
-    { dispose: () => resources.listener.removeFromParent() },
+    { dispose: () => disposeAudioListener(resources.listener) },
   ]);
+}
+
+function disposeAudioListener(listener: THREE.AudioListener): void {
+  let firstError: unknown;
+  let failed = false;
+  const attempt = (release: () => void): void => {
+    try {
+      release();
+    } catch (error) {
+      if (!failed) {
+        failed = true;
+        firstError = error;
+      }
+    }
+  };
+
+  const filter = listener.getFilter();
+  if (filter) {
+    attempt(() => listener.gain.disconnect(filter));
+    attempt(() => filter.disconnect(listener.context.destination));
+  } else {
+    attempt(() => listener.gain.disconnect(listener.context.destination));
+  }
+  attempt(() => listener.removeFromParent());
+
+  if (failed) throw firstError;
 }
 
 function decodeWith(listener: THREE.AudioListener): WorldAudioDecode {
