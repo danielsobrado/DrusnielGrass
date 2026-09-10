@@ -1,7 +1,13 @@
 import type { WorldWeatherSnapshot } from "../world/weather/WorldWeatherState";
 import type { WorldAudioBank } from "./WorldAudioBank";
 import { worldAudioClip } from "./WorldAudioCatalog";
-import { WORLD_AUDIO_PRESET_FADE_SECONDS } from "./WorldAudioTuning";
+import {
+  WORLD_AUDIO_PRESET_FADE_SECONDS,
+  WORLD_AUDIO_RAIN_GAIN_BASE,
+  WORLD_AUDIO_RAIN_GAIN_BOOST,
+  WORLD_AUDIO_RAIN_GAIN_BOOST_END,
+  WORLD_AUDIO_RAIN_GAIN_BOOST_START,
+} from "./WorldAudioTuning";
 import type { WorldAudioVoices } from "./WorldAudioVoices";
 
 export interface WorldAmbientGains {
@@ -193,7 +199,12 @@ export function ambientGainsFromWeather(
 ): WorldAmbientGains {
   const wind = clamp01(weather.windIntensity) * 0.22;
   const rain = clamp01(weather.rainIntensity);
-  const rainBed = rain < 0.35 ? rain * 0.55 : 0.2 + rain * 0.55;
+  const boost = smooth01(
+    (rain - WORLD_AUDIO_RAIN_GAIN_BOOST_START) /
+      (WORLD_AUDIO_RAIN_GAIN_BOOST_END - WORLD_AUDIO_RAIN_GAIN_BOOST_START),
+  );
+  const rainBed =
+    rain * WORLD_AUDIO_RAIN_GAIN_BASE + boost * WORLD_AUDIO_RAIN_GAIN_BOOST;
   return clampGains({
     wind: wind * (1 - rain * 0.25),
     rain: rainBed,
@@ -236,10 +247,14 @@ export function mixGains(
 }
 
 function rainHeavyBlend(rainGain: number): number {
-  const t = clamp01(
+  return smooth01(
     (rainGain - RAIN_HEAVY_BLEND_START) /
       (RAIN_HEAVY_BLEND_END - RAIN_HEAVY_BLEND_START),
   );
+}
+
+function smooth01(value: number): number {
+  const t = clamp01(value);
   return t * t * (3 - 2 * t);
 }
 
