@@ -25,6 +25,8 @@ const DEFAULT_BUS_GAINS: Readonly<Record<WorldAudioBus, number>> = Object.freeze
   ambient: 1,
   effects: 1,
 });
+const MAX_AMBIENT_VOICES = 6;
+const RESERVED_POSITIONAL_VOICES = 2;
 
 /**
  * Bounded pool of Three.js voices. Stereo ambient beds use non-positional
@@ -42,7 +44,10 @@ export class WorldAudioVoices {
     if (!Number.isInteger(capacity) || capacity < 1) {
       throw new Error("Audio voice capacity must be a positive integer.");
     }
-    const ambientCount = Math.min(5, Math.max(1, capacity - 3));
+    const ambientCount = Math.min(
+      MAX_AMBIENT_VOICES,
+      Math.max(1, capacity - RESERVED_POSITIONAL_VOICES),
+    );
     for (let index = 0; index < ambientCount; index += 1) {
       this.slots.push({
         audio: new THREE.Audio(listener) as THREE.Audio | THREE.PositionalAudio,
@@ -93,7 +98,15 @@ export class WorldAudioVoices {
     const wantPositional = options.position !== undefined;
     const slot = this.claim(wantPositional);
     if (!slot) return undefined;
-    this.stopSlot(slot);
+    try {
+      this.stopSlot(slot);
+    } catch (error) {
+      console.warn(
+        `[Drusniel World] Audio voice reuse failed for ${options.clipId}.`,
+        error,
+      );
+      return undefined;
+    }
     slot.clipId = options.clipId;
     slot.bus = options.bus;
     slot.sourceGain = sourceGain;
