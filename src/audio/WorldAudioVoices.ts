@@ -160,6 +160,19 @@ export class WorldAudioVoices {
     const next = clampGain(gain);
     if (this.busGains[bus] === next) return;
     this.busGains[bus] = next;
+
+    if (bus === "effects" && next <= 0) {
+      for (const slot of this.slots) {
+        if (slot.bus !== "effects" || !slot.clipId) continue;
+        try {
+          this.stopSlot(slot);
+        } catch (error) {
+          console.warn("[Drusniel World] Muted effect cleanup failed.", error);
+        }
+      }
+      return;
+    }
+
     for (const slot of this.slots) {
       if (slot.bus === bus && slot.clipId) this.applyGain(slot);
     }
