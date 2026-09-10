@@ -16,6 +16,7 @@ import {
   type WorldTreeRenderResources,
 } from "./WorldTreeRenderResources";
 import {
+  TREE_FOLIAGE_NORMALIZED_RADIUS,
   TREE_LOD_OVERLAP_METERS,
   TREE_LOD_UPDATE_STEP,
   TREE_LOD_VISIBLE_THRESHOLD,
@@ -180,7 +181,11 @@ function writeNearTree(
   setTreeTransform(tree, canopyRadius * TREE_WOOD_HORIZONTAL_SCALE, tree.height);
   meshes.wood.setMatrixAt(index, scratch.matrix);
   meshes.woodOpacity.setX(index, opacity);
-  setTreeTransform(tree, canopyRadius, tree.height);
+  setTreeTransform(
+    tree,
+    canopyRadius / TREE_FOLIAGE_NORMALIZED_RADIUS[tree.species],
+    tree.height,
+  );
   meshes.foliage.setMatrixAt(index, scratch.matrix);
   meshes.foliagePhase.setX(index, treeWindPhase(tree));
   meshes.foliageOpacity.setX(index, opacity);

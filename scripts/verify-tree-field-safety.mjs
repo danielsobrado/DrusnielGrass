@@ -13,6 +13,7 @@ function read(relativePath) {
 
 const source = read("src/world/scenic/WorldTreeField.ts");
 const tuning = read("src/world/scenic/WorldTreeTuning.ts");
+const geometry = read("src/world/scenic/WorldTreeGeometryFactory.ts");
 const material = read("src/world/scenic/WorldTreeMaterialFactory.ts");
 const resources = read("src/world/scenic/WorldTreeRenderResources.ts");
 const system = read("src/world/scenic/WorldTreeSystem.ts");
@@ -58,6 +59,18 @@ assert(
     tuning.includes("birch: 0.78") &&
     tuning.includes("evergreen: 0.82"),
   "Canopy shade must use the same species radius factors as the tree renderer.",
+);
+assert(
+  tuning.includes("TREE_FOLIAGE_NORMALIZED_RADIUS") &&
+    tuning.includes("oak: 0.78") &&
+    tuning.includes("birch: 0.51") &&
+    tuning.includes("evergreen: 0.74") &&
+    geometry.includes("TREE_FOLIAGE_NORMALIZED_RADIUS.oak * 2") &&
+    geometry.includes("TREE_FOLIAGE_NORMALIZED_RADIUS.birch * 2") &&
+    geometry.includes("TREE_FOLIAGE_NORMALIZED_RADIUS.evergreen * 2") &&
+    system.includes("canopyRadius / TREE_FOLIAGE_NORMALIZED_RADIUS[tree.species]") &&
+    geometry.includes("card(2, 1.04, 0.52, 0, yaw, far)"),
+  "Near foliage and far impostors must resolve the authored canopy radius to the same physical crown width used by ecology.",
 );
 assert(
   source.includes("TREE_EVERGREEN_MAX_SHARE") &&
@@ -143,5 +156,5 @@ assert(
 );
 
 console.log(
-  "[tree-field-safety] Tree bounds, deterministic species, renderer/shade parity, shared wind, LOD alpha, material rollback, GPU ownership, radial stream continuity, and stream fade verified.",
+  "[tree-field-safety] Tree bounds, deterministic species, physical canopy parity, shared wind, LOD alpha, material rollback, GPU ownership, radial stream continuity, and stream fade verified.",
 );

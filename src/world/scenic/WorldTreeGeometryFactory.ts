@@ -1,7 +1,10 @@
 import * as THREE from "three";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
 import type { WorldTreeAtlasRect } from "./WorldTreeAtlasFactory";
-import type { WorldTreeSpecies } from "./WorldTreeTuning";
+import {
+  TREE_FOLIAGE_NORMALIZED_RADIUS,
+  type WorldTreeSpecies,
+} from "./WorldTreeTuning";
 
 const UP = new THREE.Vector3(0, 1, 0);
 
@@ -63,15 +66,15 @@ export function createWorldTreeFoliageGeometry(
 ): THREE.BufferGeometry {
   const parts: THREE.BufferGeometry[] = [];
   if (species === "oak") {
-    addCrownLayer(parts, leaf, 0.68, 1.56, 0.42, 3, 0);
+    addCrownLayer(parts, leaf, 0.68, TREE_FOLIAGE_NORMALIZED_RADIUS.oak * 2, 0.42, 3, 0);
     addCrownLayer(parts, leaf, 0.82, 1.36, 0.38, 3, Math.PI / 6);
     parts.push(card(1.18, 1.18, 0.88, Math.PI / 2, 0, leaf));
   } else if (species === "birch") {
-    addCrownLayer(parts, leaf, 0.7, 1.02, 0.48, 3, 0);
+    addCrownLayer(parts, leaf, 0.7, TREE_FOLIAGE_NORMALIZED_RADIUS.birch * 2, 0.48, 3, 0);
     addCrownLayer(parts, leaf, 0.84, 0.86, 0.42, 3, Math.PI / 6);
     addCrownLayer(parts, leaf, 0.94, 0.62, 0.3, 2, Math.PI / 4);
   } else {
-    parts.push(card(1.48, 0.34, 0.55, 0, 0, leaf));
+    parts.push(card(TREE_FOLIAGE_NORMALIZED_RADIUS.evergreen * 2, 0.34, 0.55, 0, 0, leaf));
     parts.push(card(1.48, 0.34, 0.55, 0, Math.PI / 2, leaf));
     parts.push(card(1.16, 0.3, 0.7, 0, Math.PI / 3, leaf));
     parts.push(card(1.16, 0.3, 0.7, 0, Math.PI * 5 / 6, leaf));
