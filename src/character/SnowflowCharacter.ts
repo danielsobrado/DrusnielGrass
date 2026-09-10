@@ -1,5 +1,6 @@
 import * as THREE from "three";
 import { MeshStandardNodeMaterial } from "three/webgpu";
+import type { ActorGait } from "../actor/animation/ActorGait";
 import { createActorAnimationInput } from "../actor/animation/ActorAnimationInput";
 import { ActorAnimationRuntime } from "../actor/animation/ActorAnimationRuntime";
 import type { ActorTerrainContactSampler } from "../actor/ik/ActorTerrainContact";
@@ -75,6 +76,8 @@ export class SnowflowCharacter {
   );
   private disposed = false;
   private materialContextBound = false;
+  private pendingTeleport = false;
+  private lastPose?: SnowflowCharacterPose;
 
   constructor(
     scene: THREE.Scene,
@@ -115,6 +118,7 @@ export class SnowflowCharacter {
     if (delta <= 0) {
       this.cloth.reset();
     }
+    this.lastPose = pose;
     this.rig.root.position.copy(pose.position);
     this.rig.heading.rotation.y = pose.facing;
     this.updateSlope(pose.grounded ? pose.groundNormal : UP, delta);
@@ -129,6 +133,8 @@ export class SnowflowCharacter {
     if (this.disposed) {
       return;
     }
+    this.lastPose = pose;
+    this.pendingTeleport = true;
     this.rig.root.position.copy(pose.position);
     this.rig.heading.rotation.y = pose.facing;
     this.updateSlope(pose.grounded ? pose.groundNormal : UP, 0, true);
@@ -241,6 +247,27 @@ export class SnowflowCharacter {
 
   getLocomotionBlendWeights() {
     return this.profile.locomotion.getBlendWeights();
+  }
+
+  getGait(): ActorGait {
+    return this.profile.gait;
+  }
+
+  copyFootWorldPosition(foot: "left" | "right", target: THREE.Vector3): void {
+    const bone = foot === "left" ? this.rig.leftFoot : this.rig.rightFoot;
+    bone.getWorldPosition(target);
+  }
+
+  consumeTeleported(): boolean {
+    const value = this.pendingTeleport;
+    this.pendingTeleport = false;
+    return value;
+  }
+
+  getContactPose(): Pick<
+    SnowflowCharacterPose, "grounded" | "speed" | "landed" | "landingImpact"
+  > | undefined {
+    return this.lastPose;
   }
 
   setExplicitLocomotionWeights(

@@ -17,6 +17,7 @@ import {
   type WorldWeatherState,
 } from "../world/weather/WorldWeatherState";
 import { attachWorldRain, type WorldRainSystem } from "../world/weather/WorldRainSystem";
+import { attachWorldAudio } from "../audio/WorldAudioSystem";
 import { WorldLightingState } from "../render/WorldLightingState";
 import { hudSettingsStore } from "../runtime/HudSettingsStore";
 import { WorldViewState } from "../runtime/WorldViewState";
@@ -187,16 +188,18 @@ export class WorldApp {
         },
       });
       environment.materialContext.setWorldWindUniforms(this.weather?.windUniforms);
-      if (this.weather) {
-        this.rain = attachWorldRain(this.experience, {
-          scene: this.scene,
-          terrain: this.field,
-          weather: this.weather,
-          focus: () => controls?.getStreamingPosition() ?? spawn.position,
-          compact: profile.compact,
-          seed: config.seed,
-        });
-      }
+      const audioFocus = () => controls?.getStreamingPosition() ?? spawn.position;
+      this.rain = this.weather ? attachWorldRain(this.experience, {
+        scene: this.scene, terrain: this.field, weather: this.weather,
+        focus: audioFocus, compact: profile.compact, seed: config.seed,
+      }) : undefined;
+      attachWorldAudio(this.experience, {
+        camera: this.camera, scene: this.scene, terrain: this.field,
+        weather: this.weather, rain: this.rain, compact: profile.compact,
+        seed: config.seed, flyMode: useFlyControls, focus: audioFocus,
+        getCharacter: () => controls instanceof ThirdPersonController
+          ? controls.getCharacter() : undefined,
+      });
       environment.materialContext.setWorldPrecipitation(
         this.rain?.uniforms,
         this.rain?.wetness,

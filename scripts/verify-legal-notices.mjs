@@ -59,6 +59,11 @@ for (const required of [
   "CC0 1.0 Universal",
   "public/models/skeletons/LICENSE.txt",
   "public/models/skeletons/CREDITS.md",
+  "## Environmental sound bank",
+  "public/audio/CATALOG.md",
+  "public/audio/LICENSE.txt",
+  "public/audio/CREDITS.md",
+  "61 MP3 files",
   "## Snowflow procedural character",
 ]) {
   assert(
@@ -68,7 +73,7 @@ for (const required of [
 }
 assertMitSection(notice, "## Three.js", "## stats-gl");
 assertMitSection(notice, "## stats-gl", "## KayKit Character Pack: Skeletons");
-assertMitSection(notice, "## Snowflow procedural character");
+assertMitSection(notice, "## Snowflow procedural character", "## Environmental sound bank");
 
 for (const fileName of ["CREDITS.md", "LICENSE.txt", ...SKELETON_MODELS]) {
   assert(
@@ -90,6 +95,24 @@ assert(
   "Skeleton asset directory must ship the upstream CC0 license name and canonical 1.0 URL.",
 );
 
+const AUDIO_DIRECTORY = resolve(REPOSITORY_ROOT, "public", "audio");
+for (const fileName of ["CREDITS.md", "LICENSE.txt", "CATALOG.md"]) {
+  assert(
+    existsSync(resolve(AUDIO_DIRECTORY, fileName)),
+    `Shipped audio bank is missing ${fileName}.`,
+  );
+}
+const audioCredits = readFileSync(resolve(AUDIO_DIRECTORY, "CREDITS.md"), "utf8");
+const audioLicense = readFileSync(resolve(AUDIO_DIRECTORY, "LICENSE.txt"), "utf8");
+assert(
+  audioCredits.includes("CATALOG.md") && audioCredits.includes("CC0"),
+  "Audio provenance must point at the catalogued CC0 claim.",
+);
+assert(
+  audioLicense.includes("CC0") && audioLicense.includes(CC0_LICENSE_URL),
+  "Audio bank directory must ship the CC0 license name and canonical 1.0 URL.",
+);
+
 console.log(
-  "[legal-notices] Self-contained MIT notices, shipped model dependency notices, and skeleton provenance verified.",
+  "[legal-notices] Self-contained MIT notices, shipped model dependency notices, skeleton provenance, and audio-bank notices verified.",
 );

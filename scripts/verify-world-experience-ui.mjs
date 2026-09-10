@@ -60,7 +60,9 @@ try {
     "Runtime-unavailable controls must read visibly disabled rather than silently ignore input.");
 
   const panel = read("src/ui/WorldExperiencePanel.ts");
-  for (const live of ["weather", "wind", "speed", "renderScale", "interaction", "invert", "sound"]) {
+  assert.ok(panel.includes("Audio arrives in T06") === false,
+    "T06 must replace the deferred-audio placeholder with live volume controls.");
+  for (const live of ["weather", "wind", "speed", "renderScale", "interaction", "invert", "sound", "masterVolume", "ambientVolume", "effectsVolume"]) {
     assert.ok(panel.includes(`data-setting=\"${live}\"`), `Missing usable T04 control ${live}.`);
   }
   for (const future of ["Grass shape", "Grass height", "Quality", "Scenic tour", "Grass painter", "Character"]) {

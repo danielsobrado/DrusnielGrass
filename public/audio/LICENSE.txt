@@ -1,0 +1,8 @@
+Creative Commons CC0 1.0 Universal
+
+The environmental sound files under public/audio/ are catalogued as CC0
+(Public Domain) in public/audio/CATALOG.md.
+
+License: http://creativecommons.org/publicdomain/zero/1.0/
+
+The work is provided as-is, without warranty of any kind.

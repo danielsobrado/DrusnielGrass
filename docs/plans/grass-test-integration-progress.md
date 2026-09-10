@@ -25,7 +25,9 @@ Implementation started 2026-09-06. Full scope is authorized; deployment is not r
 | T02 | Complete | Shared cinematic wind is the default (`DEFAULT_WIND_MODEL`). The field matches the source model over 960 samples; CPU/GPU gusts share one gradient lattice. Near/mid/far grass consume the same cinematic gust and Lowsway rest bend. `?windModel=legacy` remains the comparison baseline. Held by `verify-world-wind.mjs`. |
 | T03 | Complete | Eight presets (`drusniel`, Highfield, Emberfall, Greyrain, Galewind, Stillmeadow, Lowsway, Moonrise) owned by `WorldWeatherState`. Ordinary switching is now the T04 Settings selector; `?diagnostics=1` still exposes `window.__drusnielWeather`. Browser/dev-hook visual pass recorded 2026-09-08. Ecology and river placement were not retuned. |
 | T04 | Complete | Iris, Start gate, Scene Settings, modal/minimap isolation and capture/QA bypass. Local `npm run build`, renderer-matrix 13/13, production-renderers 8/8, wind-cost convergence and an interactive WebGPU/WebGL 2 / compact pass recorded 2026-09-09. Live GPU-loss while Start/Settings owns input was not injected; that path stays on the bootstrap-recovery mocks. |
-| T05–T16 | Pending | Next is T05 (rain, wetness and local water impacts). Deployment is not requested. |
+| T05 | Complete | Local instanced rain, shared wetness, hydrology-validated water contacts and rain ripples on existing water. Precipitation gates are in `npm run build`. Browser visual pass recorded 2026-09-09 on WebGPU, WebGL 2 and compact. `test:wind-cost` was not rerun; in-session frame times stayed interactive. Deployment is not requested. |
+| T06 | Implemented; listening remaining | Catalogued 61 CC0 clips, listener/bank/voice pool, Start/sound-toggle unlock, ambient mixer, gait foot contacts, surface class, spatial emitters, T05 water-contact feed. Held by `verify-world-audio.mjs` in `npm run build`. Browser listening pass not yet recorded. Deployment is not requested. |
+| T07–T16 | Pending | Next is T07 after T06 listening acceptance. Deployment is not requested. |
 
 **Renderer inventory: 0 pending.** 98 ported and comparison-gated, 94
 development comparison locations, 7 exempt, and 4 shipped-GLSL modules retained
@@ -498,4 +500,31 @@ Head `28dc0bf`. Full `npm run build` exit 0 after three verifier regex updates f
 
 **Automation.** `test:renderer-matrix` 13/13 and `test:production-renderers` 8/8 screenshots are the world, not the Start card. `test:wind-cost` converged on both backends with capture bypass. `test:bootstrap-recovery` passed the mocked loss/cancel cases.
 
-T05 is not started. Deployment is not requested.
+T05 visual acceptance is recorded below. Deployment is not requested.
+
+### 2026-09-09 T05 visual acceptance
+
+Head `59f31b8`. Precipitation, wetness and water-contact contracts already sat in `npm run build` (`test:world-precipitation`). This pass is the remaining visual/runtime check from the ticket. `test:wind-cost` was not rerun.
+
+Interactive world on long-lived Vite `http://localhost:5173/` (label `v0.9.6+b425715f0c2c`; source at this head). Start gate bypassed with `qa=visual-matrix` or `qa=t05`. Weather via `window.__drusnielWeather` / `?weather=`. Poses via `__FLUFFY_WORLD_VISUAL_QA__`. Rain mesh inspected live as `world-rain`.
+
+| Check | Evidence |
+| --- | --- |
+| Dry baseline | Highfield (`sunny`) meadow `g10-meadow`. Canvas `data-renderer=webgpu`. Rain mesh later confirmed absent on dry. |
+| Rain on | Greyrain (`rainy`) at the same meadow, then `g10-grazing-horizon`. Fog/overcast grade, grass slightly greener. Rain mesh `visible`, `count=4000`, material `world-rain-node-material`. |
+| Streaks | Visible as local pale streaks on `w0-river-shallow-grazing` (low grazing river, ~0.5–8 m AGL) against sky/water. |
+| Local volume | `g10-elevated` (42 m look-down) showed Greyrain fog over the meadow, not a world-wide water plane. Rain stays a 32 m focus volume. |
+| Hillside + teleport | `g10-slope` (~400 m from meadow). After the cut, rain still `visible` / `count=4000` — recenter, no deallocation. Slope, flowers, deer and a water edge remained. |
+| River / lake | River grazing: flow, bed rocks, rain streaks. Lake top-down `w0-lake-deep`: concentric rain-ripple rings on the hydrologic surface. |
+| Fog | Greyrain short visibility on meadow, horizon, hillside and river. |
+| Dry recovery | `sunny` from `w0-stone-wake`: rain count 4000 → 1183 during the 0.55 s intensity ease, then `visible=false` / `count=0`. Waterfall close-up with rain off still showed cascade, white water and the existing stone-wake field. Inland `s1-truth-close` stones were dry tan rock, not globally rain-wet. |
+| Compact | `?profile=compact&weather=rainy&renderer=webgpu`: `data-viewport=compact`, rain `count=1000`, `visible=true`, ~81–98 FPS. |
+| WebGL 2 | `?renderer=webgl&weather=rainy`: canvas `data-renderer=webgl2`, rain `count=4000` / `visible=true`, 0 page errors. Same URL with `weather=sunny`: rain `visible=false` / `count=0`. |
+
+Sustained fly-mode frame times while raining were typically 55–144 FPS on this machine (iris/preset cuts briefly cheaper). No rain-pass collapse that would justify rerunning `test:wind-cost`.
+
+T06 may start. Deployment is not requested.
+
+### 2026-09-09 T06 implementation
+
+Working tree on `main`. `verify-world-audio.mjs` is in `npm run build`. Interactive Vite `http://localhost:5173/` Start-gesture smoke: sound checkbox on, **Enter the world** (user activation true, start gate released), 0 page/autoplay errors, essentials `ambient/highfield-wind-01.mp3` and `ambient/rain-light-01.mp3` fetched, Settings volume sliders present. A full listening pass of rain/wind beds, footsteps and contact ripples is still owed before T06 acceptance. Deployment is not requested.

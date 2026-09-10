@@ -138,7 +138,10 @@ export class WorldExperiencePanel {
         </fieldset>
         <fieldset><legend>Sound</legend>
           <label class="world-experience-check"><span>Enable sound when available</span><input data-setting="sound" type="checkbox"></label>
-          <p class="world-experience-note">Audio arrives in T06. This preference is saved now and never blocks play.</p>
+          <label>Master<div class="world-experience-range"><input data-setting="masterVolume" type="range" min="0" max="1" step="0.05"><output data-output="masterVolume"></output></div></label>
+          <label>Ambient<div class="world-experience-range"><input data-setting="ambientVolume" type="range" min="0" max="1" step="0.05"><output data-output="ambientVolume"></output></div></label>
+          <label>Effects<div class="world-experience-range"><input data-setting="effectsVolume" type="range" min="0" max="1" step="0.05"><output data-output="effectsVolume"></output></div></label>
+          <p class="world-experience-note">Playback starts from Enter the world or the sound toggle. Capture and QA stay silent without changing this preference.</p>
         </fieldset>
         <fieldset><legend>Experience</legend>
           ${unavailable("Scenic tour", "Available in T12")}
@@ -207,6 +210,13 @@ export class WorldExperiencePanel {
       hudSettingsStore.setRenderScale(value);
       this.host?.setRenderScale(value);
     }
+    if (
+      setting === "masterVolume" ||
+      setting === "ambientVolume" ||
+      setting === "effectsVolume"
+    ) {
+      hudSettingsStore.setVolumes({ [setting]: value });
+    }
     this.setOutput(setting, value);
   };
 
@@ -239,9 +249,15 @@ export class WorldExperiencePanel {
     this.setChecked("interaction", live?.interactionEnabled ?? stored.interactionEnabled);
     this.setChecked("invert", stored.invertHorizontalMovement);
     this.setChecked("sound", stored.soundEnabled);
+    this.setValue("masterVolume", stored.masterVolume);
+    this.setValue("ambientVolume", stored.ambientVolume);
+    this.setValue("effectsVolume", stored.effectsVolume);
     this.setOutput("wind", live?.windGain ?? 1);
     this.setOutput("speed", live?.simulationSpeed ?? 1);
     this.setOutput("renderScale", live?.renderScale ?? stored.renderScale);
+    this.setOutput("masterVolume", stored.masterVolume);
+    this.setOutput("ambientVolume", stored.ambientVolume);
+    this.setOutput("effectsVolume", stored.effectsVolume);
 
     for (const setting of WORLD_BOUND_SETTINGS) {
       this.setDisabled(setting, !this.host);

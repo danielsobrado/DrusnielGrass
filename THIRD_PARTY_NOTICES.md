@@ -124,3 +124,18 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
+## Environmental sound bank
+
+The 61 MP3 files under public/audio/ were staged from the grass-test local
+sound bank catalog (public/Assets/Audio/ ambient, footsteps, water, wildlife
+and transitions folders). Root-level duplicates and _backup / _alt copies
+were not imported.
+
+- Inventory: public/audio/CATALOG.md
+- License text: public/audio/LICENSE.txt
+- Provenance notes: public/audio/CREDITS.md
+- Catalog claim: CC0 1.0 Universal, sourced from OpenGameArt.org
+- Canonical license URL: <http://creativecommons.org/publicdomain/zero/1.0/>
+
+This repository records that catalog claim. It does not independently recertify
+per-file origins.
