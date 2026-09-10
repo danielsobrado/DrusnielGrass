@@ -102,7 +102,9 @@ export class WorldAudioSystem {
     const delta = Number.isFinite(deltaSeconds) && deltaSeconds > 0
       ? deltaSeconds
       : 0;
-    const audible = this.permission.update();
+    this.permission.update();
+    const ambientAudible = this.permission.isAmbientAudible();
+    const effectsAudible = this.permission.isEffectsAudible();
     const focus = this.options.focus();
 
     this.habitatAge += delta;
@@ -139,11 +141,11 @@ export class WorldAudioSystem {
       this.resources.mixer.follow(desired);
     }
 
-    this.resources.mixer.update(delta);
-    if (audible) {
+    this.resources.mixer.update(delta, ambientAudible);
+    if (effectsAudible) {
       this.resources.emitters.update(delta, focus, this.habitat, 1);
     }
-    this.pollFeet(audible);
+    this.pollFeet(effectsAudible);
   }
 
   dispose(): void {
@@ -156,7 +158,7 @@ export class WorldAudioSystem {
     ]);
   }
 
-  private pollFeet(audible: boolean): void {
+  private pollFeet(effectsAudible: boolean): void {
     const character = this.options.flyMode
       ? undefined
       : this.options.getCharacter();
@@ -189,7 +191,7 @@ export class WorldAudioSystem {
           ? WORLD_AUDIO_LANDING_STRENGTH
           : WORLD_AUDIO_FOOT_STRENGTH,
       });
-      if (!audible) continue;
+      if (!effectsAudible) continue;
       const surface = this.resources.classifier.classify(
         event.position.x,
         event.position.z,
@@ -200,7 +202,7 @@ export class WorldAudioSystem {
   }
 
   private cueTransition(presetId: WorldWeatherSnapshot["presetId"]): void {
-    if (!this.permission.isAudible()) return;
+    if (!this.permission.isEffectsAudible()) return;
     const clip = worldAudioPresetEssentials().find(
       (entry) => entry.kind === "transition",
     );
@@ -210,7 +212,7 @@ export class WorldAudioSystem {
         !buffer ||
         this.disposed ||
         this.presetId !== presetId ||
-        !this.permission.isAudible()
+        !this.permission.isEffectsAudible()
       ) {
         return;
       }
