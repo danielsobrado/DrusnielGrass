@@ -23,7 +23,7 @@ export const TREE_ATLAS_COLUMNS = 4;
 export const TREE_ATLAS_ROWS = 2;
 export const TREE_ATLAS_TILE_SIZE = 256;
 export const TREE_ATLAS_ANISOTROPY = 8;
-export const TREE_ATLAS_UV_INSET_PIXELS = 2;
+export const TREE_ATLAS_UV_INSET_PIXELS = 8;
 
 export const TREE_EVERGREEN_BASE_SHARE = 0.1;
 export const TREE_EVERGREEN_ROCKINESS_GAIN = 0.2;

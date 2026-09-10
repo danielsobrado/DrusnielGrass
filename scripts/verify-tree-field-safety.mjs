@@ -17,6 +17,7 @@ const geometry = read("src/world/scenic/WorldTreeGeometryFactory.ts");
 const material = read("src/world/scenic/WorldTreeMaterialFactory.ts");
 const resources = read("src/world/scenic/WorldTreeRenderResources.ts");
 const system = read("src/world/scenic/WorldTreeSystem.ts");
+const atlas = read("src/world/scenic/WorldTreeAtlasFactory.ts");
 
 function assert(condition, message) {
   if (!condition) {
@@ -73,7 +74,8 @@ assert(
   "Near foliage and far impostors must resolve the authored canopy radius to the same physical crown width used by ecology.",
 );
 assert(
-  source.includes("TREE_EVERGREEN_MAX_SHARE") &&
+  tuning.includes("TREE_EVERGREEN_MAX_SHARE") &&
+    source.includes("TREE_EVERGREEN_MAX_SHARE") &&
     source.includes("TREE_BIRCH_MAX_SHARE") &&
     source.includes('return sample < birchThreshold ? "birch" : "oak";'),
   "Species mixing must stay bounded so no ecology patch collapses into one tree family.",
@@ -135,6 +137,14 @@ assert(
   "Tree rollback and normal teardown must dispose InstancedMesh owners as well as geometry/material resources.",
 );
 assert(
+  tuning.includes("TREE_ATLAS_UV_INSET_PIXELS = 8") &&
+    atlas.includes("TREE_ATLAS_UV_INSET_PIXELS") &&
+    atlas.includes("texture.generateMipmaps = true") &&
+    atlas.includes("+ TREE_ATLAS_UV_INSET_PIXELS") &&
+    atlas.includes("- TREE_ATLAS_UV_INSET_PIXELS"),
+  "Mipmapped tree-atlas UVs must stay far enough inside each gutterless tile to avoid neighboring species bleeding into sampled mips.",
+);
+assert(
   tuning.includes("TREE_STREAM_FADE_METERS = 8") &&
     system.includes("this.radius + TREE_REBUILD_STEP") &&
     system.includes("this.radius - TREE_STREAM_FADE_METERS") &&
@@ -156,5 +166,5 @@ assert(
 );
 
 console.log(
-  "[tree-field-safety] Tree bounds, deterministic species, physical canopy parity, shared wind, LOD alpha, material rollback, GPU ownership, radial stream continuity, and stream fade verified.",
+  "[tree-field-safety] Tree bounds, deterministic species, physical canopy parity, shared wind, LOD alpha, material rollback, GPU ownership, mip-safe atlas UVs, radial stream continuity, and stream fade verified.",
 );
