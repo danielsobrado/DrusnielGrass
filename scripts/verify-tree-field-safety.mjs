@@ -101,6 +101,18 @@ assert(
     !material.includes("material.alphaTest = alphaTest"),
   "Tree cutout alpha must stay independent of LOD opacity so alpha-hash owns the full near/far crossfade.",
 );
+const leafMaterialStart = material.indexOf("function createLeafMaterial(");
+const bindLodStart = material.indexOf("function bindLodOpacity(", leafMaterialStart);
+const leafMaterialSource = material.slice(leafMaterialStart, bindLodStart);
+assert(
+  leafMaterialStart >= 0 &&
+    bindLodStart > leafMaterialStart &&
+    leafMaterialSource.includes("try {") &&
+    leafMaterialSource.includes("material.dispose();") &&
+    leafMaterialSource.includes("Tree leaf material cleanup failed.") &&
+    leafMaterialSource.indexOf("material.dispose();") < leafMaterialSource.lastIndexOf("throw error;"),
+  "Leaf material construction must dispose its local material if node or wet-surface setup fails before ownership is returned.",
+);
 assert(
   resources.includes("let wood: THREE.InstancedMesh | undefined") &&
     resources.includes("let foliage: THREE.InstancedMesh | undefined") &&
@@ -131,5 +143,5 @@ assert(
 );
 
 console.log(
-  "[tree-field-safety] Tree bounds, deterministic species, renderer/shade parity, shared wind, LOD alpha, GPU ownership, radial stream continuity, and stream fade verified.",
+  "[tree-field-safety] Tree bounds, deterministic species, renderer/shade parity, shared wind, LOD alpha, material rollback, GPU ownership, radial stream continuity, and stream fade verified.",
 );
