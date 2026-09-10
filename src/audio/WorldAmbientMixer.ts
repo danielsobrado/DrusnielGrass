@@ -19,16 +19,36 @@ export interface WorldHabitatWeights {
   water: number;
 }
 
+interface AmbientBed {
+  readonly clipId: string;
+  gain(gains: WorldAmbientGains): number;
+}
+
 const ZERO_GAINS: WorldAmbientGains = Object.freeze({
-  wind: 0, rain: 0, forest: 0, wetland: 0, water: 0,
+  wind: 0,
+  rain: 0,
+  forest: 0,
+  wetland: 0,
+  water: 0,
 });
 
-const BEDS: ReadonlyArray<{ key: keyof WorldAmbientGains; clipId: string }> = Object.freeze([
-  { key: "wind", clipId: "ambient/highfield-wind-01.mp3" },
-  { key: "rain", clipId: "ambient/rain-medium-01.mp3" },
-  { key: "forest", clipId: "ambient/forest-01.mp3" },
-  { key: "wetland", clipId: "ambient/wetland-01.mp3" },
-  { key: "water", clipId: "ambient/lake-01.mp3" },
+const BED_ACTIVE_THRESHOLD = 0.001;
+const RAIN_HEAVY_BLEND_START = 0.24;
+const RAIN_HEAVY_BLEND_END = 0.62;
+
+const BEDS: readonly AmbientBed[] = Object.freeze([
+  { clipId: "ambient/highfield-wind-01.mp3", gain: (gains) => gains.wind },
+  {
+    clipId: "ambient/rain-light-01.mp3",
+    gain: (gains) => gains.rain * (1 - rainHeavyBlend(gains.rain)),
+  },
+  {
+    clipId: "ambient/rain-heavy-01.mp3",
+    gain: (gains) => gains.rain * rainHeavyBlend(gains.rain),
+  },
+  { clipId: "ambient/forest-01.mp3", gain: (gains) => gains.forest },
+  { clipId: "ambient/wetland-01.mp3", gain: (gains) => gains.wetland },
+  { clipId: "ambient/lake-01.mp3", gain: (gains) => gains.water },
 ]);
 
 /**
@@ -40,7 +60,11 @@ export class WorldAmbientMixer {
   private start: WorldAmbientGains = { ...ZERO_GAINS };
   private target: WorldAmbientGains = { ...ZERO_GAINS };
   private fade = 1;
-  private playing = new Map<string, ReturnType<WorldAudioVoices["play"]>>();
+  private readonly playing = new Map<
+    string,
+    NonNullable<ReturnType<WorldAudioVoices["play"]>>
+  >();
+  private readonly loading = new Set<string>();
   private disposed = false;
 
   constructor(
@@ -75,42 +99,97 @@ export class WorldAmbientMixer {
     return this.fade;
   }
 
-  update(deltaSeconds: number, master: number): WorldAmbientGains {
+  update(deltaSeconds: number): WorldAmbientGains {
     if (this.disposed) return this.current;
     const delta = Math.max(0, deltaSeconds);
     if (this.fade < 1) {
-      this.fade = Math.min(1, this.fade + delta / WORLD_AUDIO_PRESET_FADE_SECONDS);
+      this.fade = Math.min(
+        1,
+        this.fade + delta / WORLD_AUDIO_PRESET_FADE_SECONDS,
+      );
       this.current = mixGains(this.start, this.target, this.fade);
     }
-    void this.syncVoices(master);
+    this.syncVoices();
     return this.current;
   }
 
   dispose(): void {
     if (this.disposed) return;
     this.disposed = true;
-    for (const bed of BEDS) this.bank.release(bed.clipId);
+    let firstError: unknown;
+    let failed = false;
+    for (const voice of this.playing.values()) {
+      try {
+        this.voices.stop(voice);
+      } catch (error) {
+        if (!failed) {
+          failed = true;
+          firstError = error;
+        }
+      }
+    }
     this.playing.clear();
+    this.loading.clear();
+    for (const bed of BEDS) {
+      try {
+        this.bank.release(bed.clipId);
+      } catch (error) {
+        if (!failed) {
+          failed = true;
+          firstError = error;
+        }
+      }
+    }
+    if (failed) throw firstError;
   }
 
-  private async syncVoices(master: number): Promise<void> {
+  private syncVoices(): void {
     for (const bed of BEDS) {
-      const gain = this.current[bed.key] * master;
-      const clip = worldAudioClip(bed.clipId);
-      if (!clip) continue;
+      const gain = bed.gain(this.current);
       const existing = this.playing.get(bed.clipId);
-      if (gain <= 0.001) {
-        if (existing) existing.setVolume(0);
+      if (gain <= BED_ACTIVE_THRESHOLD) {
+        if (existing) {
+          this.voices.stop(existing);
+          this.playing.delete(bed.clipId);
+        }
         continue;
       }
       if (existing?.isPlaying) {
         this.voices.setGain(existing, gain);
         continue;
       }
+      if (existing) this.playing.delete(bed.clipId);
+      if (this.loading.has(bed.clipId)) continue;
+      this.loading.add(bed.clipId);
+      void this.startBed(bed);
+    }
+  }
+
+  private async startBed(bed: AmbientBed): Promise<void> {
+    try {
+      const clip = worldAudioClip(bed.clipId);
+      if (!clip) return;
       const buffer = await this.bank.load(bed.clipId);
-      if (!buffer || this.disposed) continue;
-      const voice = this.voices.play(buffer, { clipId: bed.clipId, gain, loop: true });
+      if (!buffer || this.disposed) return;
+
+      const gain = bed.gain(this.current);
+      if (gain <= BED_ACTIVE_THRESHOLD) return;
+      const existing = this.playing.get(bed.clipId);
+      if (existing?.isPlaying) {
+        this.voices.setGain(existing, gain);
+        return;
+      }
+      if (existing) this.playing.delete(bed.clipId);
+
+      const voice = this.voices.play(buffer, {
+        clipId: bed.clipId,
+        bus: "ambient",
+        gain,
+        loop: true,
+      });
       if (voice) this.playing.set(bed.clipId, voice);
+    } finally {
+      this.loading.delete(bed.clipId);
     }
   }
 }
@@ -135,7 +214,8 @@ export function capAmbientGains(
   gains: WorldAmbientGains,
   maxSum: number,
 ): WorldAmbientGains {
-  const sum = gains.wind + gains.rain + gains.forest + gains.wetland + gains.water;
+  const sum =
+    gains.wind + gains.rain + gains.forest + gains.wetland + gains.water;
   if (!(maxSum > 0) || sum <= maxSum) return clampGains(gains);
   const scale = maxSum / sum;
   return clampGains({
@@ -160,6 +240,14 @@ export function mixGains(
     wetland: from.wetland + (to.wetland - from.wetland) * a,
     water: from.water + (to.water - from.water) * a,
   };
+}
+
+function rainHeavyBlend(rainGain: number): number {
+  const t = clamp01(
+    (rainGain - RAIN_HEAVY_BLEND_START) /
+      (RAIN_HEAVY_BLEND_END - RAIN_HEAVY_BLEND_START),
+  );
+  return t * t * (3 - 2 * t);
 }
 
 function clampGains(gains: WorldAmbientGains): WorldAmbientGains {
