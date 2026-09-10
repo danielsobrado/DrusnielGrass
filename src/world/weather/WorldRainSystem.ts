@@ -1,8 +1,6 @@
 import * as THREE from "three";
 import type { WorldExperience } from "../../app/WorldExperience";
 import { disposeResources } from "../../render/ResourceDisposal";
-import type { WorldWaterContactEvent } from "../hydrology/WorldWaterContactField";
-import { WorldWaterContactField } from "../hydrology/WorldWaterContactField";
 import type { TerrainField } from "../TerrainField";
 import type { WorldWeatherState } from "./WorldWeatherState";
 import { WorldRainGroundCache } from "./WorldRainGroundCache";
@@ -11,8 +9,6 @@ import { WorldRainUniforms } from "./WorldRainUniforms";
 import {
   WORLD_RAIN_ACTIVE_THRESHOLD,
   WORLD_RAIN_RESPONSE_SECONDS,
-  WORLD_WATER_CONTACT_CAPACITY_COMPACT,
-  WORLD_WATER_CONTACT_CAPACITY_DESKTOP,
 } from "./WorldRainTuning";
 import { WorldWetness } from "./WorldWetness";
 
@@ -22,18 +18,14 @@ export interface WorldRainSystemOptions {
   readonly weather: WorldWeatherState;
   readonly focus: () => THREE.Vector3;
   readonly capacity: number;
-  readonly compact: boolean;
   readonly seed: number;
   readonly wettingSeconds: number;
   readonly dryingSeconds: number;
 }
 
-export type WorldWaterContactImpulse = Omit<WorldWaterContactEvent, "time">;
-
 interface WorldRainResources {
   readonly wetness: WorldWetness;
   readonly cache: WorldRainGroundCache;
-  readonly waterContacts: WorldWaterContactField;
   readonly geometry: THREE.PlaneGeometry;
   readonly material: ReturnType<typeof createWorldRainMaterial>;
   readonly mesh: THREE.InstancedMesh;
@@ -43,7 +35,6 @@ interface WorldRainResources {
 export class WorldRainSystem {
   readonly uniforms = new WorldRainUniforms();
   readonly wetness: WorldWetness;
-  readonly waterContacts: WorldWaterContactField;
 
   private readonly cache: WorldRainGroundCache;
   private readonly geometry: THREE.PlaneGeometry;
@@ -60,7 +51,6 @@ export class WorldRainSystem {
     const resources = createWorldRainResources(options, this.uniforms);
     this.wetness = resources.wetness;
     this.cache = resources.cache;
-    this.waterContacts = resources.waterContacts;
     this.geometry = resources.geometry;
     this.material = resources.material;
     this.mesh = resources.mesh;
@@ -98,18 +88,11 @@ export class WorldRainSystem {
     this.mesh.count = visible ? resolveVisibleCount(this.options.capacity, this.intensity) : 0;
   }
 
-  /** Records a short-lived hydrologic surface hit using the shared weather clock. */
-  addWaterContact(impulse: WorldWaterContactImpulse): boolean {
-    if (this.disposed) return false;
-    return this.waterContacts.add({ ...impulse, time: this.uniforms.time.value });
-  }
-
   dispose(): void {
     if (this.disposed) return;
     this.disposed = true;
     this.mesh.count = 0;
     this.mesh.visible = false;
-    this.waterContacts.clear();
     this.uniforms.setIntensity(0);
     this.wetness.reset();
     disposeResources([
@@ -155,19 +138,12 @@ function createWorldRainResources(
 ): WorldRainResources {
   const wetness = new WorldWetness(options.wettingSeconds, options.dryingSeconds);
   let cache: WorldRainGroundCache | undefined;
-  let waterContacts: WorldWaterContactField | undefined;
   let geometry: THREE.PlaneGeometry | undefined;
   let material: ReturnType<typeof createWorldRainMaterial> | undefined;
   let mesh: THREE.InstancedMesh | undefined;
 
   try {
     cache = new WorldRainGroundCache(options.terrain);
-    waterContacts = new WorldWaterContactField(
-      options.terrain,
-      options.compact
-        ? WORLD_WATER_CONTACT_CAPACITY_COMPACT
-        : WORLD_WATER_CONTACT_CAPACITY_DESKTOP,
-    );
     geometry = new THREE.PlaneGeometry(1, 1);
     geometry.translate(0, -0.5, 0);
     material = createWorldRainMaterial({
@@ -186,9 +162,8 @@ function createWorldRainResources(
     mesh.userData.excludeFromReflection = true;
     mesh.userData.occlusionCull = false;
     options.scene.add(mesh);
-    return { wetness, cache, waterContacts, geometry, material, mesh };
+    return { wetness, cache, geometry, material, mesh };
   } catch (error) {
-    waterContacts?.clear();
     try {
       disposeResources([
         { dispose: () => mesh?.removeFromParent() },
