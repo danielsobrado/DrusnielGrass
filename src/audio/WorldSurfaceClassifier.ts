@@ -7,6 +7,7 @@ import {
   WORLD_AUDIO_MUD_WETNESS_THRESHOLD,
   WORLD_AUDIO_PATH_MASK_THRESHOLD,
   WORLD_AUDIO_SHALLOW_WATER_DEPTH_METERS,
+  WORLD_AUDIO_SHALLOW_WATER_MIN_DEPTH_METERS,
   WORLD_AUDIO_STONE_CLEARANCE_THRESHOLD,
   WORLD_AUDIO_WATER_COVERAGE_THRESHOLD,
 } from "./WorldAudioTuning";
@@ -28,9 +29,10 @@ export class WorldSurfaceClassifier {
   classify(x: number, z: number, wetness: number): WorldFootstepSurface {
     const height = this.terrain.sampleHeight(x, z);
     this.terrain.sampleHydrology(x, z, height, this.hydrology);
-    const depth = Math.max(0, this.hydrology.waterLevel - height);
+    const depth = this.hydrology.waterLevel - height;
     if (
       this.hydrology.waterCoverage >= WORLD_AUDIO_WATER_COVERAGE_THRESHOLD &&
+      depth >= WORLD_AUDIO_SHALLOW_WATER_MIN_DEPTH_METERS &&
       depth <= WORLD_AUDIO_SHALLOW_WATER_DEPTH_METERS
     ) {
       return "water";
@@ -43,7 +45,10 @@ export class WorldSurfaceClassifier {
       return wetness >= WORLD_AUDIO_MUD_WETNESS_THRESHOLD ? "mud" : "path";
     }
     const ecology = this.terrain.sampleEcologyAt(x, z, height);
-    if (ecology.shade >= WORLD_AUDIO_LITTER_SHADE_THRESHOLD && wetness < WORLD_AUDIO_MUD_WETNESS_THRESHOLD) {
+    if (
+      ecology.shade >= WORLD_AUDIO_LITTER_SHADE_THRESHOLD &&
+      wetness < WORLD_AUDIO_MUD_WETNESS_THRESHOLD
+    ) {
       return "litter";
     }
     if (pathMask >= 0.72 && ecology.rockiness < 0.55) return "grass";
