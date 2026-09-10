@@ -9,7 +9,7 @@ import {
   WORLD_WATER_CONTACT_MAX_STRENGTH,
   WORLD_WATER_CONTACT_MIN_RADIUS_METERS,
   WORLD_WATER_CONTACT_VERTICAL_TOLERANCE_METERS,
-} from "../weather/WorldRainTuning";
+} from "./WorldWaterContactTuning";
 
 const INACTIVE_EVENT_TIME = -1e6;
 
