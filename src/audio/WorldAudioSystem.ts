@@ -3,7 +3,6 @@ import type { WorldExperience } from "../app/WorldExperience";
 import type { SnowflowCharacter } from "../character/SnowflowCharacter";
 import { WorldFootContactTracker } from "../controls/WorldFootContactTracker";
 import { disposeResources } from "../render/ResourceDisposal";
-import { hudSettingsStore, type HudSettings } from "../runtime/HudSettingsStore";
 import type { TerrainField } from "../world/TerrainField";
 import type { WorldRainSystem } from "../world/weather/WorldRainSystem";
 import type {
@@ -22,6 +21,7 @@ import {
   lerpHabitat,
   sampleWorldAudioHabitat,
 } from "./WorldAudioHabitat";
+import { WorldAudioPermission } from "./WorldAudioPermission";
 import {
   createWorldAudioResources,
   disposeWorldAudioResources,
@@ -60,21 +60,15 @@ const SILENT_WEATHER: WorldWeatherSnapshot = Object.freeze({
   restBendGain: 1,
 });
 
-const GESTURE_SELECTOR =
-  ".world-loading-start, .world-loading-sound, [data-setting=sound]";
-
 /** One listener, one buffer cache, and the mixers that share them. */
 export class WorldAudioSystem {
   private readonly resources: WorldAudioResources;
+  private readonly permission: WorldAudioPermission;
   private readonly tracker = new WorldFootContactTracker();
   private habitat: WorldHabitatWeights = { ...EMPTY_AUDIO_HABITAT };
   private habitatTarget: WorldHabitatWeights = { ...EMPTY_AUDIO_HABITAT };
   private habitatAge = 1;
   private presetId?: WorldWeatherSnapshot["presetId"];
-  private allowed = false;
-  private resumeInFlight = false;
-  private resumeBlocked = false;
-  private resumeFailureReported = false;
   private disposed = false;
 
   constructor(
@@ -82,13 +76,25 @@ export class WorldAudioSystem {
     voiceCapacity: number,
   ) {
     this.resources = createWorldAudioResources(options, voiceCapacity);
+    try {
+      this.permission = new WorldAudioPermission(
+        this.resources.listener,
+        this.resources.voices,
+      );
+    } catch (error) {
+      try {
+        disposeWorldAudioResources(this.resources);
+      } catch (cleanupError) {
+        console.warn(
+          "[Drusniel World] Audio permission rollback failed.",
+          cleanupError,
+        );
+      }
+      throw error;
+    }
     for (const clip of worldAudioPresetEssentials()) {
       void this.resources.bank.load(clip.id);
     }
-    document.addEventListener("click", this.handleGesture);
-    document.addEventListener("change", this.handleGesture);
-    document.addEventListener("visibilitychange", this.handleVisibility);
-    this.applyOutputGains(hudSettingsStore.snapshot());
   }
 
   update(deltaSeconds: number): void {
@@ -96,9 +102,9 @@ export class WorldAudioSystem {
     const delta = Number.isFinite(deltaSeconds) && deltaSeconds > 0
       ? deltaSeconds
       : 0;
-    this.syncContext();
-
+    const audible = this.permission.update();
     const focus = this.options.focus();
+
     this.habitatAge += delta;
     if (this.habitatAge >= 1 / WORLD_AUDIO_HABITAT_HZ) {
       this.habitatAge = 0;
@@ -133,8 +139,6 @@ export class WorldAudioSystem {
       this.resources.mixer.follow(desired);
     }
 
-    const settings = hudSettingsStore.snapshot();
-    const audible = this.applyOutputGains(settings);
     this.resources.mixer.update(delta);
     if (audible) {
       this.resources.emitters.update(delta, focus, this.habitat, 1);
@@ -145,10 +149,8 @@ export class WorldAudioSystem {
   dispose(): void {
     if (this.disposed) return;
     this.disposed = true;
-    document.removeEventListener("click", this.handleGesture);
-    document.removeEventListener("change", this.handleGesture);
-    document.removeEventListener("visibilitychange", this.handleVisibility);
     disposeResources([
+      this.permission,
       this.tracker,
       { dispose: () => disposeWorldAudioResources(this.resources) },
     ]);
@@ -198,7 +200,7 @@ export class WorldAudioSystem {
   }
 
   private cueTransition(presetId: WorldWeatherSnapshot["presetId"]): void {
-    if (!this.isAudible()) return;
+    if (!this.permission.isAudible()) return;
     const clip = worldAudioPresetEssentials().find(
       (entry) => entry.kind === "transition",
     );
@@ -208,7 +210,7 @@ export class WorldAudioSystem {
         !buffer ||
         this.disposed ||
         this.presetId !== presetId ||
-        !this.isAudible()
+        !this.permission.isAudible()
       ) {
         return;
       }
@@ -219,79 +221,6 @@ export class WorldAudioSystem {
       });
     });
   }
-
-  private applyOutputGains(settings: Readonly<HudSettings>): boolean {
-    const audible = this.allowed && settings.soundEnabled && !document.hidden;
-    const master = audible ? settings.masterVolume : 0;
-    this.resources.voices.setBusGain(
-      "ambient",
-      master * settings.ambientVolume,
-    );
-    this.resources.voices.setBusGain(
-      "effects",
-      master * settings.effectsVolume,
-    );
-    return audible;
-  }
-
-  private isAudible(): boolean {
-    const settings = hudSettingsStore.snapshot();
-    return this.allowed && settings.soundEnabled && !document.hidden;
-  }
-
-  private syncContext(): void {
-    const context = this.resources.listener.context;
-    if (
-      document.hidden ||
-      !this.allowed ||
-      !hudSettingsStore.getSoundEnabled() ||
-      context.state !== "suspended" ||
-      this.resumeInFlight ||
-      this.resumeBlocked
-    ) {
-      return;
-    }
-    this.resumeInFlight = true;
-    void context.resume().then(() => {
-      this.resumeBlocked = false;
-      this.resumeFailureReported = false;
-    }).catch((error) => {
-      this.resumeBlocked = true;
-      if (!this.resumeFailureReported) {
-        this.resumeFailureReported = true;
-        console.warn("[Drusniel World] Audio resume was rejected.", error);
-      }
-    }).finally(() => {
-      this.resumeInFlight = false;
-    });
-  }
-
-  private readonly handleGesture = (event: Event): void => {
-    const target = event.target;
-    if (!(target instanceof Element) || !target.closest(GESTURE_SELECTOR)) return;
-
-    if (target.closest(".world-loading-sound")) {
-      const input = target.closest("label")?.querySelector<HTMLInputElement>(
-        'input[type="checkbox"]',
-      );
-      if (input && !input.checked) {
-        this.allowed = false;
-        this.applyOutputGains(hudSettingsStore.snapshot());
-        return;
-      }
-    }
-
-    this.allowed = true;
-    this.resumeBlocked = false;
-    this.applyOutputGains(hudSettingsStore.snapshot());
-    this.syncContext();
-  };
-
-  private readonly handleVisibility = (): void => {
-    if (!document.hidden) this.resumeBlocked = false;
-    this.applyOutputGains(hudSettingsStore.snapshot());
-    this.syncContext();
-  };
 }
 
 export function attachWorldAudio(
