@@ -14,6 +14,7 @@ function read(relativePath) {
 const source = read("src/world/scenic/WorldTreeField.ts");
 const tuning = read("src/world/scenic/WorldTreeTuning.ts");
 const material = read("src/world/scenic/WorldTreeMaterialFactory.ts");
+const resources = read("src/world/scenic/WorldTreeRenderResources.ts");
 
 function assert(condition, message) {
   if (!condition) {
@@ -99,7 +100,15 @@ assert(
     !material.includes("material.alphaTest = alphaTest"),
   "Tree cutout alpha must stay independent of LOD opacity so alpha-hash owns the full near/far crossfade.",
 );
+assert(
+  resources.includes("let wood: THREE.InstancedMesh | undefined") &&
+    resources.includes("let foliage: THREE.InstancedMesh | undefined") &&
+    resources.includes("let far: THREE.InstancedMesh | undefined") &&
+    /disposeResources\(\[\s*wood,\s*foliage,\s*far,/.test(resources) &&
+    /disposeResources\(\[\s*\.\.\.meshes\.map\(\(mesh\) => \(\{ dispose: \(\) => mesh\.removeFromParent\(\) \}\)\),\s*\.\.\.meshes,/.test(resources),
+  "Tree rollback and normal teardown must dispose InstancedMesh owners as well as geometry/material resources.",
+);
 
 console.log(
-  "[tree-field-safety] Tree bounds, deterministic species, renderer/shade parity, shared wind, and LOD alpha verified.",
+  "[tree-field-safety] Tree bounds, deterministic species, renderer/shade parity, shared wind, LOD alpha, and GPU ownership verified.",
 );

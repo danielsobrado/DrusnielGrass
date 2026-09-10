@@ -96,6 +96,9 @@ function createSpeciesMeshes(
   let woodGeometry: THREE.BufferGeometry | undefined;
   let foliageGeometry: THREE.BufferGeometry | undefined;
   let farGeometry: THREE.BufferGeometry | undefined;
+  let wood: THREE.InstancedMesh | undefined;
+  let foliage: THREE.InstancedMesh | undefined;
+  let far: THREE.InstancedMesh | undefined;
   try {
     woodGeometry = createWorldTreeWoodGeometry(species, atlas.bark[species]);
     foliageGeometry = createWorldTreeFoliageGeometry(species, atlas.leaves[species]);
@@ -121,7 +124,7 @@ function createSpeciesMeshes(
       "treeLodOpacity",
       maxCount,
     );
-    const wood = createMesh(
+    wood = createMesh(
       `world-tree-${species}-wood`,
       woodGeometry,
       materials.bark,
@@ -129,7 +132,7 @@ function createSpeciesMeshes(
       shadows,
       shadows,
     );
-    const foliage = createMesh(
+    foliage = createMesh(
       `world-tree-${species}-foliage`,
       foliageGeometry,
       materials.leaves,
@@ -137,7 +140,7 @@ function createSpeciesMeshes(
       shadows,
       shadows,
     );
-    const far = createMesh(
+    far = createMesh(
       `world-tree-${species}-far`,
       farGeometry,
       materials.far,
@@ -157,7 +160,14 @@ function createSpeciesMeshes(
     };
   } catch (error) {
     try {
-      disposeResources([woodGeometry, foliageGeometry, farGeometry]);
+      disposeResources([
+        wood,
+        foliage,
+        far,
+        woodGeometry,
+        foliageGeometry,
+        farGeometry,
+      ]);
     } catch (cleanupError) {
       console.warn(
         `[Drusniel World] ${species} tree geometry cleanup failed.`,
@@ -211,6 +221,7 @@ function disposeTreeResources(
   });
   disposeResources([
     ...meshes.map((mesh) => ({ dispose: () => mesh.removeFromParent() })),
+    ...meshes,
     ...meshes.map((mesh) => mesh.geometry),
     materials?.far,
     materials?.leaves,
