@@ -30,6 +30,9 @@ try {
     "/src/world/weather/WorldRainUniforms.ts",
   );
   const tuning = await server.ssrLoadModule("/src/world/weather/WorldRainTuning.ts");
+  const contactTuning = await server.ssrLoadModule(
+    "/src/world/hydrology/WorldWaterContactTuning.ts",
+  );
   const { WorldWaterContactField } = await server.ssrLoadModule(
     "/src/world/hydrology/WorldWaterContactField.ts",
   );
@@ -109,14 +112,14 @@ try {
       "Clearing contacts must close the shader-active window immediately.");
   });
 
-  await check("precipitation budgets stay bounded", () => {
+  await check("precipitation and water-contact budgets stay bounded", () => {
     assert.equal(tuning.WORLD_RAIN_AREA_METERS, 32);
     assert.equal(tuning.WORLD_RAIN_GROUND_CACHE_RESOLUTION, 32);
     assert.ok(tuning.WORLD_RAIN_GROUND_CACHE_ROWS_PER_FRAME > 0);
     assert.ok(tuning.WORLD_RAIN_GROUND_CACHE_ROWS_PER_FRAME <
       tuning.WORLD_RAIN_GROUND_CACHE_RESOLUTION);
-    assert.equal(tuning.WORLD_WATER_CONTACT_CAPACITY_DESKTOP, 16);
-    assert.equal(tuning.WORLD_WATER_CONTACT_CAPACITY_COMPACT, 8);
+    assert.equal(contactTuning.WORLD_WATER_CONTACT_CAPACITY_DESKTOP, 16);
+    assert.equal(contactTuning.WORLD_WATER_CONTACT_CAPACITY_COMPACT, 8);
     assert.ok(tuning.WORLD_WETNESS_MAX_COLOR_DARKENING <= 0.12);
     assert.ok(tuning.WORLD_WETNESS_ROUGHNESS_FLOOR >= 0.25);
   });
@@ -136,24 +139,25 @@ try {
       "Rain must advance only from the world's existing experience update.");
   });
 
-  await check("fully dry rain skips wind and drift work without freezing its event clock", () => {
+  await check("fully dry rain skips wind and drift work while its own clock advances", () => {
     const runtime = source("src/world/weather/WorldRainSystem.ts");
     const setTime = runtime.indexOf("this.uniforms.setTime(");
     const inactive = runtime.indexOf("if (!active)");
     const setWind = runtime.indexOf("this.uniforms.setWind(");
     const drift = runtime.indexOf("this.uniforms.advanceDrift(delta)");
     assert.ok(setTime >= 0 && inactive > setTime,
-      "The shared rain/contact clock must advance before a dry-frame early return.");
+      "Rain time must advance before a dry-frame early return.");
     assert.ok(setWind > inactive && drift > inactive,
       "Wind and horizontal drift must run only after rain is known to be active.");
   });
 
-  await check("rain construction and disposal release every owned resource", () => {
+  await check("rain owns only precipitation resources", () => {
     const runtime = source("src/world/weather/WorldRainSystem.ts");
     assert.match(runtime, /import \{ disposeResources \}/);
     assert.match(runtime, /Rain construction cleanup failed/);
     assert.match(runtime, /disposeResources\(\[[\s\S]*material,[\s\S]*geometry,[\s\S]*cache/);
-    assert.match(runtime, /waterContacts\?\.clear\(\)/);
+    assert.doesNotMatch(runtime, /WorldWaterContactField|waterContacts|addWaterContact/,
+      "Local water impacts must not disappear when the optional rain owner is disabled.");
   });
 
   await check("rain releases itself when its weather dependency is gone", () => {
@@ -180,16 +184,32 @@ try {
     assert.ok(cache.indexOf("this.active.set(this.staging)") < cache.indexOf("this.center.copy(this.pendingCenter)"));
   });
 
-  await check("runtime publishes precipitation before streamed materials are constructed", () => {
+  await check("runtime publishes rain and independent contacts before streamed materials", () => {
     const app = source("src/app/WorldApp.ts");
+    const contacts = app.indexOf("new WorldWaterContactSystem");
     const attach = app.indexOf("attachWorldRain(this.experience");
-    const publish = app.indexOf("setWorldPrecipitation(");
+    const precipitation = app.indexOf("setWorldPrecipitation(");
+    const contactPublish = app.indexOf("setWorldWaterContacts(waterContacts?.field)");
     const terrain = app.indexOf("terrain = new TerrainStreamer(");
-    assert.ok(attach >= 0 && publish > attach && terrain > publish,
-      "Rain uniforms must be attached and published before terrain/water node graphs are built.");
-    assert.match(app, /setWorldWaterContacts\(this\.rain\?\.waterContacts\)/);
+    assert.ok(contacts >= 0 && contactPublish > contacts && terrain > contactPublish,
+      "Water contacts must be published before water node graphs are built.");
+    assert.ok(attach >= 0 && precipitation > attach && terrain > precipitation,
+      "Rain uniforms must be published before terrain/water node graphs are built.");
+    assert.match(app, /waterContacts = config\.waterEnabled >= 1/);
+    assert.match(app, /waterContacts,\s*compact: profile\.compact/);
     assert.match(app, /bindMaterialContext\(environment\.materialContext\)/);
     assert.match(app, /new WorldScenicLayer\([\s\S]*environment\.materialContext/);
+  });
+
+  await check("water contacts use water time and require no rain owner", () => {
+    const owner = source("src/world/hydrology/WorldWaterContactSystem.ts");
+    const material = source("src/world/hydrology/WaterSurfaceNodeMaterial.ts");
+    assert.match(owner, /time: performance\.now\(\) \* 0\.001/);
+    assert.doesNotMatch(owner, /requestAnimationFrame|setInterval|setTimeout/);
+    assert.match(material, /rainTime: number\("uWaterTime"\)/,
+      "Contact age must share the water material clock rather than depend on rain time.");
+    assert.match(material, /rainIntensity: rain\?\.intensity/,
+      "Procedural rain ripples must remain optional when no rain owner exists.");
   });
 
   await check("weather updates before rain in the experience owner", () => {
@@ -255,7 +275,7 @@ try {
     const rain = surface.indexOf(".add(rainSlope)");
     const contact = surface.indexOf(".add(contactSlope)");
     assert.ok(stone >= 0 && rain > stone && contact > rain,
-      "Precipitation ripples must layer after the existing flow/stone slope rather than replace it.");
+      "Rain and local contact ripples must layer after existing flow/stone slope.");
   });
 
   await check("contact ripple storage is fixed capacity and has zero idle loop cost", () => {
@@ -284,6 +304,6 @@ if (failures.length > 0) {
 
 console.log(
   "[world-precipitation] Rain response, drift and wetness are frame-rate independent, "
-  + "budgets and resource lifecycles are bounded, clipping is portable and conservative, "
+  + "water contacts are rain-independent and bounded, clipping is portable and conservative, "
   + "dry/contact idle work is gated, and optional refraction fails down to standard optics.",
 );
