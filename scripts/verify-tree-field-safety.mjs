@@ -4,14 +4,16 @@ import { fileURLToPath } from "node:url";
 
 const SCRIPT_DIRECTORY = dirname(fileURLToPath(import.meta.url));
 const REPOSITORY_ROOT = resolve(SCRIPT_DIRECTORY, "..");
-const source = readFileSync(
-  resolve(REPOSITORY_ROOT, "src/world/scenic/WorldTreeField.ts"),
-  "utf8",
-).replaceAll("\r\n", "\n");
-const tuning = readFileSync(
-  resolve(REPOSITORY_ROOT, "src/world/scenic/WorldTreeTuning.ts"),
-  "utf8",
-).replaceAll("\r\n", "\n");
+function read(relativePath) {
+  return readFileSync(resolve(REPOSITORY_ROOT, relativePath), "utf8").replaceAll(
+    "\r\n",
+    "\n",
+  );
+}
+
+const source = read("src/world/scenic/WorldTreeField.ts");
+const tuning = read("src/world/scenic/WorldTreeTuning.ts");
+const material = read("src/world/scenic/WorldTreeMaterialFactory.ts");
 
 function assert(condition, message) {
   if (!condition) {
@@ -62,6 +64,30 @@ assert(
   "Species mixing must stay bounded so no ecology patch collapses into one tree family.",
 );
 
+assert(
+  material.includes("positionGeometry") &&
+    material.includes("const worldAxisX = modelWorldMatrix.mul") &&
+    material.includes("const worldAxisY = modelWorldMatrix.mul") &&
+    material.includes("const worldAxisZ = modelWorldMatrix.mul") &&
+    material.includes("const height = smoothstep(TREE_WIND_HEIGHT_START, 1, positionGeometry.y)") &&
+    material.includes("const deformed = positionGeometry.add(localDirection.mul(bendMeters))") &&
+    material.includes("columns[0].xyz.mul(deformed.x)") &&
+    !material.includes("smoothstep(TREE_WIND_HEIGHT_START, 1, positionLocal.y)"),
+  "Tree wind must deform source geometry before reconstructing the instance transform; Three applies instancing before positionNode.",
+);
+assert(
+  tuning.includes("TREE_WIND_SWAY_METERS = 0.12") &&
+    !tuning.includes("TREE_WIND_SWAY_LOCAL"),
+  "Tree sway must stay expressed in world metres rather than accidentally inheriting instance scale.",
+);
+assert(
+  material.includes("material.alphaHash = true") &&
+    material.includes("material.alphaToCoverage = false") &&
+    material.includes("material.alphaTestNode = float(alphaTest).mul(lodOpacity)") &&
+    !material.includes("material.alphaTest = alphaTest"),
+  "Tree cutout alpha must stay independent of LOD opacity so alpha-hash owns the full near/far crossfade.",
+);
+
 console.log(
-  "[tree-field-safety] Tree bounds, deterministic species identity, and renderer/shade crown parity verified.",
+  "[tree-field-safety] Tree bounds, deterministic species, renderer/shade parity, wind coordinates, and LOD alpha verified.",
 );

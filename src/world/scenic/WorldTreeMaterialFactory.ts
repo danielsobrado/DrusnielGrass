@@ -4,8 +4,9 @@ import {
   Fn,
   attribute,
   cos,
+  float,
   modelWorldMatrix,
-  positionLocal,
+  positionGeometry,
   sin,
   smoothstep,
   vec3,
@@ -24,7 +25,7 @@ import {
   TREE_WIND_PHASE_SPEED,
   TREE_WIND_SECONDARY_GAIN,
   TREE_WIND_SECONDARY_SPEED,
-  TREE_WIND_SWAY_LOCAL,
+  TREE_WIND_SWAY_METERS,
 } from "./WorldTreeTuning";
 
 export interface WorldTreeMaterials {
@@ -82,26 +83,28 @@ function createLeafMaterial(
   });
   material.transparent = false;
   material.depthWrite = true;
-  material.alphaTest = alphaTest;
-  material.alphaToCoverage = true;
-  bindLodOpacity(material);
+  bindLodOpacity(material, alphaTest);
   const wind = context?.worldWindUniforms();
   if (wind) {
     material.positionNode = Fn((builder) => {
       const columns = instanceMatrixColumns(builder);
-      const axisX = modelWorldMatrix.mul(vec4(columns[0].xyz, 0)).xyz.normalize();
-      const axisZ = modelWorldMatrix.mul(vec4(columns[2].xyz, 0)).xyz.normalize();
+      const worldAxisX = modelWorldMatrix.mul(vec4(columns[0].xyz, 0)).xyz.toVar();
+      const worldAxisY = modelWorldMatrix.mul(vec4(columns[1].xyz, 0)).xyz.toVar();
+      const worldAxisZ = modelWorldMatrix.mul(vec4(columns[2].xyz, 0)).xyz.toVar();
+      const scaleX = worldAxisX.length().max(0.0001).toVar();
+      const scaleY = worldAxisY.length().max(0.0001).toVar();
+      const scaleZ = worldAxisZ.length().max(0.0001).toVar();
       const directionRadians = wind.directionDegrees.mul(Math.PI / 180);
       const worldDirection = vec3(
         cos(directionRadians),
         0,
         sin(directionRadians),
-      );
+      ).toVar();
       const localDirection = vec3(
-        worldDirection.dot(axisX),
-        0,
-        worldDirection.dot(axisZ),
-      ).normalize();
+        worldDirection.dot(worldAxisX.div(scaleX)).div(scaleX),
+        worldDirection.dot(worldAxisY.div(scaleY)).div(scaleY),
+        worldDirection.dot(worldAxisZ.div(scaleZ)).div(scaleZ),
+      );
       const phase = wind.time
         .mul(TREE_WIND_PHASE_SPEED)
         .add(attribute("treePhase", "float"));
@@ -110,21 +113,33 @@ function createLeafMaterial(
           TREE_WIND_SECONDARY_GAIN,
         ),
       );
-      const height = smoothstep(TREE_WIND_HEIGHT_START, 1, positionLocal.y);
+      const height = smoothstep(TREE_WIND_HEIGHT_START, 1, positionGeometry.y);
       const intensity = wind.intensity.clamp(0, TREE_WIND_MAX_INTENSITY);
-      const bend = wave
+      const bendMeters = wave
         .add(wind.restBendGain.mul(0.2))
         .mul(height)
         .mul(intensity)
-        .mul(TREE_WIND_SWAY_LOCAL * swayScale);
-      return positionLocal.add(localDirection.mul(bend));
+        .mul(TREE_WIND_SWAY_METERS * swayScale);
+      const deformed = positionGeometry.add(localDirection.mul(bendMeters));
+      return columns[0].xyz.mul(deformed.x)
+        .add(columns[1].xyz.mul(deformed.y))
+        .add(columns[2].xyz.mul(deformed.z))
+        .add(columns[3].xyz);
     })();
   }
   applyWorldWetStandardMaterial(material, context);
   return material;
 }
 
-function bindLodOpacity(material: MeshStandardNodeMaterial): void {
+function bindLodOpacity(
+  material: MeshStandardNodeMaterial,
+  alphaTest?: number,
+): void {
+  const lodOpacity = attribute("treeLodOpacity", "float");
   material.alphaHash = true;
-  material.opacityNode = attribute("treeLodOpacity", "float");
+  material.opacityNode = lodOpacity;
+  if (alphaTest !== undefined) {
+    material.alphaToCoverage = false;
+    material.alphaTestNode = float(alphaTest).mul(lodOpacity);
+  }
 }
