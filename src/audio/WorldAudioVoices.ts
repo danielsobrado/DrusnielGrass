@@ -1,18 +1,24 @@
 import * as THREE from "three";
+import {
+  resolveWorldAudioVoiceLayout,
+  resolveWorldAudioVoiceRole,
+  selectVoiceSlot,
+  type WorldAudioBus,
+  type WorldAudioVoiceLayout,
+  type WorldAudioVoiceRole,
+} from "./WorldAudioVoicePolicy";
 
-export type WorldAudioBus = "ambient" | "effects";
-
-export interface WorldVoiceClaimState {
-  readonly positional: boolean;
-  readonly playing: boolean;
-  readonly looping: boolean;
-  readonly gain: number;
-  readonly startedAt: number;
-}
+export { resolveWorldAudioVoiceLayout, selectVoiceSlot } from "./WorldAudioVoicePolicy";
+export type {
+  WorldAudioBus,
+  WorldAudioVoiceLayout,
+  WorldAudioVoiceRole,
+  WorldVoiceClaimState,
+} from "./WorldAudioVoicePolicy";
 
 interface VoiceSlot {
   readonly audio: THREE.Audio | THREE.PositionalAudio;
-  readonly positional: boolean;
+  readonly role: WorldAudioVoiceRole;
   clipId?: string;
   bus: WorldAudioBus;
   sourceGain: number;
@@ -25,15 +31,14 @@ const DEFAULT_BUS_GAINS: Readonly<Record<WorldAudioBus, number>> = Object.freeze
   ambient: 1,
   effects: 1,
 });
-const MAX_AMBIENT_VOICES = 6;
-const RESERVED_POSITIONAL_VOICES = 2;
 
 /**
- * Bounded pool of Three.js voices. Stereo ambient beds use non-positional
- * voices; one-shots that have a place use positional mono sources.
+ * Bounded pool of Three.js voices partitioned by playback responsibility.
+ * Ambient loops, global effects and positional one-shots never steal each other.
  */
 export class WorldAudioVoices {
   private readonly slots: VoiceSlot[] = [];
+  private readonly layout: WorldAudioVoiceLayout;
   private readonly busGains: Record<WorldAudioBus, number> = {
     ...DEFAULT_BUS_GAINS,
   };
@@ -41,38 +46,23 @@ export class WorldAudioVoices {
   private sequence = 0;
 
   constructor(listener: THREE.AudioListener, capacity: number) {
-    if (!Number.isInteger(capacity) || capacity < 1) {
-      throw new Error("Audio voice capacity must be a positive integer.");
+    this.layout = resolveWorldAudioVoiceLayout(capacity);
+    for (let index = 0; index < this.layout.ambient; index += 1) {
+      this.slots.push(createVoiceSlot(new THREE.Audio(listener), "ambient"));
     }
-    const ambientCount = Math.min(
-      MAX_AMBIENT_VOICES,
-      Math.max(1, capacity - RESERVED_POSITIONAL_VOICES),
-    );
-    for (let index = 0; index < ambientCount; index += 1) {
-      this.slots.push({
-        audio: new THREE.Audio(listener) as THREE.Audio | THREE.PositionalAudio,
-        positional: false,
-        bus: "effects",
-        sourceGain: 0,
-        gain: 0,
-        startedAt: 0,
-        looping: false,
-      });
+    for (let index = 0; index < this.layout.globalEffects; index += 1) {
+      this.slots.push(createVoiceSlot(new THREE.Audio(listener), "global-effect"));
     }
-    for (let index = ambientCount; index < capacity; index += 1) {
+    for (let index = 0; index < this.layout.positionalEffects; index += 1) {
       const positional = new THREE.PositionalAudio(listener);
       positional.setRefDistance(12);
       positional.setRolloffFactor(1.4);
-      this.slots.push({
-        audio: positional,
-        positional: true,
-        bus: "effects",
-        sourceGain: 0,
-        gain: 0,
-        startedAt: 0,
-        looping: false,
-      });
+      this.slots.push(createVoiceSlot(positional, "positional-effect"));
     }
+  }
+
+  getAmbientCapacity(): number {
+    return this.layout.ambient;
   }
 
   play(
@@ -95,8 +85,11 @@ export class WorldAudioVoices {
     ) {
       return undefined;
     }
-    const wantPositional = options.position !== undefined;
-    const slot = this.claim(wantPositional);
+    const role = resolveWorldAudioVoiceRole(
+      options.bus,
+      options.position !== undefined,
+    );
+    const slot = this.claim(role);
     if (!slot) return undefined;
     if (slot.clipId !== undefined || slot.audio.source !== null) {
       try {
@@ -120,7 +113,7 @@ export class WorldAudioVoices {
       audio.setLoop(slot.looping);
       this.applyGain(slot);
       if (
-        slot.positional &&
+        slot.role === "positional-effect" &&
         options.position &&
         audio instanceof THREE.PositionalAudio
       ) {
@@ -227,7 +220,7 @@ export class WorldAudioVoices {
     if (failed) throw firstError;
   }
 
-  private claim(positional: boolean): VoiceSlot | undefined {
+  private claim(role: WorldAudioVoiceRole): VoiceSlot | undefined {
     for (const slot of this.slots) {
       if (!slot.audio.isPlaying && slot.clipId) {
         try {
@@ -242,13 +235,13 @@ export class WorldAudioVoices {
     }
     const index = selectVoiceSlot(
       this.slots.map((slot) => ({
-        positional: slot.positional,
+        role: slot.role,
         playing: slot.audio.isPlaying,
         looping: slot.looping,
         gain: slot.gain,
         startedAt: slot.startedAt,
       })),
-      positional,
+      role,
     );
     return index >= 0 ? this.slots[index] : undefined;
   }
@@ -291,29 +284,19 @@ export class WorldAudioVoices {
   }
 }
 
-/** Idle same-kind slot, else the quietest non-looping one-shot. Loops are never stolen. */
-export function selectVoiceSlot(
-  slots: readonly WorldVoiceClaimState[],
-  positional: boolean,
-): number {
-  let idle = -1;
-  const steal: number[] = [];
-  for (let index = 0; index < slots.length; index += 1) {
-    const slot = slots[index];
-    if (slot.positional !== positional) continue;
-    if (!slot.playing) {
-      idle = index;
-      break;
-    }
-    if (!slot.looping) steal.push(index);
-  }
-  if (idle >= 0) return idle;
-  steal.sort(
-    (a, b) =>
-      slots[a].gain - slots[b].gain ||
-      slots[a].startedAt - slots[b].startedAt,
-  );
-  return steal[0] ?? -1;
+function createVoiceSlot(
+  audio: THREE.Audio | THREE.PositionalAudio,
+  role: WorldAudioVoiceRole,
+): VoiceSlot {
+  return {
+    audio,
+    role,
+    bus: "effects",
+    sourceGain: 0,
+    gain: 0,
+    startedAt: 0,
+    looping: false,
+  };
 }
 
 function clampGain(value: number): number {

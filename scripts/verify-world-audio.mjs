@@ -187,7 +187,12 @@ try {
     const zero = { wind: 0, rain: 0, forest: 0, wetland: 0, water: 0 };
     const rain = { wind: 0, rain: 1, forest: 0, wetland: 0, water: 0 };
     const wind = { wind: 1, rain: 0, forest: 0, wetland: 0, water: 0 };
-    const voiceStub = { play: () => undefined, setGain() {}, stop() {} };
+    const voiceStub = {
+      getAmbientCapacity: () => 6,
+      play: () => undefined,
+      setGain() {},
+      stop() {},
+    };
     const bank = new bankModule.WorldAudioBank(async () => fakeBuffer(), 1024 * 1024);
     const owner = new mixer.WorldAmbientMixer(bank, voiceStub);
     owner.setTarget(rain);
@@ -223,17 +228,53 @@ try {
       `Rain gain must not jump at a blend threshold; ${below} vs ${above}.`);
   });
 
-  await check("voice stealing never reuses a live loop", () => {
+  await check("voice roles reserve compact effects and positional capacity", () => {
+    assert.deepEqual(voices.resolveWorldAudioVoiceLayout(8), {
+      ambient: 5,
+      globalEffects: 1,
+      positionalEffects: 2,
+    });
+    assert.deepEqual(voices.resolveWorldAudioVoiceLayout(16), {
+      ambient: 6,
+      globalEffects: 1,
+      positionalEffects: 9,
+    });
+    assert.deepEqual(voices.resolveWorldAudioVoiceLayout(1), {
+      ambient: 1,
+      globalEffects: 0,
+      positionalEffects: 0,
+    });
+  });
+
+  await check("voice stealing stays inside its role and never reuses a live loop", () => {
     const slots = [
-      { positional: false, playing: true, looping: true, gain: 0.1, startedAt: 1 },
-      { positional: false, playing: true, looping: true, gain: 0.05, startedAt: 2 },
-      { positional: true, playing: true, looping: false, gain: 0.9, startedAt: 3 },
-      { positional: true, playing: true, looping: false, gain: 0.2, startedAt: 4 },
+      { role: "ambient", playing: true, looping: true, gain: 0.1, startedAt: 1 },
+      { role: "global-effect", playing: true, looping: false, gain: 0.5, startedAt: 2 },
+      { role: "positional-effect", playing: true, looping: false, gain: 0.9, startedAt: 3 },
+      { role: "positional-effect", playing: true, looping: false, gain: 0.2, startedAt: 4 },
     ];
-    assert.equal(voices.selectVoiceSlot(slots, false), -1);
-    assert.equal(voices.selectVoiceSlot(slots, true), 3);
-    slots.push({ positional: true, playing: false, looping: false, gain: 0, startedAt: 0 });
-    assert.equal(voices.selectVoiceSlot(slots, true), 4);
+    assert.equal(voices.selectVoiceSlot(slots, "ambient"), -1);
+    assert.equal(voices.selectVoiceSlot(slots, "global-effect"), 1);
+    assert.equal(voices.selectVoiceSlot(slots, "positional-effect"), 3);
+    slots.push({
+      role: "positional-effect",
+      playing: false,
+      looping: false,
+      gain: 0,
+      startedAt: 0,
+    });
+    assert.equal(voices.selectVoiceSlot(slots, "positional-effect"), 4);
+  });
+
+  await check("compact ambient selection keeps the loudest five of six beds", () => {
+    const gains = { wind: 0.7, rain: 0.5, forest: 0.6, wetland: 0.4, water: 0.3 };
+    const desktop = mixer.selectAmbientBedIds(gains, 6);
+    const compact = mixer.selectAmbientBedIds(gains, 5);
+    assert.equal(desktop.length, 6);
+    assert.equal(compact.length, 5);
+    assert.ok(desktop.includes("ambient/rain-light-01.mp3"));
+    assert.ok(!compact.includes("ambient/rain-light-01.mp3"));
+    assert.deepEqual(compact, desktop.slice(0, 5));
   });
 
   await check("surface classifier priority is deterministic", () => {
@@ -321,6 +362,8 @@ try {
     const resources = source("src/audio/WorldAudioResources.ts");
     const mixerSource = source("src/audio/WorldAmbientMixer.ts");
     const voicesSource = source("src/audio/WorldAudioVoices.ts");
+    const tuningSource = source("src/audio/WorldAudioTuning.ts");
+    const voicePolicy = source("src/audio/WorldAudioVoicePolicy.ts");
     const footsteps = source("src/audio/WorldFootstepAudio.ts");
     const emitters = source("src/audio/WorldSpatialEmitters.ts");
     const contacts = source("src/world/hydrology/WorldWaterContactSystem.ts");
@@ -358,13 +401,19 @@ try {
     assert.match(voicesSource, /const hadSource = slot\.clipId !== undefined \|\| slot\.audio\.source !== null/);
     assert.match(voicesSource, /Object\.assign\(slot\.audio, \{ buffer: null, source: null \}\)/);
     assert.match(voicesSource, /bus === "effects" && next <= 0/);
-    assert.match(voicesSource, /MAX_AMBIENT_VOICES = 6/);
-    assert.match(voicesSource, /RESERVED_POSITIONAL_VOICES = 2/);
+    assert.match(voicesSource, /getAmbientCapacity\(\)/);
+    assert.match(voicePolicy, /"global-effect"/);
+    assert.match(voicePolicy, /"positional-effect"/);
+    assert.match(voicePolicy, /slot\.role !== role/);
+    assert.match(tuningSource, /WORLD_AUDIO_MAX_AMBIENT_VOICES = 6/);
+    assert.match(tuningSource, /WORLD_AUDIO_RESERVED_GLOBAL_EFFECT_VOICES = 1/);
+    assert.match(tuningSource, /WORLD_AUDIO_RESERVED_POSITIONAL_VOICES = 2/);
 
     assert.match(mixerSource, /rain-light-01\.mp3/);
     assert.match(mixerSource, /rain-heavy-01\.mp3/);
     assert.match(mixerSource, /loading = new Set<string>/);
     assert.match(mixerSource, /outputEnabled = true/);
+    assert.match(mixerSource, /selectAmbientBedIds\(this\.current, this\.voices\.getAmbientCapacity\(\)\)/);
     assert.doesNotMatch(mixerSource, /bank\.retain|bank\.release/);
 
     assert.match(footsteps, /event\.landing && surface === "water"/);
@@ -404,5 +453,5 @@ if (failures.length > 0) {
 }
 
 console.log(
-  "[world-audio] Catalog, PCM LRU, cancellation, fades, buses, surface class, gait contacts, spatial ownership and audio lifecycle verified.",
+  "[world-audio] Catalog, PCM LRU, cancellation, fades, role-partitioned voices, ambient selection, buses, surface class, gait contacts, spatial ownership and audio lifecycle verified.",
 );

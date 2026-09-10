@@ -138,10 +138,13 @@ export class WorldAmbientMixer {
   }
 
   private syncVoices(): void {
+    const selected = new Set(
+      selectAmbientBedIds(this.current, this.voices.getAmbientCapacity()),
+    );
     for (const bed of BEDS) {
       const gain = bed.gain(this.current);
       const existing = this.playing.get(bed.clipId);
-      if (gain <= BED_ACTIVE_THRESHOLD) {
+      if (!selected.has(bed.clipId)) {
         if (existing) {
           this.voices.stop(existing);
           this.playing.delete(bed.clipId);
@@ -166,8 +169,12 @@ export class WorldAmbientMixer {
       const buffer = await this.bank.load(bed.clipId);
       if (!buffer || this.disposed) return;
 
+      const selected = selectAmbientBedIds(
+        this.current,
+        this.voices.getAmbientCapacity(),
+      );
+      if (!selected.includes(bed.clipId)) return;
       const gain = bed.gain(this.current);
-      if (gain <= BED_ACTIVE_THRESHOLD) return;
       const existing = this.playing.get(bed.clipId);
       if (existing?.isPlaying) {
         this.voices.setGain(existing, gain);
@@ -191,6 +198,23 @@ export class WorldAmbientMixer {
       this.loading.delete(bed.clipId);
     }
   }
+}
+
+export function selectAmbientBedIds(
+  gains: WorldAmbientGains,
+  maxVoices: number,
+): string[] {
+  if (!Number.isFinite(maxVoices) || maxVoices <= 0) return [];
+  const clamped = clampGains(gains);
+  return BEDS.map((bed, index) => ({
+    clipId: bed.clipId,
+    gain: bed.gain(clamped),
+    index,
+  }))
+    .filter((bed) => bed.gain > BED_ACTIVE_THRESHOLD)
+    .sort((a, b) => b.gain - a.gain || a.index - b.index)
+    .slice(0, Math.floor(maxVoices))
+    .map((bed) => bed.clipId);
 }
 
 export function ambientGainsFromWeather(
