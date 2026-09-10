@@ -8,7 +8,6 @@ import type { WorldAudioVoices } from "./WorldAudioVoices";
 
 export class WorldFootstepAudio {
   private readonly lastBySurface = new Map<WorldFootstepSurface, string>();
-  private readonly retainedClipIds: string[];
   private disposed = false;
 
   constructor(
@@ -16,13 +15,7 @@ export class WorldFootstepAudio {
     private readonly voices: WorldAudioVoices,
     private readonly parent: Object3D,
     private readonly seed: number,
-  ) {
-    this.retainedClipIds = [
-      ...worldFootstepClips("grass"),
-      ...worldFootstepClips("water"),
-    ].map((clip) => clip.id);
-    for (const id of this.retainedClipIds) this.bank.retain(id);
-  }
+  ) {}
 
   play(
     event: WorldFootContactEvent,
@@ -36,20 +29,7 @@ export class WorldFootstepAudio {
   dispose(): void {
     if (this.disposed) return;
     this.disposed = true;
-    let firstError: unknown;
-    let failed = false;
-    for (const id of this.retainedClipIds) {
-      try {
-        this.bank.release(id);
-      } catch (error) {
-        if (!failed) {
-          failed = true;
-          firstError = error;
-        }
-      }
-    }
     this.lastBySurface.clear();
-    if (failed) throw firstError;
   }
 
   private async trigger(
