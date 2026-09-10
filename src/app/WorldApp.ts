@@ -34,6 +34,7 @@ import { createGrassTrailNodePass } from "../grass/interaction/GrassTrailNodePas
 import type { RendererSession } from "../render/RendererSession";
 import { APP_VERSION } from "../version";
 import { DenseSpawnLocator } from "../world/DenseSpawnLocator";
+import { WorldWaterContactSystem } from "../world/hydrology/WorldWaterContactSystem";
 import { StoneField } from "../world/stones/StoneField";
 import { WorldStoneSystem } from "../world/stones/WorldStoneSystem";
 import { TerrainField } from "../world/TerrainField";
@@ -103,6 +104,7 @@ export class WorldApp {
   private experience?: WorldExperience;
   private weather?: WorldWeatherState;
   private rain?: WorldRainSystem;
+  private waterContacts?: WorldWaterContactSystem;
   private grassArtDirection?: GrassArtDirection;
   private rendererPaused = false;
   private subsystems!: WorldFrameSubsystems;
@@ -140,6 +142,7 @@ export class WorldApp {
     let scenic: WorldScenicLayer | undefined;
     let reveal: WorldRevealController | undefined;
     let runtimeGuard: WorldRuntimeGuard | undefined;
+    let waterContacts: WorldWaterContactSystem | undefined;
 
     try {
       this.renderer.outputColorSpace = THREE.SRGBColorSpace;
@@ -189,14 +192,19 @@ export class WorldApp {
       });
       environment.materialContext.setWorldWindUniforms(this.weather?.windUniforms);
       const audioFocus = () => controls?.getStreamingPosition() ?? spawn.position;
+      waterContacts = config.waterEnabled >= 1
+        ? new WorldWaterContactSystem(this.field, profile.compact)
+        : undefined;
+      this.waterContacts = waterContacts;
       this.rain = this.weather ? attachWorldRain(this.experience, {
         scene: this.scene, terrain: this.field, weather: this.weather,
-        focus: audioFocus, compact: profile.compact, seed: config.seed,
+        focus: audioFocus, seed: config.seed,
       }) : undefined;
       attachWorldAudio(this.experience, {
         camera: this.camera, scene: this.scene, terrain: this.field,
-        weather: this.weather, rain: this.rain, compact: profile.compact,
-        seed: config.seed, flyMode: useFlyControls, focus: audioFocus,
+        weather: this.weather, rain: this.rain, waterContacts,
+        compact: profile.compact, seed: config.seed, flyMode: useFlyControls,
+        focus: audioFocus,
         getCharacter: () => controls instanceof ThirdPersonController
           ? controls.getCharacter() : undefined,
       });
@@ -204,7 +212,7 @@ export class WorldApp {
         this.rain?.uniforms,
         this.rain?.wetness,
       );
-      environment.materialContext.setWorldWaterContacts(this.rain?.waterContacts);
+      environment.materialContext.setWorldWaterContacts(waterContacts?.field);
 
       terrain = new TerrainStreamer(
         this.scene,
@@ -351,6 +359,7 @@ export class WorldApp {
       disposeConstructionSafely("Minimap", () => minimap?.dispose());
       disposeConstructionSafely("World controls", () => controls?.dispose());
       disposeConstructionSafely("Experience", () => this.experience?.dispose());
+      disposeConstructionSafely("Water contacts", () => waterContacts?.dispose());
       disposeConstructionSafely("Development hooks", () => this.development.dispose());
       disposeConstructionSafely("Grass trail field", () => grassTrailField.dispose());
       disposeConstructionSafely("Grass system", () => grass?.dispose());
@@ -460,6 +469,8 @@ export class WorldApp {
     this.disposeSafely("Stone system", () => this.stones.dispose());
     this.disposeGrassResources();
     this.disposeSafely("Experience", () => this.experience?.dispose());
+    this.disposeSafely("Water contacts", () => this.waterContacts?.dispose());
+    this.waterContacts = undefined;
     this.rain = undefined;
     this.weather = undefined;
     this.experience = undefined;
