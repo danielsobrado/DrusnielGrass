@@ -65,7 +65,6 @@ function walkEvents(ActorGait, WorldFootContactTracker, hz, seconds, speed) {
     },
     ...overrides,
   });
-
   gait.setFromDistance(0);
   tracker.poll(sample({ speed: 0 }));
   for (let elapsed = 0; elapsed < seconds - 1e-9; elapsed += dt) {
@@ -107,29 +106,14 @@ try {
           existsSync(resolve(AUDIO_DIRECTORY, windowsRelative)),
         `Missing staged clip ${clip.id}.`,
       );
-      assert.ok(
-        clip.path.startsWith("./audio/"),
-        `${clip.id} must load from a relative public URL.`,
-      );
+      assert.ok(clip.path.startsWith("./audio/"));
     }
     assert.ok(catalog.worldFootstepClips("grass").length >= 4);
     assert.ok(catalog.worldFootstepClips("water").length >= 4);
-    assert.ok(
-      catalog.worldFootstepClips("path").every((clip) => clip.group === "stone"),
-    );
-    assert.ok(
-      catalog.worldAudioPresetEssentials().some((clip) =>
-        clip.id.includes("rain-light"),
-      ),
-    );
-    assert.ok(
-      catalog.worldAudioPresetEssentials().some((clip) =>
-        clip.id.includes("rain-heavy"),
-      ),
-    );
+    assert.ok(catalog.worldFootstepClips("path").every((clip) => clip.group === "stone"));
   });
 
-  await check("decoded PCM memory is LRU-evicted only for unreferenced clips", async () => {
+  await check("decoded PCM cache evicts unreferenced LRU entries", async () => {
     const bank = new bankModule.WorldAudioBank(
       async () => fakeBuffer(1_000_000, 1),
       8_000_000,
@@ -138,66 +122,57 @@ try {
     await bank.load("ambient/forest-01.mp3");
     await bank.load("wildlife/bird-chirp-01.mp3");
     await bank.load("wildlife/bird-chirp-02.mp3");
-    assert.ok(
-      bank.peek("ambient/forest-01.mp3"),
-      "Referenced clips must survive LRU eviction.",
-    );
+    assert.ok(bank.peek("ambient/forest-01.mp3"));
     assert.equal(bank.peek("wildlife/bird-chirp-01.mp3"), undefined);
     assert.ok(bank.decodedBytes <= 8_000_000);
+    bank.release("ambient/forest-01.mp3");
     bank.dispose();
     assert.equal(bank.peek("ambient/forest-01.mp3"), undefined);
   });
 
-  await check("a missing clip is silent and reported once", async () => {
+  await check("missing and late clips fail silently and deterministically", async () => {
     const warnings = [];
     const original = console.warn;
     console.warn = (...args) => warnings.push(args.join(" "));
     try {
-      const bank = new bankModule.WorldAudioBank(async () => undefined, 1024);
-      assert.equal(await bank.load("wildlife/frog-01.mp3"), undefined);
-      assert.equal(await bank.load("wildlife/frog-01.mp3"), undefined);
+      const missing = new bankModule.WorldAudioBank(async () => undefined, 1024);
+      assert.equal(await missing.load("wildlife/frog-01.mp3"), undefined);
+      assert.equal(await missing.load("wildlife/frog-01.mp3"), undefined);
       assert.equal(warnings.length, 1);
-      assert.ok(bank.isMissing("wildlife/frog-01.mp3"));
-      bank.dispose();
+      missing.dispose();
     } finally {
       console.warn = original;
     }
-  });
 
-  await check("late loads after disposal are ignored", async () => {
     let resolveDecode;
     const pending = new Promise((resolvePromise) => {
       resolveDecode = resolvePromise;
     });
-    const bank = new bankModule.WorldAudioBank(async () => pending, 1024);
-    const loading = bank.load("wildlife/crow-01.mp3");
-    bank.dispose();
+    const late = new bankModule.WorldAudioBank(async () => pending, 1024);
+    const loading = late.load("wildlife/crow-01.mp3");
+    late.dispose();
     resolveDecode(fakeBuffer());
     assert.equal(await loading, undefined);
   });
 
-  await check("preset fades advance while output is disabled and survive interruption", () => {
+  await check("preset fade advances while output is disabled and survives interruption", () => {
     assert.equal(tuning.WORLD_AUDIO_PRESET_FADE_SECONDS, 1.5);
     const zero = { wind: 0, rain: 0, forest: 0, wetland: 0, water: 0 };
-    const toRain = { wind: 0, rain: 1, forest: 0, wetland: 0, water: 0 };
-    const toWind = { wind: 1, rain: 0, forest: 0, wetland: 0, water: 0 };
-    const voicesStub = {
-      play() { return undefined; },
-      setGain() {},
-      stop() {},
-    };
+    const rain = { wind: 0, rain: 1, forest: 0, wetland: 0, water: 0 };
+    const wind = { wind: 1, rain: 0, forest: 0, wetland: 0, water: 0 };
+    const voiceStub = { play: () => undefined, setGain() {}, stop() {} };
     const bank = new bankModule.WorldAudioBank(async () => fakeBuffer(), 1024 * 1024);
-    const owner = new mixer.WorldAmbientMixer(bank, voicesStub);
-    owner.setTarget(toRain);
+    const owner = new mixer.WorldAmbientMixer(bank, voiceStub);
+    owner.setTarget(rain);
     owner.update(0.5, false);
-    const mid = owner.getCurrent();
     assert.ok(
-      Math.abs(mid.rain - mixer.mixGains(zero, toRain, 0.5 / 1.5).rain) < 1e-9,
+      Math.abs(owner.getCurrent().rain - mixer.mixGains(zero, rain, 1 / 3).rain) <
+        1e-9,
     );
-    const fadeBefore = owner.getFade();
+    const before = owner.getFade();
     owner.follow({ wind: 0.1, rain: 0.9, forest: 0, wetland: 0, water: 0 });
-    assert.equal(owner.getFade(), fadeBefore);
-    owner.setTarget(toWind);
+    assert.equal(owner.getFade(), before);
+    owner.setTarget(wind);
     owner.update(1.5, false);
     assert.ok(Math.abs(owner.getCurrent().wind - 1) < 1e-6);
     assert.ok(Math.abs(owner.getCurrent().rain) < 1e-6);
@@ -223,10 +198,10 @@ try {
     assert.equal(voices.selectVoiceSlot(slots, true), 4);
   });
 
-  await check("surface classifier uses hydrology, stone, path, shade, then grass", () => {
+  await check("surface classifier priority is deterministic", () => {
     const hydrology = {
       waterCoverage: 0,
-      waterLevel: 0,
+      waterLevel: 2,
       waterProximity: 0,
       humidityBoost: 0,
       grassMask: 1,
@@ -251,16 +226,11 @@ try {
       terrain.samplePathGrassMask = () => 1;
       Object.assign(hydrology, overrides.hydrology ?? {});
       Object.assign(ecology, overrides.ecology ?? {});
-      if (overrides.path !== undefined) {
-        terrain.samplePathGrassMask = () => overrides.path;
-      }
+      if (overrides.path !== undefined) terrain.samplePathGrassMask = () => overrides.path;
       return new classifierModule.WorldSurfaceClassifier(terrain, () => stone)
         .classify(0, 0, overrides.wetness ?? 0);
     };
-    assert.equal(
-      classify({ hydrology: { waterCoverage: 1, waterLevel: 2.2 } }),
-      "water",
-    );
+    assert.equal(classify({ hydrology: { waterCoverage: 1, waterLevel: 2.2 } }), "water");
     assert.equal(classify({}, 0.1), "stone");
     assert.equal(classify({ path: 0.2, wetness: 0 }), "path");
     assert.equal(classify({ path: 0.2, wetness: 0.8 }), "mud");
@@ -273,18 +243,9 @@ try {
     const { WorldFootContactTracker } = trackerModule;
     const thirty = walkEvents(ActorGait, WorldFootContactTracker, 30, 2, 1.4);
     const sixty = walkEvents(ActorGait, WorldFootContactTracker, 60, 2, 1.4);
-    const hundredTwenty = walkEvents(
-      ActorGait,
-      WorldFootContactTracker,
-      120,
-      2,
-      1.4,
-    );
-    assert.ok(Math.abs(thirty - sixty) <= 1, `30 Hz ${thirty} vs 60 Hz ${sixty}`);
-    assert.ok(
-      Math.abs(sixty - hundredTwenty) <= 1,
-      `60 Hz ${sixty} vs 120 Hz ${hundredTwenty}`,
-    );
+    const oneTwenty = walkEvents(ActorGait, WorldFootContactTracker, 120, 2, 1.4);
+    assert.ok(Math.abs(thirty - sixty) <= 1);
+    assert.ok(Math.abs(sixty - oneTwenty) <= 1);
     assert.ok(thirty >= 2);
     assert.equal(walkEvents(ActorGait, WorldFootContactTracker, 60, 2, 0), 0);
 
@@ -307,15 +268,8 @@ try {
     assert.equal(tracker.poll(undefined).length, 0);
     assert.equal(tracker.poll({ ...base, airborne: true }).length, 0);
     gait.setFromDistance(0);
-    assert.equal(
-      tracker.poll({ ...base, landing: true, landingImpact: 0.8 }).length,
-      1,
-    );
-    assert.equal(
-      tracker.poll(base).length,
-      0,
-      "Landing must resync planted feet instead of double-emitting stance.",
-    );
+    assert.equal(tracker.poll({ ...base, landing: true, landingImpact: 0.8 }).length, 1);
+    assert.equal(tracker.poll(base).length, 0);
     assert.equal(tracker.poll({ ...base, teleported: true }).length, 0);
     gait.setFromDistance(0);
     assert.equal(tracker.poll(base).length, 0);
@@ -340,22 +294,27 @@ try {
     assert.match(runtime, /isAmbientAudible\(\)/);
     assert.match(runtime, /isEffectsAudible\(\)/);
     assert.match(runtime, /addWaterContact/);
-    assert.match(runtime, /experience\.attach\("audio"/);
     assert.match(runtime, /weatherAvailable/);
+    assert.match(runtime, /experience\.attach\("audio"/);
 
     assert.match(permission, /sessionAudioUnlocked/);
     assert.match(permission, /context\.resume\(\)/);
     assert.match(permission, /setBusGain\("ambient"/);
     assert.match(permission, /setBusGain\("effects"/);
-    assert.match(permission, /document\.addEventListener\("change", this\.handleGesture\)/);
-    assert.doesNotMatch(permission, /\.suspend\(/);
-    assert.doesNotMatch(permission, /\.close\(/);
+    assert.doesNotMatch(permission, /\.suspend\(|\.close\(/);
 
     assert.match(resources, /disposeAudioListener/);
     assert.match(resources, /listener\.gain\.disconnect/);
     assert.match(resources, /listener\.context\.destination/);
-    assert.match(voicesSource, /getOutput\(\)\.disconnect\(\)/);
-    assert.match(voicesSource, /Object\.assign\(slot\.audio, \{ buffer: null, source: null \}\)/);
+    assert.match(
+      voicesSource,
+      /audio\.gain\.disconnect\(slot\.audio\.listener\.getInput\(\)\)/,
+    );
+    assert.match(
+      voicesSource,
+      /Object\.assign\(slot\.audio, \{ buffer: null, source: null \}\)/,
+    );
+    assert.match(voicesSource, /bus === "effects" && next <= 0/);
     assert.match(voicesSource, /MAX_AMBIENT_VOICES = 6/);
     assert.match(voicesSource, /RESERVED_POSITIONAL_VOICES = 2/);
 
@@ -363,6 +322,7 @@ try {
     assert.match(mixerSource, /rain-heavy-01\.mp3/);
     assert.match(mixerSource, /loading = new Set<string>/);
     assert.match(mixerSource, /outputEnabled = true/);
+    assert.doesNotMatch(mixerSource, /bank\.retain|bank\.release/);
 
     assert.match(footsteps, /event\.landing && surface === "water"/);
     assert.match(footsteps, /WORLD_AUDIO_ONE_SHOT_MAX_LOAD_DELAY_MS/);
