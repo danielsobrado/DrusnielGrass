@@ -217,9 +217,9 @@ export class WorldAudioVoices {
     };
     for (const slot of this.slots) {
       attempt(() => this.stopSlot(slot));
-      // Three connects every voice gain to the listener input in the
-      // constructor; stopping/disconnecting only releases the current source.
-      attempt(() => slot.audio.getOutput().disconnect());
+      // Audio connects each voice gain to the listener input. PositionalAudio
+      // returns its panner from getOutput(), so detach the gain explicitly.
+      attempt(() => slot.audio.gain.disconnect(slot.audio.listener.getInput()));
     }
     this.slots.length = 0;
     if (failed) throw firstError;
