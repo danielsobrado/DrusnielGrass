@@ -23,16 +23,24 @@ export class WorldAudioPermission {
     this.applyOutputGains();
   }
 
-  update(): boolean {
-    if (this.disposed) return false;
+  update(): void {
+    if (this.disposed) return;
     this.syncContext();
-    return this.applyOutputGains();
+    this.applyOutputGains();
   }
 
-  isAudible(): boolean {
+  isAmbientAudible(): boolean {
     if (this.disposed) return false;
     const settings = hudSettingsStore.snapshot();
-    return this.allowed && settings.soundEnabled && !document.hidden;
+    return this.isAllowed(settings.soundEnabled) &&
+      settings.masterVolume * settings.ambientVolume > 0;
+  }
+
+  isEffectsAudible(): boolean {
+    if (this.disposed) return false;
+    const settings = hudSettingsStore.snapshot();
+    return this.isAllowed(settings.soundEnabled) &&
+      settings.masterVolume * settings.effectsVolume > 0;
   }
 
   dispose(): void {
@@ -45,13 +53,16 @@ export class WorldAudioPermission {
     this.voices.setBusGain("effects", 0);
   }
 
-  private applyOutputGains(): boolean {
+  private applyOutputGains(): void {
     const settings = hudSettingsStore.snapshot();
-    const audible = this.allowed && settings.soundEnabled && !document.hidden;
+    const audible = this.isAllowed(settings.soundEnabled);
     const master = audible ? settings.masterVolume : 0;
     this.voices.setBusGain("ambient", master * settings.ambientVolume);
     this.voices.setBusGain("effects", master * settings.effectsVolume);
-    return audible;
+  }
+
+  private isAllowed(soundEnabled: boolean): boolean {
+    return this.allowed && soundEnabled && !document.hidden;
   }
 
   private syncContext(): void {
