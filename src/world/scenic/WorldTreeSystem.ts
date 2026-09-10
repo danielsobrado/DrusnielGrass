@@ -151,15 +151,21 @@ export class WorldTreeSystem {
   }
 
   private shouldRebuild(focus: THREE.Vector3): boolean {
-    return !Number.isFinite(this.builtX) ||
-      Math.abs(focus.x - this.builtX) >= TREE_REBUILD_STEP ||
-      Math.abs(focus.z - this.builtZ) >= TREE_REBUILD_STEP;
+    return movedAtLeast(
+      focus,
+      this.builtX,
+      this.builtZ,
+      TREE_REBUILD_STEP,
+    );
   }
 
   private shouldPublish(focus: THREE.Vector3): boolean {
-    return !Number.isFinite(this.publishedX) ||
-      Math.abs(focus.x - this.publishedX) >= TREE_LOD_UPDATE_STEP ||
-      Math.abs(focus.z - this.publishedZ) >= TREE_LOD_UPDATE_STEP;
+    return movedAtLeast(
+      focus,
+      this.publishedX,
+      this.publishedZ,
+      TREE_LOD_UPDATE_STEP,
+    );
   }
 }
 
@@ -230,6 +236,18 @@ function publishCounts(
 
 function createSpeciesCounts(): SpeciesCounts {
   return { oak: 0, birch: 0, evergreen: 0 };
+}
+
+function movedAtLeast(
+  focus: THREE.Vector3,
+  originX: number,
+  originZ: number,
+  distance: number,
+): boolean {
+  if (!Number.isFinite(originX) || !Number.isFinite(originZ)) return true;
+  const dx = focus.x - originX;
+  const dz = focus.z - originZ;
+  return dx * dx + dz * dz >= distance * distance;
 }
 
 function distanceSquared(

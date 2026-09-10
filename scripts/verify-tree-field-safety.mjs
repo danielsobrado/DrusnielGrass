@@ -118,7 +118,18 @@ assert(
     system.includes("streamOpacity <= TREE_LOD_VISIBLE_THRESHOLD"),
   "Tree streaming must keep a rebuild guard band and fade the visible edge before roster membership changes.",
 );
+assert(
+  system.includes("function movedAtLeast(") &&
+    system.includes("return dx * dx + dz * dz >= distance * distance;") &&
+    system.includes("this.builtX,") &&
+    system.includes("TREE_REBUILD_STEP,") &&
+    system.includes("this.publishedX,") &&
+    system.includes("TREE_LOD_UPDATE_STEP,") &&
+    !system.includes("Math.abs(focus.x - this.builtX)") &&
+    !system.includes("Math.abs(focus.z - this.builtZ)"),
+  "Tree rebuild and LOD publication thresholds must use radial horizontal distance so diagonal travel cannot outrun the stream guard band.",
+);
 
 console.log(
-  "[tree-field-safety] Tree bounds, deterministic species, renderer/shade parity, shared wind, LOD alpha, GPU ownership, and stream continuity verified.",
+  "[tree-field-safety] Tree bounds, deterministic species, renderer/shade parity, shared wind, LOD alpha, GPU ownership, radial stream continuity, and stream fade verified.",
 );
