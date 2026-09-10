@@ -113,21 +113,21 @@ export class WorldAudioVoices {
     slot.looping = options.loop === true;
     slot.startedAt = ++this.sequence;
     const audio = slot.audio;
-    audio.setBuffer(buffer);
-    audio.setLoop(slot.looping);
-    this.applyGain(slot);
-    if (
-      slot.positional &&
-      options.position &&
-      audio instanceof THREE.PositionalAudio
-    ) {
-      audio.position.copy(options.position);
-      if (options.refDistance && options.refDistance > 0) {
-        audio.setRefDistance(options.refDistance);
-      }
-      options.parent?.add(audio);
-    }
     try {
+      audio.setBuffer(buffer);
+      audio.setLoop(slot.looping);
+      this.applyGain(slot);
+      if (
+        slot.positional &&
+        options.position &&
+        audio instanceof THREE.PositionalAudio
+      ) {
+        audio.position.copy(options.position);
+        if (options.refDistance && options.refDistance > 0) {
+          audio.setRefDistance(options.refDistance);
+        }
+        options.parent?.add(audio);
+      }
       audio.play();
       return audio;
     } catch (error) {
@@ -204,14 +204,24 @@ export class WorldAudioVoices {
     };
     for (const slot of this.slots) {
       attempt(() => this.stopSlot(slot));
-      attempt(() => slot.audio.disconnect());
-      attempt(() => slot.audio.removeFromParent());
     }
     this.slots.length = 0;
     if (failed) throw firstError;
   }
 
   private claim(positional: boolean): VoiceSlot | undefined {
+    for (const slot of this.slots) {
+      if (!slot.audio.isPlaying && slot.clipId) {
+        try {
+          this.stopSlot(slot);
+        } catch (error) {
+          console.warn(
+            "[Drusniel World] Finished audio voice cleanup failed.",
+            error,
+          );
+        }
+      }
+    }
     const index = selectVoiceSlot(
       this.slots.map((slot) => ({
         positional: slot.positional,
@@ -233,20 +243,24 @@ export class WorldAudioVoices {
   private stopSlot(slot: VoiceSlot): void {
     let firstError: unknown;
     let failed = false;
-    try {
-      if (slot.audio.isPlaying) slot.audio.stop();
-    } catch (error) {
-      failed = true;
-      firstError = error;
-    }
-    try {
-      slot.audio.removeFromParent();
-    } catch (error) {
-      if (!failed) {
-        failed = true;
-        firstError = error;
+    const attempt = (release: () => void): void => {
+      try {
+        release();
+      } catch (error) {
+        if (!failed) {
+          failed = true;
+          firstError = error;
+        }
       }
-    }
+    };
+    attempt(() => {
+      if (slot.audio.isPlaying) slot.audio.stop();
+    });
+    attempt(() => slot.audio.disconnect());
+    attempt(() => slot.audio.removeFromParent());
+    // Three r185 leaves both fields referencing the decoded buffer/source after
+    // stop. They are public runtime fields but readonly in the declaration.
+    Object.assign(slot.audio, { buffer: null, source: null });
     slot.clipId = undefined;
     slot.bus = "effects";
     slot.sourceGain = 0;
