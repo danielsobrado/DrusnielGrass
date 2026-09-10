@@ -130,6 +130,33 @@ try {
     assert.equal(bank.peek("ambient/forest-01.mp3"), undefined);
   });
 
+  await check("disposed banks abort in-flight audio work without a missing warning", async () => {
+    let capturedSignal;
+    const warnings = [];
+    const original = console.warn;
+    console.warn = (...args) => warnings.push(args.join(" "));
+    try {
+      const bank = new bankModule.WorldAudioBank(
+        async (_url, signal) => {
+          capturedSignal = signal;
+          await new Promise((resolvePromise) => {
+            if (signal.aborted) resolvePromise();
+            else signal.addEventListener("abort", resolvePromise, { once: true });
+          });
+          return undefined;
+        },
+        1024,
+      );
+      const loading = bank.load("wildlife/crow-01.mp3");
+      bank.dispose();
+      assert.equal(capturedSignal?.aborted, true);
+      assert.equal(await loading, undefined);
+      assert.equal(warnings.length, 0);
+    } finally {
+      console.warn = original;
+    }
+  });
+
   await check("missing and late clips fail silently and deterministically", async () => {
     const warnings = [];
     const original = console.warn;
@@ -179,6 +206,23 @@ try {
     owner.dispose();
   });
 
+  await check("rain gain is continuous through the light-to-heavy blend", () => {
+    const habitat = { meadow: 0, forest: 0, wetland: 0, water: 0 };
+    const snapshot = (rainIntensity) => ({
+      presetId: "greyrain",
+      label: "",
+      rainIntensity,
+      windIntensity: 0,
+      windDirectionDegrees: 0,
+      windSimulationSpeed: 1,
+      restBendGain: 1,
+    });
+    const below = mixer.ambientGainsFromWeather(snapshot(0.3499), habitat).rain;
+    const above = mixer.ambientGainsFromWeather(snapshot(0.3501), habitat).rain;
+    assert.ok(Math.abs(above - below) < 0.001,
+      `Rain gain must not jump at a blend threshold; ${below} vs ${above}.`);
+  });
+
   await check("voice stealing never reuses a live loop", () => {
     const slots = [
       { positional: false, playing: true, looping: true, gain: 0.1, startedAt: 1 },
@@ -188,13 +232,7 @@ try {
     ];
     assert.equal(voices.selectVoiceSlot(slots, false), -1);
     assert.equal(voices.selectVoiceSlot(slots, true), 3);
-    slots.push({
-      positional: true,
-      playing: false,
-      looping: false,
-      gain: 0,
-      startedAt: 0,
-    });
+    slots.push({ positional: true, playing: false, looping: false, gain: 0, startedAt: 0 });
     assert.equal(voices.selectVoiceSlot(slots, true), 4);
   });
 
@@ -231,6 +269,7 @@ try {
         .classify(0, 0, overrides.wetness ?? 0);
     };
     assert.equal(classify({ hydrology: { waterCoverage: 1, waterLevel: 2.2 } }), "water");
+    assert.notEqual(classify({ hydrology: { waterCoverage: 1, waterLevel: 2 } }), "water");
     assert.equal(classify({}, 0.1), "stone");
     assert.equal(classify({ path: 0.2, wetness: 0 }), "path");
     assert.equal(classify({ path: 0.2, wetness: 0.8 }), "mud");
@@ -277,12 +316,14 @@ try {
 
   await check("audio ownership and hardening contracts stay explicit", () => {
     const runtime = source("src/audio/WorldAudioSystem.ts");
+    const bankSource = source("src/audio/WorldAudioBank.ts");
     const permission = source("src/audio/WorldAudioPermission.ts");
     const resources = source("src/audio/WorldAudioResources.ts");
     const mixerSource = source("src/audio/WorldAmbientMixer.ts");
     const voicesSource = source("src/audio/WorldAudioVoices.ts");
     const footsteps = source("src/audio/WorldFootstepAudio.ts");
     const emitters = source("src/audio/WorldSpatialEmitters.ts");
+    const contacts = source("src/world/hydrology/WorldWaterContactSystem.ts");
     const app = source("src/app/WorldApp.ts");
     const character = source("src/character/SnowflowCharacter.ts");
 
@@ -293,9 +334,16 @@ try {
     assert.match(runtime, /new WorldAudioPermission/);
     assert.match(runtime, /isAmbientAudible\(\)/);
     assert.match(runtime, /isEffectsAudible\(\)/);
-    assert.match(runtime, /addWaterContact/);
+    assert.match(runtime, /waterContacts\?\.add\(/);
     assert.match(runtime, /weatherAvailable/);
     assert.match(runtime, /experience\.attach\("audio"/);
+    assert.match(runtime, /if \(!this\.essentialsWarmed && \(ambientAudible \|\| effectsAudible\)\)/);
+
+    assert.match(bankSource, /new AbortController\(\)/);
+    assert.match(bankSource, /this\.abort\.abort\(\)/);
+    assert.match(bankSource, /this\.decode\(entry\.clip\.path, this\.abort\.signal\)/);
+    assert.match(resources, /fetch\(url, \{ signal \}\)/);
+    assert.match(resources, /if \(signal\.aborted\) return undefined/);
 
     assert.match(permission, /sessionAudioUnlocked/);
     assert.match(permission, /context\.resume\(\)/);
@@ -306,14 +354,9 @@ try {
     assert.match(resources, /disposeAudioListener/);
     assert.match(resources, /listener\.gain\.disconnect/);
     assert.match(resources, /listener\.context\.destination/);
-    assert.match(
-      voicesSource,
-      /audio\.gain\.disconnect\(slot\.audio\.listener\.getInput\(\)\)/,
-    );
-    assert.match(
-      voicesSource,
-      /Object\.assign\(slot\.audio, \{ buffer: null, source: null \}\)/,
-    );
+    assert.match(voicesSource, /slot\.audio\.gain\.disconnect\(slot\.audio\.listener\.getInput\(\)\)/);
+    assert.match(voicesSource, /const hadSource = slot\.clipId !== undefined \|\| slot\.audio\.source !== null/);
+    assert.match(voicesSource, /Object\.assign\(slot\.audio, \{ buffer: null, source: null \}\)/);
     assert.match(voicesSource, /bus === "effects" && next <= 0/);
     assert.match(voicesSource, /MAX_AMBIENT_VOICES = 6/);
     assert.match(voicesSource, /RESERVED_POSITIONAL_VOICES = 2/);
@@ -333,10 +376,15 @@ try {
     assert.match(emitters, /sampleHeight\(kind, x, z\)/);
     assert.match(emitters, /this\.slots\.includes\(slot\)/);
 
+    assert.match(contacts, /time: performance\.now\(\) \* 0\.001/);
+    assert.doesNotMatch(contacts, /requestAnimationFrame|setInterval|setTimeout/);
     assert.ok(
-      app.indexOf("attachWorldRain(this.experience") <
-        app.indexOf("attachWorldAudio(this.experience"),
+      app.indexOf("new WorldWaterContactSystem") <
+        app.indexOf("terrain = new TerrainStreamer("),
+      "Water contacts must be published before streamed water materials are built.",
     );
+    assert.match(app, /waterContacts,\s*compact: profile\.compact/);
+    assert.match(app, /setWorldWaterContacts\(waterContacts\?\.field\)/);
     assert.match(app, /flyMode: useFlyControls/);
     assert.match(character, /consumeTeleported/);
     assert.match(character, /copyFootWorldPosition/);
@@ -356,5 +404,5 @@ if (failures.length > 0) {
 }
 
 console.log(
-  "[world-audio] Catalog, PCM LRU, fades, buses, surface class, gait contacts, spatial ownership and audio lifecycle verified.",
+  "[world-audio] Catalog, PCM LRU, cancellation, fades, buses, surface class, gait contacts, spatial ownership and audio lifecycle verified.",
 );
