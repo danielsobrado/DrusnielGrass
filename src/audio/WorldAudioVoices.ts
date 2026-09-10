@@ -1,5 +1,7 @@
 import * as THREE from "three";
 
+export type WorldAudioBus = "ambient" | "effects";
+
 export interface WorldVoiceClaimState {
   readonly positional: boolean;
   readonly playing: boolean;
@@ -12,10 +14,17 @@ interface VoiceSlot {
   readonly audio: THREE.Audio | THREE.PositionalAudio;
   readonly positional: boolean;
   clipId?: string;
+  bus: WorldAudioBus;
+  sourceGain: number;
   gain: number;
   startedAt: number;
   looping: boolean;
 }
+
+const DEFAULT_BUS_GAINS: Readonly<Record<WorldAudioBus, number>> = Object.freeze({
+  ambient: 1,
+  effects: 1,
+});
 
 /**
  * Bounded pool of Three.js voices. Stereo ambient beds use non-positional
@@ -23,6 +32,9 @@ interface VoiceSlot {
  */
 export class WorldAudioVoices {
   private readonly slots: VoiceSlot[] = [];
+  private readonly busGains: Record<WorldAudioBus, number> = {
+    ...DEFAULT_BUS_GAINS,
+  };
   private disposed = false;
   private sequence = 0;
 
@@ -35,6 +47,8 @@ export class WorldAudioVoices {
       this.slots.push({
         audio: new THREE.Audio(listener) as THREE.Audio | THREE.PositionalAudio,
         positional: false,
+        bus: "effects",
+        sourceGain: 0,
         gain: 0,
         startedAt: 0,
         looping: false,
@@ -47,6 +61,8 @@ export class WorldAudioVoices {
       this.slots.push({
         audio: positional,
         positional: true,
+        bus: "effects",
+        sourceGain: 0,
         gain: 0,
         startedAt: 0,
         looping: false,
@@ -58,6 +74,7 @@ export class WorldAudioVoices {
     buffer: AudioBuffer,
     options: {
       readonly clipId: string;
+      readonly bus: WorldAudioBus;
       readonly gain: number;
       readonly loop?: boolean;
       readonly position?: THREE.Vector3;
@@ -65,49 +82,120 @@ export class WorldAudioVoices {
       readonly parent?: THREE.Object3D;
     },
   ): THREE.Audio | THREE.PositionalAudio | undefined {
-    if (this.disposed || options.gain <= 0) return undefined;
+    const sourceGain = clampGain(options.gain);
+    if (
+      this.disposed ||
+      sourceGain <= 0 ||
+      this.busGains[options.bus] <= 0
+    ) {
+      return undefined;
+    }
     const wantPositional = options.position !== undefined;
     const slot = this.claim(wantPositional);
     if (!slot) return undefined;
     this.stopSlot(slot);
     slot.clipId = options.clipId;
-    slot.gain = options.gain;
+    slot.bus = options.bus;
+    slot.sourceGain = sourceGain;
     slot.looping = options.loop === true;
     slot.startedAt = ++this.sequence;
     const audio = slot.audio;
     audio.setBuffer(buffer);
-    audio.setLoop(options.loop === true);
-    audio.setVolume(options.gain);
-    if (slot.positional && options.position && audio instanceof THREE.PositionalAudio) {
+    audio.setLoop(slot.looping);
+    this.applyGain(slot);
+    if (
+      slot.positional &&
+      options.position &&
+      audio instanceof THREE.PositionalAudio
+    ) {
       audio.position.copy(options.position);
-      if (options.refDistance) audio.setRefDistance(options.refDistance);
+      if (options.refDistance && options.refDistance > 0) {
+        audio.setRefDistance(options.refDistance);
+      }
       options.parent?.add(audio);
     }
-    audio.play();
-    return audio;
+    try {
+      audio.play();
+      return audio;
+    } catch (error) {
+      try {
+        this.stopSlot(slot);
+      } catch (cleanupError) {
+        console.warn(
+          "[Drusniel World] Audio voice rollback failed.",
+          cleanupError,
+        );
+      }
+      console.warn(
+        `[Drusniel World] Audio playback failed for ${options.clipId}.`,
+        error,
+      );
+      return undefined;
+    }
   }
 
   setGain(audio: THREE.Audio | THREE.PositionalAudio, gain: number): void {
     if (this.disposed) return;
     const slot = this.slots.find((entry) => entry.audio === audio);
     if (!slot) return;
-    slot.gain = Math.max(0, gain);
-    audio.setVolume(slot.gain);
+    slot.sourceGain = clampGain(gain);
+    this.applyGain(slot);
+  }
+
+  setBusGain(bus: WorldAudioBus, gain: number): void {
+    if (this.disposed) return;
+    const next = clampGain(gain);
+    if (this.busGains[bus] === next) return;
+    this.busGains[bus] = next;
+    for (const slot of this.slots) {
+      if (slot.bus === bus && slot.clipId) this.applyGain(slot);
+    }
+  }
+
+  stop(audio: THREE.Audio | THREE.PositionalAudio): void {
+    if (this.disposed) return;
+    const slot = this.slots.find((entry) => entry.audio === audio);
+    if (slot) this.stopSlot(slot);
   }
 
   stopAll(): void {
-    for (const slot of this.slots) this.stopSlot(slot);
+    let firstError: unknown;
+    let failed = false;
+    for (const slot of this.slots) {
+      try {
+        this.stopSlot(slot);
+      } catch (error) {
+        if (!failed) {
+          failed = true;
+          firstError = error;
+        }
+      }
+    }
+    if (failed) throw firstError;
   }
 
   dispose(): void {
     if (this.disposed) return;
     this.disposed = true;
-    this.stopAll();
+    let firstError: unknown;
+    let failed = false;
+    const attempt = (release: () => void): void => {
+      try {
+        release();
+      } catch (error) {
+        if (!failed) {
+          failed = true;
+          firstError = error;
+        }
+      }
+    };
     for (const slot of this.slots) {
-      slot.audio.disconnect();
-      slot.audio.removeFromParent();
+      attempt(() => this.stopSlot(slot));
+      attempt(() => slot.audio.disconnect());
+      attempt(() => slot.audio.removeFromParent());
     }
     this.slots.length = 0;
+    if (failed) throw firstError;
   }
 
   private claim(positional: boolean): VoiceSlot | undefined {
@@ -124,12 +212,34 @@ export class WorldAudioVoices {
     return index >= 0 ? this.slots[index] : undefined;
   }
 
+  private applyGain(slot: VoiceSlot): void {
+    slot.gain = slot.sourceGain * this.busGains[slot.bus];
+    slot.audio.setVolume(slot.gain);
+  }
+
   private stopSlot(slot: VoiceSlot): void {
-    if (slot.audio.isPlaying) slot.audio.stop();
-    slot.audio.removeFromParent();
+    let firstError: unknown;
+    let failed = false;
+    try {
+      if (slot.audio.isPlaying) slot.audio.stop();
+    } catch (error) {
+      failed = true;
+      firstError = error;
+    }
+    try {
+      slot.audio.removeFromParent();
+    } catch (error) {
+      if (!failed) {
+        failed = true;
+        firstError = error;
+      }
+    }
     slot.clipId = undefined;
+    slot.bus = "effects";
+    slot.sourceGain = 0;
     slot.gain = 0;
     slot.looping = false;
+    if (failed) throw firstError;
   }
 }
 
@@ -150,6 +260,14 @@ export function selectVoiceSlot(
     if (!slot.looping) steal.push(index);
   }
   if (idle >= 0) return idle;
-  steal.sort((a, b) => slots[a].gain - slots[b].gain || slots[a].startedAt - slots[b].startedAt);
+  steal.sort(
+    (a, b) =>
+      slots[a].gain - slots[b].gain ||
+      slots[a].startedAt - slots[b].startedAt,
+  );
   return steal[0] ?? -1;
+}
+
+function clampGain(value: number): number {
+  return Number.isFinite(value) ? Math.max(0, value) : 0;
 }
