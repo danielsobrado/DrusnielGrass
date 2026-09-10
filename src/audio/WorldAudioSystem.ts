@@ -3,6 +3,7 @@ import type { WorldExperience } from "../app/WorldExperience";
 import type { SnowflowCharacter } from "../character/SnowflowCharacter";
 import { WorldFootContactTracker } from "../controls/WorldFootContactTracker";
 import { disposeResources } from "../render/ResourceDisposal";
+import type { WorldWaterContactSystem } from "../world/hydrology/WorldWaterContactSystem";
 import type { TerrainField } from "../world/TerrainField";
 import type { WorldRainSystem } from "../world/weather/WorldRainSystem";
 import type {
@@ -42,6 +43,7 @@ export interface WorldAudioSystemOptions {
   readonly terrain: TerrainField;
   readonly weather?: WorldWeatherState;
   readonly rain?: WorldRainSystem;
+  readonly waterContacts?: WorldWaterContactSystem;
   readonly compact: boolean;
   readonly seed: number;
   readonly flyMode: boolean;
@@ -181,7 +183,7 @@ export class WorldAudioSystem {
     );
     const wetness = this.options.rain?.wetness.value ?? 0;
     for (const event of events) {
-      this.options.rain?.addWaterContact({
+      this.options.waterContacts?.add({
         x: event.position.x,
         y: event.position.y,
         z: event.position.z,
