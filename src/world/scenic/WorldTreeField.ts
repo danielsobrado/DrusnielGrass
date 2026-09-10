@@ -18,6 +18,22 @@ import {
   TREE_MIN_NORMAL_Y,
   TREE_OCCUPANCY,
 } from "./WorldScenicTuning";
+import {
+  TREE_BIRCH_BASE_SHARE,
+  TREE_BIRCH_EXPOSURE_GAIN,
+  TREE_BIRCH_FERTILITY_REDUCTION,
+  TREE_BIRCH_MAX_SHARE,
+  TREE_BIRCH_MIN_SHARE,
+  TREE_BIRCH_MOISTURE_GAIN,
+  TREE_EVERGREEN_BASE_SHARE,
+  TREE_EVERGREEN_EXPOSURE_GAIN,
+  TREE_EVERGREEN_MAX_SHARE,
+  TREE_EVERGREEN_MIN_SHARE,
+  TREE_EVERGREEN_MOISTURE_REDUCTION,
+  TREE_EVERGREEN_ROCKINESS_GAIN,
+  TREE_SPECIES_CANOPY_RADIUS,
+  type WorldTreeSpecies,
+} from "./WorldTreeTuning";
 
 export interface WorldTreeInstance {
   readonly x: number;
@@ -28,9 +44,11 @@ export interface WorldTreeInstance {
   readonly canopyScale: number;
   readonly leanX: number;
   readonly leanZ: number;
+  readonly species: WorldTreeSpecies;
 }
 
 const TREE_SEED_SALT = 0x54724565;
+const TREE_SPECIES_SALT = 0xa24baed4;
 const HASH_UNIT = 1 / 4294967296;
 const normal = new THREE.Vector3();
 const hydrology = createHydrologySample();
@@ -77,14 +95,10 @@ export class WorldTreeField implements CanopyShadeSource {
     for (let cellZ = minZ; cellZ <= maxZ; cellZ += 1) {
       for (let cellX = minX; cellX <= maxX; cellX += 1) {
         const tree = this.sampleCell(cellX, cellZ);
-        if (!tree) {
-          continue;
-        }
+        if (!tree) continue;
         const dx = tree.x - centerX;
         const dz = tree.z - centerZ;
-        if (dx * dx + dz * dz > radiusSquared) {
-          continue;
-        }
+        if (dx * dx + dz * dz > radiusSquared) continue;
         trees.push(tree);
       }
     }
@@ -94,22 +108,21 @@ export class WorldTreeField implements CanopyShadeSource {
   /** The crown standing in one lattice cell, for the canopy shade field. */
   sampleCanopyCell(cellX: number, cellZ: number): CanopyShadeCrown | undefined {
     const tree = this.sampleCell(cellX, cellZ);
-    if (!tree) {
-      return undefined;
-    }
+    if (!tree) return undefined;
     return {
       x: tree.x,
       z: tree.z,
-      radius: tree.canopyScale * TREE_CANOPY_RADIUS_SCALE,
+      radius:
+        tree.canopyScale *
+        TREE_CANOPY_RADIUS_SCALE *
+        TREE_SPECIES_CANOPY_RADIUS[tree.species],
       centerHeight: tree.height * TREE_CANOPY_HEIGHT_FRACTION,
     };
   }
 
   private sampleCell(cellX: number, cellZ: number): WorldTreeInstance | undefined {
     const occupancy = hash(cellX, cellZ, this.seed) * HASH_UNIT;
-    if (occupancy > TREE_OCCUPANCY) {
-      return undefined;
-    }
+    if (occupancy > TREE_OCCUPANCY) return undefined;
     const jitterX =
       (hash(cellX, cellZ, this.seed ^ 0x9e3779b9) * HASH_UNIT - 0.5) *
       TREE_CELL_SIZE *
@@ -122,9 +135,7 @@ export class WorldTreeField implements CanopyShadeSource {
     const z = (cellZ + 0.5) * TREE_CELL_SIZE + jitterZ;
     const height = this.field.sampleHeight(x, z);
     this.field.sampleNormal(x, z, normal);
-    if (normal.y < TREE_MIN_NORMAL_Y) {
-      return undefined;
-    }
+    if (normal.y < TREE_MIN_NORMAL_Y) return undefined;
     this.field.sampleHydrology(x, z, height, hydrology);
     if (
       hydrology.waterCoverage > TREE_MAX_WATER_COVERAGE ||
@@ -149,22 +160,61 @@ export class WorldTreeField implements CanopyShadeSource {
     const canopyRoll = hash(cellX, cellZ, this.seed ^ 0x27d4eb2f) * HASH_UNIT;
     const yaw =
       hash(cellX, cellZ, this.seed ^ 0x165667b1) * HASH_UNIT * Math.PI * 2;
+    const speciesRoll =
+      hash(cellX, cellZ, this.seed ^ TREE_SPECIES_SALT) * HASH_UNIT;
     return {
       x,
       y: height,
       z,
       yaw,
-      // A 2.4-4.2 m trunk under a 1.15-1.89 m crown is a sapling, and a
-      // meadow dressed in saplings casts no usable shade. These are trees:
-      // 4.6-8.8 m tall under a 3.2-5.5 m crown radius (canopyScale times
-      // TREE_CANOPY_RADIUS_SCALE), which is what makes the canopy a fraction
-      // of the ground rather than a rounding error on it.
       height: 4.6 + heightRoll * 4.2,
       canopyScale: 2.4 + canopyRoll * 1.7,
       leanX: normal.x * 0.18,
       leanZ: normal.z * 0.18,
+      species: resolveWorldTreeSpecies(
+        speciesRoll,
+        ecology.moisture,
+        ecology.fertility,
+        ecology.exposure,
+        ecology.rockiness,
+      ),
     };
   }
+}
+
+export function resolveWorldTreeSpecies(
+  roll: number,
+  moisture: number,
+  fertility: number,
+  exposure: number,
+  rockiness: number,
+): WorldTreeSpecies {
+  const evergreenShare = clamp(
+    TREE_EVERGREEN_BASE_SHARE +
+      rockiness * TREE_EVERGREEN_ROCKINESS_GAIN +
+      exposure * TREE_EVERGREEN_EXPOSURE_GAIN -
+      moisture * TREE_EVERGREEN_MOISTURE_REDUCTION,
+    TREE_EVERGREEN_MIN_SHARE,
+    TREE_EVERGREEN_MAX_SHARE,
+  );
+  const sample = clamp(roll, 0, 1 - Number.EPSILON);
+  if (sample < evergreenShare) return "evergreen";
+
+  const birchWithinBroadleaf = clamp(
+    TREE_BIRCH_BASE_SHARE +
+      moisture * TREE_BIRCH_MOISTURE_GAIN +
+      exposure * TREE_BIRCH_EXPOSURE_GAIN -
+      fertility * TREE_BIRCH_FERTILITY_REDUCTION,
+    TREE_BIRCH_MIN_SHARE,
+    TREE_BIRCH_MAX_SHARE,
+  );
+  const birchThreshold =
+    evergreenShare + (1 - evergreenShare) * birchWithinBroadleaf;
+  return sample < birchThreshold ? "birch" : "oak";
+}
+
+function clamp(value: number, minimum: number, maximum: number): number {
+  return Math.max(minimum, Math.min(maximum, value));
 }
 
 function hash(x: number, z: number, seed: number): number {

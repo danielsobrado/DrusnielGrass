@@ -1,35 +1,54 @@
 import * as THREE from "three";
-import { MeshStandardNodeMaterial } from "three/webgpu";
 import type { WorldNodeMaterialContext } from "../../render/WorldNodeMaterialContext";
-import { applyWorldWetStandardMaterial } from "../../render/WorldWetSurfaceNodes";
-import { disposeResources } from "../../render/ResourceDisposal";
 import type { RuntimeProfile } from "../../runtime/RuntimeConfig";
 import type { TerrainField } from "../TerrainField";
 import type { WorldConfig } from "../WorldConfig";
-import { WorldTreeField } from "./WorldTreeField";
+import { WorldTreeField, type WorldTreeInstance } from "./WorldTreeField";
 import {
-  TREE_CANOPY_HEIGHT_FRACTION,
   TREE_CANOPY_RADIUS_SCALE,
   TREE_COMPACT_RADIUS,
   TREE_DESKTOP_RADIUS,
   TREE_REBUILD_STEP,
 } from "./WorldScenicTuning";
+import {
+  createWorldTreeRenderResources,
+  disposeWorldTreeRenderResources,
+  type WorldTreeRenderResources,
+} from "./WorldTreeRenderResources";
+import {
+  TREE_LOD_OVERLAP_METERS,
+  TREE_LOD_UPDATE_STEP,
+  TREE_LOD_VISIBLE_THRESHOLD,
+  TREE_MAX_COUNT_COMPACT,
+  TREE_MAX_COUNT_DESKTOP,
+  TREE_NEAR_RADIUS_COMPACT,
+  TREE_NEAR_RADIUS_DESKTOP,
+  TREE_PHASE_X_SCALE,
+  TREE_PHASE_Z_SCALE,
+  TREE_SPECIES_CANOPY_RADIUS,
+  TREE_WOOD_HORIZONTAL_SCALE,
+  WORLD_TREE_SPECIES,
+  type WorldTreeSpecies,
+} from "./WorldTreeTuning";
 
-const BARK = new THREE.Color("#5a4633");
-const FOLIAGE = new THREE.Color("#3d6a32");
-const FOLIAGE_TIP = new THREE.Color("#6b9448");
 const scratch = new THREE.Object3D();
 const up = new THREE.Vector3(0, 1, 0);
 const lean = new THREE.Vector3();
+const TWO_PI = Math.PI * 2;
+
+type SpeciesCounts = Record<WorldTreeSpecies, number>;
 
 export class WorldTreeSystem {
   private readonly field: WorldTreeField;
-  private readonly trunkMesh: THREE.InstancedMesh;
-  private readonly canopyMesh: THREE.InstancedMesh;
+  private readonly resources: WorldTreeRenderResources;
   private readonly radius: number;
+  private readonly nearRadius: number;
   private readonly maxCount: number;
+  private trees: WorldTreeInstance[] = [];
   private builtX = Number.NaN;
   private builtZ = Number.NaN;
+  private publishedX = Number.NaN;
+  private publishedZ = Number.NaN;
   private disposed = false;
 
   constructor(
@@ -42,145 +61,186 @@ export class WorldTreeSystem {
   ) {
     this.field = new WorldTreeField(terrain, config);
     this.radius = profile.compact ? TREE_COMPACT_RADIUS : TREE_DESKTOP_RADIUS;
-    this.maxCount = profile.compact ? 36 : 96;
-
-    const { bark, leaves } = createTreeMaterials(context);
-    let trunk: THREE.CylinderGeometry | undefined;
-    let canopy: THREE.IcosahedronGeometry | undefined;
-    let trunkMesh: THREE.InstancedMesh | undefined;
-    let canopyMesh: THREE.InstancedMesh | undefined;
-    try {
-      leaves.emissive.copy(FOLIAGE_TIP).multiplyScalar(0.04);
-      trunk = new THREE.CylinderGeometry(0.07, 0.13, 1, 8, 1, false);
-      trunk.translate(0, 0.5, 0);
-      canopy = new THREE.IcosahedronGeometry(1, 1);
-      canopy.translate(0, 0.15, 0);
-
-      trunkMesh = new THREE.InstancedMesh(trunk, bark, this.maxCount);
-      canopyMesh = new THREE.InstancedMesh(canopy, leaves, this.maxCount);
-      trunkMesh.name = "world-tree-trunks";
-      canopyMesh.name = "world-tree-canopies";
-      trunkMesh.castShadow = shadows;
-      canopyMesh.castShadow = shadows;
-      trunkMesh.receiveShadow = shadows;
-      canopyMesh.receiveShadow = shadows;
-      trunkMesh.frustumCulled = false;
-      canopyMesh.frustumCulled = false;
-      trunkMesh.count = 0;
-      canopyMesh.count = 0;
-      scene.add(trunkMesh, canopyMesh);
-
-      this.trunkMesh = trunkMesh;
-      this.canopyMesh = canopyMesh;
-    } catch (error) {
-      try {
-        disposeResources([
-          { dispose: () => trunkMesh?.removeFromParent() },
-          { dispose: () => canopyMesh?.removeFromParent() },
-          trunk,
-          canopy,
-          bark,
-          leaves,
-        ]);
-      } catch (cleanupError) {
-        console.warn(
-          "[Drusniel World] Tree construction cleanup failed.",
-          cleanupError,
-        );
-      }
-      throw error;
-    }
+    this.nearRadius = profile.compact
+      ? TREE_NEAR_RADIUS_COMPACT
+      : TREE_NEAR_RADIUS_DESKTOP;
+    this.maxCount = profile.compact
+      ? TREE_MAX_COUNT_COMPACT
+      : TREE_MAX_COUNT_DESKTOP;
+    this.resources = createWorldTreeRenderResources(
+      scene,
+      this.maxCount,
+      shadows,
+      context,
+    );
   }
 
   update(focus: THREE.Vector3): void {
-    if (this.disposed) {
-      return;
-    }
-    if (
-      Number.isFinite(this.builtX) &&
-      Math.abs(focus.x - this.builtX) < TREE_REBUILD_STEP &&
-      Math.abs(focus.z - this.builtZ) < TREE_REBUILD_STEP
-    ) {
-      return;
-    }
-    this.builtX = focus.x;
-    this.builtZ = focus.z;
-    const trees = this.field.collect(focus.x, focus.z, this.radius);
-    const count = Math.min(trees.length, this.maxCount);
-    for (let index = 0; index < count; index += 1) {
-      const tree = trees[index];
-      lean.set(tree.leanX, 1, tree.leanZ).normalize();
-      scratch.position.set(tree.x, tree.y, tree.z);
-      scratch.quaternion.setFromUnitVectors(up, lean);
-      scratch.rotateY(tree.yaw);
-      scratch.scale.set(1, tree.height, 1);
-      scratch.updateMatrix();
-      this.trunkMesh.setMatrixAt(index, scratch.matrix);
-
-      scratch.position.set(
-        tree.x,
-        tree.y + tree.height * TREE_CANOPY_HEIGHT_FRACTION,
-        tree.z,
-      );
-      scratch.scale.setScalar(tree.canopyScale * TREE_CANOPY_RADIUS_SCALE);
-      scratch.updateMatrix();
-      this.canopyMesh.setMatrixAt(index, scratch.matrix);
-    }
-    this.trunkMesh.count = count;
-    this.canopyMesh.count = count;
-    this.trunkMesh.instanceMatrix.needsUpdate = true;
-    this.canopyMesh.instanceMatrix.needsUpdate = true;
+    if (this.disposed) return;
+    const rosterChanged = this.shouldRebuild(focus);
+    if (rosterChanged) this.rebuildRoster(focus);
+    if (!rosterChanged && !this.shouldPublish(focus)) return;
+    this.publish(focus);
   }
 
   dispose(): void {
-    if (this.disposed) {
-      return;
-    }
+    if (this.disposed) return;
     this.disposed = true;
-    disposeResources([
-      { dispose: () => this.trunkMesh.removeFromParent() },
-      { dispose: () => this.canopyMesh.removeFromParent() },
-      this.trunkMesh.geometry,
-      this.canopyMesh.geometry,
-      { dispose: () => disposeMaterial(this.trunkMesh.material) },
-      { dispose: () => disposeMaterial(this.canopyMesh.material) },
-    ]);
+    this.trees.length = 0;
+    disposeWorldTreeRenderResources(this.resources);
   }
-}
 
-function createTreeMaterials(context?: WorldNodeMaterialContext): {
-  bark: MeshStandardNodeMaterial;
-  leaves: MeshStandardNodeMaterial;
-} {
-  let bark: MeshStandardNodeMaterial | undefined;
-  let leaves: MeshStandardNodeMaterial | undefined;
-  try {
-    bark = new MeshStandardNodeMaterial({
-      color: BARK,
-      roughness: 0.92,
-      metalness: 0,
-    });
-    applyWorldWetStandardMaterial(bark, context);
-    leaves = new MeshStandardNodeMaterial({
-      color: FOLIAGE,
-      roughness: 0.78,
-      metalness: 0,
-    });
-    applyWorldWetStandardMaterial(leaves, context);
-    return { bark, leaves };
-  } catch (error) {
-    try {
-      disposeResources([leaves, bark]);
-    } catch (cleanupError) {
-      console.warn(
-        "[Drusniel World] Tree material cleanup failed.",
-        cleanupError,
-      );
+  private rebuildRoster(focus: THREE.Vector3): void {
+    this.builtX = focus.x;
+    this.builtZ = focus.z;
+    this.trees = this.field.collect(focus.x, focus.z, this.radius);
+    this.trees.sort(
+      (a, b) => distanceSquared(a, focus) - distanceSquared(b, focus),
+    );
+    if (this.trees.length > this.maxCount) {
+      this.trees.length = this.maxCount;
     }
-    throw error;
+  }
+
+  private publish(focus: THREE.Vector3): void {
+    this.publishedX = focus.x;
+    this.publishedZ = focus.z;
+    const nearCounts = createSpeciesCounts();
+    const farCounts = createSpeciesCounts();
+    const overlapHalf = TREE_LOD_OVERLAP_METERS * 0.5;
+    const fadeStart = Math.max(0, this.nearRadius - overlapHalf);
+    const fadeEnd = this.nearRadius + overlapHalf;
+
+    for (const tree of this.trees) {
+      const distance = Math.sqrt(distanceSquared(tree, focus));
+      const farOpacity = smoothstep(fadeStart, fadeEnd, distance);
+      const nearOpacity = 1 - farOpacity;
+      const canopyRadius =
+        tree.canopyScale *
+        TREE_CANOPY_RADIUS_SCALE *
+        TREE_SPECIES_CANOPY_RADIUS[tree.species];
+      if (nearOpacity > TREE_LOD_VISIBLE_THRESHOLD) {
+        writeNearTree(
+          this.resources,
+          tree,
+          canopyRadius,
+          nearOpacity,
+          nearCounts[tree.species]++,
+        );
+      }
+      if (farOpacity > TREE_LOD_VISIBLE_THRESHOLD) {
+        writeFarTree(
+          this.resources,
+          tree,
+          canopyRadius,
+          farOpacity,
+          farCounts[tree.species]++,
+        );
+      }
+    }
+    publishCounts(this.resources, nearCounts, farCounts);
+  }
+
+  private shouldRebuild(focus: THREE.Vector3): boolean {
+    return !Number.isFinite(this.builtX) ||
+      Math.abs(focus.x - this.builtX) >= TREE_REBUILD_STEP ||
+      Math.abs(focus.z - this.builtZ) >= TREE_REBUILD_STEP;
+  }
+
+  private shouldPublish(focus: THREE.Vector3): boolean {
+    return !Number.isFinite(this.publishedX) ||
+      Math.abs(focus.x - this.publishedX) >= TREE_LOD_UPDATE_STEP ||
+      Math.abs(focus.z - this.publishedZ) >= TREE_LOD_UPDATE_STEP;
   }
 }
 
-function disposeMaterial(material: THREE.Material | THREE.Material[]): void {
-  disposeResources(Array.isArray(material) ? material : [material]);
+function writeNearTree(
+  resources: WorldTreeRenderResources,
+  tree: WorldTreeInstance,
+  canopyRadius: number,
+  opacity: number,
+  index: number,
+): void {
+  const meshes = resources.species[tree.species];
+  setTreeTransform(tree, canopyRadius * TREE_WOOD_HORIZONTAL_SCALE, tree.height);
+  meshes.wood.setMatrixAt(index, scratch.matrix);
+  meshes.woodOpacity.setX(index, opacity);
+  setTreeTransform(tree, canopyRadius, tree.height);
+  meshes.foliage.setMatrixAt(index, scratch.matrix);
+  meshes.foliagePhase.setX(index, treeWindPhase(tree));
+  meshes.foliageOpacity.setX(index, opacity);
+}
+
+function writeFarTree(
+  resources: WorldTreeRenderResources,
+  tree: WorldTreeInstance,
+  canopyRadius: number,
+  opacity: number,
+  index: number,
+): void {
+  const meshes = resources.species[tree.species];
+  setTreeTransform(tree, canopyRadius, tree.height);
+  meshes.far.setMatrixAt(index, scratch.matrix);
+  meshes.farPhase.setX(index, treeWindPhase(tree));
+  meshes.farOpacity.setX(index, opacity);
+}
+
+function setTreeTransform(
+  tree: WorldTreeInstance,
+  horizontalScale: number,
+  height: number,
+): void {
+  lean.set(tree.leanX, 1, tree.leanZ).normalize();
+  scratch.position.set(tree.x, tree.y, tree.z);
+  scratch.quaternion.setFromUnitVectors(up, lean);
+  scratch.rotateY(tree.yaw);
+  scratch.scale.set(horizontalScale, height, horizontalScale);
+  scratch.updateMatrix();
+}
+
+function publishCounts(
+  resources: WorldTreeRenderResources,
+  near: SpeciesCounts,
+  far: SpeciesCounts,
+): void {
+  for (const species of WORLD_TREE_SPECIES) {
+    const meshes = resources.species[species];
+    meshes.wood.count = near[species];
+    meshes.foliage.count = near[species];
+    meshes.far.count = far[species];
+    meshes.wood.instanceMatrix.needsUpdate = true;
+    meshes.foliage.instanceMatrix.needsUpdate = true;
+    meshes.far.instanceMatrix.needsUpdate = true;
+    meshes.woodOpacity.needsUpdate = true;
+    meshes.foliagePhase.needsUpdate = true;
+    meshes.foliageOpacity.needsUpdate = true;
+    meshes.farPhase.needsUpdate = true;
+    meshes.farOpacity.needsUpdate = true;
+  }
+}
+
+function createSpeciesCounts(): SpeciesCounts {
+  return { oak: 0, birch: 0, evergreen: 0 };
+}
+
+function distanceSquared(
+  tree: WorldTreeInstance,
+  focus: THREE.Vector3,
+): number {
+  const dx = tree.x - focus.x;
+  const dz = tree.z - focus.z;
+  return dx * dx + dz * dz;
+}
+
+function smoothstep(minimum: number, maximum: number, value: number): number {
+  if (value <= minimum) return 0;
+  if (value >= maximum) return 1;
+  const t = (value - minimum) / (maximum - minimum);
+  return t * t * (3 - 2 * t);
+}
+
+function treeWindPhase(tree: WorldTreeInstance): number {
+  const phase =
+    tree.yaw + tree.x * TREE_PHASE_X_SCALE + tree.z * TREE_PHASE_Z_SCALE;
+  return ((phase % TWO_PI) + TWO_PI) % TWO_PI;
 }

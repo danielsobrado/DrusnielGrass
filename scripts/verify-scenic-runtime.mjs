@@ -27,6 +27,12 @@ const faunaConfigValidator = read("src/world/scenic/FaunaConfigValidator.ts");
 const worldConfigLoader = read("src/world/WorldConfigLoader.ts");
 const treeField = read("src/world/scenic/WorldTreeField.ts");
 const treeSystem = read("src/world/scenic/WorldTreeSystem.ts");
+const treeResources = read("src/world/scenic/WorldTreeRenderResources.ts");
+const treeGeometry = read("src/world/scenic/WorldTreeGeometryFactory.ts");
+const treeMaterial = read("src/world/scenic/WorldTreeMaterialFactory.ts");
+const treeAtlas = read("src/world/scenic/WorldTreeAtlasFactory.ts");
+const treeAtlasBark = read("src/world/scenic/WorldTreeAtlasBarkDrawing.ts");
+const treeTuning = read("src/world/scenic/WorldTreeTuning.ts");
 const villagerBody = read("src/character/npc/VillagerBody.ts");
 const scriptedHumanoid = read("src/character/npc/ScriptedHumanoidActor.ts");
 const deerBody = read("src/creatures/deer/DeerBody.ts");
@@ -59,18 +65,31 @@ assert(
   "Scenic cleanup failures must remain isolated from each other and the world owner.",
 );
 assert(
-  treeSystem.includes('import { disposeResources } from "../../render/ResourceDisposal"') &&
-    treeSystem.includes("let trunk: THREE.CylinderGeometry | undefined") &&
-    treeSystem.includes("let canopy: THREE.IcosahedronGeometry | undefined") &&
-    treeSystem.includes("scene.add(trunkMesh, canopyMesh)") &&
-    treeSystem.includes("Tree construction cleanup failed.") &&
-    treeSystem.includes("disposeResources([") &&
-    treeSystem.includes("{ dispose: () => trunkMesh?.removeFromParent() }") &&
-    treeSystem.includes("{ dispose: () => canopyMesh?.removeFromParent() }") &&
-    treeSystem.includes("{ dispose: () => this.trunkMesh.removeFromParent() }") &&
-    treeSystem.includes("{ dispose: () => this.canopyMesh.removeFromParent() }") &&
-    treeSystem.includes("disposeResources(Array.isArray(material) ? material : [material])"),
-  "Tree construction and normal teardown must attempt every mesh, geometry, and material cleanup without masking the original setup fault.",
+  treeSystem.includes("createWorldTreeRenderResources") &&
+    treeSystem.includes("disposeWorldTreeRenderResources(this.resources)") &&
+    treeSystem.includes("TREE_LOD_OVERLAP_METERS") &&
+    treeSystem.includes("smoothstep(fadeStart, fadeEnd, distance)") &&
+    treeSystem.includes("TREE_SPECIES_CANOPY_RADIUS[tree.species]") &&
+    treeSystem.includes("this.trees.sort(") &&
+    treeResources.includes("createWorldTreeAtlas()") &&
+    treeResources.includes("createWorldTreeMaterials(atlas.texture, context)") &&
+    treeResources.includes("WORLD_TREE_SPECIES.flatMap") &&
+    treeResources.includes("scene.add(...WORLD_TREE_SPECIES.flatMap") &&
+    treeResources.includes("Tree construction cleanup failed.") &&
+    treeResources.includes("mesh.removeFromParent()") &&
+    treeResources.includes("atlas?.texture") &&
+    treeGeometry.includes("createWorldTreeWoodGeometry") &&
+    treeGeometry.includes("createWorldTreeFoliageGeometry") &&
+    treeGeometry.includes("createWorldTreeFarGeometry") &&
+    treeGeometry.includes("Math.PI / 3") &&
+    treeMaterial.includes('attribute("treePhase", "float")') &&
+    treeMaterial.includes('attribute("treeLodOpacity", "float")') &&
+    treeMaterial.includes("material.alphaHash = true") &&
+    treeMaterial.includes("worldWindUniforms()") &&
+    treeAtlas.includes("WORLD_TREE_ATLAS_TILES") &&
+    treeAtlasBark.includes("drawTreeBirchBark") &&
+    treeTuning.includes('WORLD_TREE_SPECIES = ["oak", "birch", "evergreen"]'),
+  "Trees must keep transactional ownership while using species geometry, layered far impostors, shared wind, and the procedural atlas.",
 );
 assert(
   faunaSystem.includes("interface FaunaResources") &&
@@ -216,4 +235,4 @@ assert(
   "Quadrupeds must publish only after construction succeeds and release every owned layer independently.",
 );
 
-console.log("[scenic-runtime] Scenic ownership and independent fauna paths verified.");
+console.log("[scenic-runtime] Scenic ownership, tree rendering, and independent fauna paths verified.");
