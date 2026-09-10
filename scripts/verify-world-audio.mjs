@@ -7,7 +7,8 @@ import { createServer } from "vite";
 const SCRIPT_DIRECTORY = dirname(fileURLToPath(import.meta.url));
 const REPOSITORY_ROOT = resolve(SCRIPT_DIRECTORY, "..");
 const AUDIO_DIRECTORY = resolve(REPOSITORY_ROOT, "public", "audio");
-const source = (path) => readFileSync(resolve(REPOSITORY_ROOT, path), "utf8").replaceAll("\r\n", "\n");
+const source = (path) =>
+  readFileSync(resolve(REPOSITORY_ROOT, path), "utf8").replaceAll("\r\n", "\n");
 const lineCount = (path) => source(path).split("\n").length;
 
 const failures = [];
@@ -43,14 +44,13 @@ function humanoidGait(ActorGait) {
   });
 }
 
-function walkEvents(ActorGait, WorldFootContactTracker, hz, seconds, speed, extra = {}) {
+function walkEvents(ActorGait, WorldFootContactTracker, hz, seconds, speed) {
   const gait = humanoidGait(ActorGait);
   const tracker = new WorldFootContactTracker();
-  const position = { set() {} };
   let distance = 0;
   let count = 0;
   const dt = 1 / hz;
-  const sample = (overrides) => ({
+  const sample = (overrides = {}) => ({
     gait,
     grounded: true,
     teleported: false,
@@ -58,18 +58,21 @@ function walkEvents(ActorGait, WorldFootContactTracker, hz, seconds, speed, extr
     landing: false,
     landingImpact: 0,
     airborne: false,
-    copyFootPosition: (_foot, target) => { target.x = 0; target.y = 0; target.z = 0; },
-    ...extra,
+    copyFootPosition: (_foot, target) => {
+      target.x = 0;
+      target.y = 0;
+      target.z = 0;
+    },
     ...overrides,
   });
+
   gait.setFromDistance(0);
   tracker.poll(sample({ speed: 0 }));
   for (let elapsed = 0; elapsed < seconds - 1e-9; elapsed += dt) {
     distance += speed * dt;
     gait.setFromDistance(distance);
-    count += tracker.poll(sample({})).length;
+    count += tracker.poll(sample()).length;
   }
-  void position;
   return count;
 }
 
@@ -84,8 +87,12 @@ try {
   const bankModule = await server.ssrLoadModule("/src/audio/WorldAudioBank.ts");
   const mixer = await server.ssrLoadModule("/src/audio/WorldAmbientMixer.ts");
   const voices = await server.ssrLoadModule("/src/audio/WorldAudioVoices.ts");
-  const classifierModule = await server.ssrLoadModule("/src/audio/WorldSurfaceClassifier.ts");
-  const trackerModule = await server.ssrLoadModule("/src/controls/WorldFootContactTracker.ts");
+  const classifierModule = await server.ssrLoadModule(
+    "/src/audio/WorldSurfaceClassifier.ts",
+  );
+  const trackerModule = await server.ssrLoadModule(
+    "/src/controls/WorldFootContactTracker.ts",
+  );
   const gaitModule = await server.ssrLoadModule("/src/actor/animation/ActorGait.ts");
   const tuning = await server.ssrLoadModule("/src/audio/WorldAudioTuning.ts");
 
@@ -94,31 +101,47 @@ try {
     const mp3 = listMp3(AUDIO_DIRECTORY);
     assert.equal(mp3.length, 61, `Expected 61 mp3 files, found ${mp3.length}.`);
     for (const clip of catalog.WORLD_AUDIO_CLIPS) {
-      const relative = clip.id.replaceAll("/", "\\");
+      const windowsRelative = clip.id.replaceAll("/", "\\");
       assert.ok(
-        existsSync(resolve(AUDIO_DIRECTORY, clip.id)) || existsSync(resolve(AUDIO_DIRECTORY, relative)),
+        existsSync(resolve(AUDIO_DIRECTORY, clip.id)) ||
+          existsSync(resolve(AUDIO_DIRECTORY, windowsRelative)),
         `Missing staged clip ${clip.id}.`,
       );
-      assert.ok(clip.path.startsWith("./audio/"), `${clip.id} must load from a relative public URL.`);
+      assert.ok(
+        clip.path.startsWith("./audio/"),
+        `${clip.id} must load from a relative public URL.`,
+      );
     }
     assert.ok(catalog.worldFootstepClips("grass").length >= 4);
     assert.ok(catalog.worldFootstepClips("water").length >= 4);
-    assert.ok(catalog.worldFootstepClips("path").every((clip) => clip.group === "stone"));
-    assert.ok(catalog.worldAudioPresetEssentials().some((clip) => clip.id.includes("rain-light")));
-    assert.ok(catalog.worldAudioPresetEssentials().some((clip) => clip.id.includes("rain-heavy")));
+    assert.ok(
+      catalog.worldFootstepClips("path").every((clip) => clip.group === "stone"),
+    );
+    assert.ok(
+      catalog.worldAudioPresetEssentials().some((clip) =>
+        clip.id.includes("rain-light"),
+      ),
+    );
+    assert.ok(
+      catalog.worldAudioPresetEssentials().some((clip) =>
+        clip.id.includes("rain-heavy"),
+      ),
+    );
   });
 
   await check("decoded PCM memory is LRU-evicted only for unreferenced clips", async () => {
-    const loads = [];
-    const bank = new bankModule.WorldAudioBank(async (url) => {
-      loads.push(url);
-      return fakeBuffer(1_000_000, 1);
-    }, 8_000_000);
+    const bank = new bankModule.WorldAudioBank(
+      async () => fakeBuffer(1_000_000, 1),
+      8_000_000,
+    );
     bank.retain("ambient/forest-01.mp3");
     await bank.load("ambient/forest-01.mp3");
     await bank.load("wildlife/bird-chirp-01.mp3");
     await bank.load("wildlife/bird-chirp-02.mp3");
-    assert.ok(bank.peek("ambient/forest-01.mp3"), "Referenced clips must survive LRU eviction.");
+    assert.ok(
+      bank.peek("ambient/forest-01.mp3"),
+      "Referenced clips must survive LRU eviction.",
+    );
     assert.equal(bank.peek("wildlife/bird-chirp-01.mp3"), undefined);
     assert.ok(bank.decodedBytes <= 8_000_000);
     bank.dispose();
@@ -143,7 +166,9 @@ try {
 
   await check("late loads after disposal are ignored", async () => {
     let resolveDecode;
-    const pending = new Promise((resolve) => { resolveDecode = resolve; });
+    const pending = new Promise((resolvePromise) => {
+      resolveDecode = resolvePromise;
+    });
     const bank = new bankModule.WorldAudioBank(async () => pending, 1024);
     const loading = bank.load("wildlife/crow-01.mp3");
     bank.dispose();
@@ -151,23 +176,29 @@ try {
     assert.equal(await loading, undefined);
   });
 
-  await check("preset fades start from the current vector and survive interruption", async () => {
+  await check("preset fades advance while output is disabled and survive interruption", () => {
     assert.equal(tuning.WORLD_AUDIO_PRESET_FADE_SECONDS, 1.5);
     const zero = { wind: 0, rain: 0, forest: 0, wetland: 0, water: 0 };
     const toRain = { wind: 0, rain: 1, forest: 0, wetland: 0, water: 0 };
     const toWind = { wind: 1, rain: 0, forest: 0, wetland: 0, water: 0 };
-    const voicesStub = { play() { return { isPlaying: true, setVolume() {} }; }, setGain() {} };
+    const voicesStub = {
+      play() { return undefined; },
+      setGain() {},
+      stop() {},
+    };
     const bank = new bankModule.WorldAudioBank(async () => fakeBuffer(), 1024 * 1024);
     const owner = new mixer.WorldAmbientMixer(bank, voicesStub);
     owner.setTarget(toRain);
-    owner.update(0.5, 0);
+    owner.update(0.5, false);
     const mid = owner.getCurrent();
-    assert.ok(Math.abs(mid.rain - mixer.mixGains(zero, toRain, 0.5 / 1.5).rain) < 1e-9);
+    assert.ok(
+      Math.abs(mid.rain - mixer.mixGains(zero, toRain, 0.5 / 1.5).rain) < 1e-9,
+    );
     const fadeBefore = owner.getFade();
     owner.follow({ wind: 0.1, rain: 0.9, forest: 0, wetland: 0, water: 0 });
-    assert.equal(owner.getFade(), fadeBefore, "Habitat follow must not restart a live fade.");
+    assert.equal(owner.getFade(), fadeBefore);
     owner.setTarget(toWind);
-    owner.update(1.5, 0);
+    owner.update(1.5, false);
     assert.ok(Math.abs(owner.getCurrent().wind - 1) < 1e-6);
     assert.ok(Math.abs(owner.getCurrent().rain) < 1e-6);
     owner.dispose();
@@ -182,15 +213,32 @@ try {
     ];
     assert.equal(voices.selectVoiceSlot(slots, false), -1);
     assert.equal(voices.selectVoiceSlot(slots, true), 3);
-    slots.push({ positional: true, playing: false, looping: false, gain: 0, startedAt: 0 });
+    slots.push({
+      positional: true,
+      playing: false,
+      looping: false,
+      gain: 0,
+      startedAt: 0,
+    });
     assert.equal(voices.selectVoiceSlot(slots, true), 4);
   });
 
   await check("surface classifier uses hydrology, stone, path, shade, then grass", () => {
     const hydrology = {
-      waterCoverage: 0, waterLevel: 0, waterProximity: 0, humidityBoost: 0, grassMask: 1,
+      waterCoverage: 0,
+      waterLevel: 0,
+      waterProximity: 0,
+      humidityBoost: 0,
+      grassMask: 1,
     };
-    const ecology = { moisture: 0, fertility: 0, exposure: 0, disturbance: 0, rockiness: 0, shade: 0 };
+    const ecology = {
+      moisture: 0,
+      fertility: 0,
+      exposure: 0,
+      disturbance: 0,
+      rockiness: 0,
+      shade: 0,
+    };
     const terrain = {
       sampleHeight: () => 2,
       sampleHydrology: (_x, _z, _h, target) => Object.assign(target, hydrology),
@@ -203,11 +251,16 @@ try {
       terrain.samplePathGrassMask = () => 1;
       Object.assign(hydrology, overrides.hydrology ?? {});
       Object.assign(ecology, overrides.ecology ?? {});
-      if (overrides.path !== undefined) terrain.samplePathGrassMask = () => overrides.path;
+      if (overrides.path !== undefined) {
+        terrain.samplePathGrassMask = () => overrides.path;
+      }
       return new classifierModule.WorldSurfaceClassifier(terrain, () => stone)
         .classify(0, 0, overrides.wetness ?? 0);
     };
-    assert.equal(classify({ hydrology: { waterCoverage: 1, waterLevel: 2.2 } }), "water");
+    assert.equal(
+      classify({ hydrology: { waterCoverage: 1, waterLevel: 2.2 } }),
+      "water",
+    );
     assert.equal(classify({}, 0.1), "stone");
     assert.equal(classify({ path: 0.2, wetness: 0 }), "path");
     assert.equal(classify({ path: 0.2, wetness: 0.8 }), "mud");
@@ -215,21 +268,25 @@ try {
     assert.equal(classify({ path: 0.9, ecology: { rockiness: 0.1 } }), "grass");
   });
 
-  await check("gait contacts are frame-rate stable, idle-silent, and teleport-safe", () => {
+  await check("gait contacts are stable, landing-safe, idle-silent and teleport-safe", () => {
     const { ActorGait } = gaitModule;
     const { WorldFootContactTracker } = trackerModule;
     const thirty = walkEvents(ActorGait, WorldFootContactTracker, 30, 2, 1.4);
     const sixty = walkEvents(ActorGait, WorldFootContactTracker, 60, 2, 1.4);
-    const hundred = walkEvents(ActorGait, WorldFootContactTracker, 120, 2, 1.4);
+    const hundredTwenty = walkEvents(
+      ActorGait,
+      WorldFootContactTracker,
+      120,
+      2,
+      1.4,
+    );
     assert.ok(Math.abs(thirty - sixty) <= 1, `30 Hz ${thirty} vs 60 Hz ${sixty}`);
-    assert.ok(Math.abs(sixty - hundred) <= 1, `60 Hz ${sixty} vs 120 Hz ${hundred}`);
-    assert.ok(thirty >= 2, "Walking two seconds must plant more than once.");
-
-    const idle = walkEvents(ActorGait, WorldFootContactTracker, 60, 2, 0);
-    assert.equal(idle, 0, "Idle must not invent a cadence.");
-
-    const backward = walkEvents(ActorGait, WorldFootContactTracker, 60, 2, 1.4);
-    assert.ok(backward >= 2, "Backward travel still advances distance-driven stance.");
+    assert.ok(
+      Math.abs(sixty - hundredTwenty) <= 1,
+      `60 Hz ${sixty} vs 120 Hz ${hundredTwenty}`,
+    );
+    assert.ok(thirty >= 2);
+    assert.equal(walkEvents(ActorGait, WorldFootContactTracker, 60, 2, 0), 0);
 
     const tracker = new WorldFootContactTracker();
     const gait = humanoidGait(ActorGait);
@@ -241,37 +298,93 @@ try {
       landing: false,
       landingImpact: 0,
       airborne: false,
-      copyFootPosition: (_foot, target) => { target.x = 1; target.y = 2; target.z = 3; },
+      copyFootPosition: (_foot, target) => {
+        target.x = 1;
+        target.y = 2;
+        target.z = 3;
+      },
     };
     assert.equal(tracker.poll(undefined).length, 0);
     assert.equal(tracker.poll({ ...base, airborne: true }).length, 0);
     gait.setFromDistance(0);
-    assert.equal(tracker.poll({ ...base, landing: true, landingImpact: 0.8 }).length, 1,
-      "Landing is one impact, not a pair of stance plants.");
+    assert.equal(
+      tracker.poll({ ...base, landing: true, landingImpact: 0.8 }).length,
+      1,
+    );
+    assert.equal(
+      tracker.poll(base).length,
+      0,
+      "Landing must resync planted feet instead of double-emitting stance.",
+    );
     assert.equal(tracker.poll({ ...base, teleported: true }).length, 0);
     gait.setFromDistance(0);
-    assert.equal(tracker.poll(base).length, 0, "The first grounded sample after teleport must resync without a burst.");
+    assert.equal(tracker.poll(base).length, 0);
   });
 
-  await check("audio attach is gated, gesture-bound, and never closes a shared context", () => {
+  await check("audio ownership and hardening contracts stay explicit", () => {
     const runtime = source("src/audio/WorldAudioSystem.ts");
+    const permission = source("src/audio/WorldAudioPermission.ts");
+    const resources = source("src/audio/WorldAudioResources.ts");
+    const mixerSource = source("src/audio/WorldAmbientMixer.ts");
+    const voicesSource = source("src/audio/WorldAudioVoices.ts");
+    const footsteps = source("src/audio/WorldFootstepAudio.ts");
+    const emitters = source("src/audio/WorldSpatialEmitters.ts");
     const app = source("src/app/WorldApp.ts");
     const character = source("src/character/SnowflowCharacter.ts");
+
     assert.ok(lineCount("src/audio/WorldAudioSystem.ts") <= 260);
-    assert.doesNotMatch(runtime, /\.close\(\)/);
-    assert.match(runtime, /context\.resume\(\)/);
-    assert.match(runtime, /world-loading-start/);
-    assert.match(runtime, /data-setting=sound/);
-    assert.match(runtime, /visibilitychange/);
-    assert.match(runtime, /decodeAudioData/);
+    assert.ok(lineCount("src/audio/WorldAudioPermission.ts") <= 180);
+    assert.ok(lineCount("src/audio/WorldAudioResources.ts") <= 180);
+
+    assert.match(runtime, /new WorldAudioPermission/);
+    assert.match(runtime, /isAmbientAudible\(\)/);
+    assert.match(runtime, /isEffectsAudible\(\)/);
     assert.match(runtime, /addWaterContact/);
     assert.match(runtime, /experience\.attach\("audio"/);
-    assert.ok(app.indexOf("attachWorldRain(this.experience") < app.indexOf("attachWorldAudio(this.experience"));
+    assert.match(runtime, /weatherAvailable/);
+
+    assert.match(permission, /sessionAudioUnlocked/);
+    assert.match(permission, /context\.resume\(\)/);
+    assert.match(permission, /setBusGain\("ambient"/);
+    assert.match(permission, /setBusGain\("effects"/);
+    assert.match(permission, /document\.addEventListener\("change", this\.handleGesture\)/);
+    assert.doesNotMatch(permission, /\.suspend\(/);
+    assert.doesNotMatch(permission, /\.close\(/);
+
+    assert.match(resources, /disposeAudioListener/);
+    assert.match(resources, /listener\.gain\.disconnect/);
+    assert.match(resources, /listener\.context\.destination/);
+    assert.match(voicesSource, /getOutput\(\)\.disconnect\(\)/);
+    assert.match(voicesSource, /Object\.assign\(slot\.audio, \{ buffer: null, source: null \}\)/);
+    assert.match(voicesSource, /MAX_AMBIENT_VOICES = 6/);
+    assert.match(voicesSource, /RESERVED_POSITIONAL_VOICES = 2/);
+
+    assert.match(mixerSource, /rain-light-01\.mp3/);
+    assert.match(mixerSource, /rain-heavy-01\.mp3/);
+    assert.match(mixerSource, /loading = new Set<string>/);
+    assert.match(mixerSource, /outputEnabled = true/);
+
+    assert.match(footsteps, /event\.landing && surface === "water"/);
+    assert.match(footsteps, /WORLD_AUDIO_ONE_SHOT_MAX_LOAD_DELAY_MS/);
+    assert.doesNotMatch(footsteps, /bank\.retain/);
+
+    assert.match(emitters, /WORLD_AUDIO_EMITTER_CELL_SIZE_METERS/);
+    assert.match(emitters, /sampleWorldAudioHabitat\(this\.terrain, x, z\)/);
+    assert.match(emitters, /sampleHeight\(kind, x, z\)/);
+    assert.match(emitters, /this\.slots\.includes\(slot\)/);
+
+    assert.ok(
+      app.indexOf("attachWorldRain(this.experience") <
+        app.indexOf("attachWorldAudio(this.experience"),
+    );
     assert.match(app, /flyMode: useFlyControls/);
     assert.match(character, /consumeTeleported/);
     assert.match(character, /copyFootWorldPosition/);
     assert.match(character, /getGait\(\)/);
-    assert.doesNotMatch(source("src/controls/WorldFootContactTracker.ts"), /setInterval|requestAnimationFrame/);
+    assert.doesNotMatch(
+      source("src/controls/WorldFootContactTracker.ts"),
+      /setInterval|requestAnimationFrame/,
+    );
   });
 } finally {
   await server.close();
@@ -283,5 +396,5 @@ if (failures.length > 0) {
 }
 
 console.log(
-  "[world-audio] Catalog, bank LRU, missing-file diagnostics, interrupted fades, voice stealing, surface class, gait contacts and attach gating verified.",
+  "[world-audio] Catalog, PCM LRU, fades, buses, surface class, gait contacts, spatial ownership and audio lifecycle verified.",
 );
