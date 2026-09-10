@@ -70,9 +70,7 @@ export class WorldAmbientMixer {
   constructor(
     private readonly bank: WorldAudioBank,
     private readonly voices: WorldAudioVoices,
-  ) {
-    for (const bed of BEDS) this.bank.retain(bed.clipId);
-  }
+  ) {}
 
   setTarget(next: WorldAmbientGains): void {
     this.start = { ...this.current };
@@ -130,16 +128,6 @@ export class WorldAmbientMixer {
     }
     this.playing.clear();
     this.loading.clear();
-    for (const bed of BEDS) {
-      try {
-        this.bank.release(bed.clipId);
-      } catch (error) {
-        if (!failed) {
-          failed = true;
-          firstError = error;
-        }
-      }
-    }
     if (failed) throw firstError;
   }
 
