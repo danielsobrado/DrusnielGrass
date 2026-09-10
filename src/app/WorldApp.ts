@@ -66,7 +66,6 @@ import {
   WORLD_FRAME_WATCHDOG_INTERVAL_MS,
   WORLD_MAX_RUNTIME_DELTA_SECONDS,
 } from "./WorldAppTuning";
-
 export class WorldApp {
   private readonly scene = new THREE.Scene();
   private readonly camera: THREE.PerspectiveCamera;
@@ -126,7 +125,6 @@ export class WorldApp {
       0.1,
       5000,
     );
-
     this.renderer = session.renderer;
     this.lighting = new WorldLightingState(profile);
     this.renderScale = hudSettingsStore.getRenderScale();
@@ -141,8 +139,7 @@ export class WorldApp {
     let minimap: WorldMinimap | undefined;
     let scenic: WorldScenicLayer | undefined;
     let reveal: WorldRevealController | undefined;
-    let runtimeGuard: WorldRuntimeGuard | undefined;
-    let waterContacts: WorldWaterContactSystem | undefined;
+    let runtimeGuard: WorldRuntimeGuard | undefined, waterContacts: WorldWaterContactSystem | undefined;
 
     try {
       this.renderer.outputColorSpace = THREE.SRGBColorSpace;
@@ -192,10 +189,7 @@ export class WorldApp {
       });
       environment.materialContext.setWorldWindUniforms(this.weather?.windUniforms);
       const audioFocus = () => controls?.getStreamingPosition() ?? spawn.position;
-      waterContacts = config.waterEnabled >= 1
-        ? new WorldWaterContactSystem(this.field, profile.compact)
-        : undefined;
-      this.waterContacts = waterContacts;
+      this.waterContacts = waterContacts = config.waterEnabled >= 1 ? new WorldWaterContactSystem(this.field, profile.compact) : undefined;
       this.rain = this.weather ? attachWorldRain(this.experience, {
         scene: this.scene, terrain: this.field, weather: this.weather,
         focus: audioFocus, seed: config.seed,
@@ -469,8 +463,7 @@ export class WorldApp {
     this.disposeSafely("Stone system", () => this.stones.dispose());
     this.disposeGrassResources();
     this.disposeSafely("Experience", () => this.experience?.dispose());
-    this.disposeSafely("Water contacts", () => this.waterContacts?.dispose());
-    this.waterContacts = undefined;
+    this.disposeSafely("Water contacts", () => this.waterContacts?.dispose()); this.waterContacts = undefined;
     this.rain = undefined;
     this.weather = undefined;
     this.experience = undefined;
