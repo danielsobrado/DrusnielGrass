@@ -5,9 +5,15 @@ import type { WorldAudioVoices } from "./WorldAudioVoices";
 const GESTURE_SELECTOR =
   ".world-loading-start, .world-loading-sound, [data-setting=sound]";
 
+// Browser activation belongs to this page session, not to one renderer/world
+// instance. Device recovery must not require the user to unlock audio again.
+let sessionAudioUnlocked = false;
+
 /** Owns browser audio permission and this world's live output buses. */
 export class WorldAudioPermission {
-  private allowed = false;
+  private allowed = sessionAudioUnlocked;
+  private ambientAudible = false;
+  private effectsAudible = false;
   private resumeInFlight = false;
   private resumeBlocked = false;
   private resumeFailureReported = false;
@@ -30,17 +36,11 @@ export class WorldAudioPermission {
   }
 
   isAmbientAudible(): boolean {
-    if (this.disposed) return false;
-    const settings = hudSettingsStore.snapshot();
-    return this.isAllowed(settings.soundEnabled) &&
-      settings.masterVolume * settings.ambientVolume > 0;
+    return !this.disposed && this.ambientAudible;
   }
 
   isEffectsAudible(): boolean {
-    if (this.disposed) return false;
-    const settings = hudSettingsStore.snapshot();
-    return this.isAllowed(settings.soundEnabled) &&
-      settings.masterVolume * settings.effectsVolume > 0;
+    return !this.disposed && this.effectsAudible;
   }
 
   dispose(): void {
@@ -49,6 +49,8 @@ export class WorldAudioPermission {
     document.removeEventListener("click", this.handleGesture);
     document.removeEventListener("change", this.handleGesture);
     document.removeEventListener("visibilitychange", this.handleVisibility);
+    this.ambientAudible = false;
+    this.effectsAudible = false;
     this.voices.setBusGain("ambient", 0);
     this.voices.setBusGain("effects", 0);
   }
@@ -57,8 +59,12 @@ export class WorldAudioPermission {
     const settings = hudSettingsStore.snapshot();
     const audible = this.isAllowed(settings.soundEnabled);
     const master = audible ? settings.masterVolume : 0;
-    this.voices.setBusGain("ambient", master * settings.ambientVolume);
-    this.voices.setBusGain("effects", master * settings.effectsVolume);
+    const ambientGain = master * settings.ambientVolume;
+    const effectsGain = master * settings.effectsVolume;
+    this.ambientAudible = ambientGain > 0;
+    this.effectsAudible = effectsGain > 0;
+    this.voices.setBusGain("ambient", ambientGain);
+    this.voices.setBusGain("effects", effectsGain);
   }
 
   private isAllowed(soundEnabled: boolean): boolean {
@@ -96,6 +102,7 @@ export class WorldAudioPermission {
     const target = event.target;
     if (!(target instanceof Element) || !target.closest(GESTURE_SELECTOR)) return;
 
+    sessionAudioUnlocked = true;
     if (target.closest(".world-loading-sound")) {
       const input = target.closest("label")?.querySelector<HTMLInputElement>(
         'input[type="checkbox"]',
