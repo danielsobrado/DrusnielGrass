@@ -89,7 +89,7 @@ export class WaterSurfaceNodeMaterial extends MeshPhysicalNodeMaterial {
         refractionDepth: sampler("tWaterRefractionDepth", true),
         refractionSize: reference("value", "vec2", values.uWaterRefractionSize),
         refractionStrength: number("uWaterRefractionStrength"),
-        rainTime: rain?.time,
+        rainTime: number("uWaterTime"),
         rainIntensity: rain?.intensity,
         waterContacts: context?.worldWaterContacts(),
       });
