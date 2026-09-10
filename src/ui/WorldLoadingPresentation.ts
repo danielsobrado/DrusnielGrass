@@ -36,6 +36,7 @@ export class WorldLoadingPresentation {
     } catch (error) {
       this.releaseInput();
       this.startButton.removeEventListener("click", this.handleStart);
+      this.sound.removeEventListener("change", this.handleSoundChange);
       throw error;
     }
   }
@@ -47,6 +48,7 @@ export class WorldLoadingPresentation {
     this.detach?.();
     this.detach = undefined;
     this.startButton.removeEventListener("click", this.handleStart);
+    this.sound.removeEventListener("change", this.handleSoundChange);
   }
 
   private build(): void {
@@ -73,6 +75,7 @@ export class WorldLoadingPresentation {
       soundLabel.className = "world-loading-sound";
       this.sound.type = "checkbox";
       this.sound.checked = hudSettingsStore.getSoundEnabled();
+      this.sound.addEventListener("change", this.handleSoundChange);
       soundLabel.append(this.sound, document.createTextNode(" Enable sound when available"));
 
       this.startButton.type = "button";
@@ -100,6 +103,10 @@ export class WorldLoadingPresentation {
     }
     this.startButton.disabled = false;
     this.startButton.focus();
+  };
+
+  private readonly handleSoundChange = (): void => {
+    hudSettingsStore.setSoundEnabled(this.sound.checked);
   };
 
   private readonly handleStart = (): void => {
