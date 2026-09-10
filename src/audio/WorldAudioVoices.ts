@@ -98,14 +98,16 @@ export class WorldAudioVoices {
     const wantPositional = options.position !== undefined;
     const slot = this.claim(wantPositional);
     if (!slot) return undefined;
-    try {
-      this.stopSlot(slot);
-    } catch (error) {
-      console.warn(
-        `[Drusniel World] Audio voice reuse failed for ${options.clipId}.`,
-        error,
-      );
-      return undefined;
+    if (slot.clipId !== undefined || slot.audio.source !== null) {
+      try {
+        this.stopSlot(slot);
+      } catch (error) {
+        console.warn(
+          `[Drusniel World] Audio voice reuse failed for ${options.clipId}.`,
+          error,
+        );
+        return undefined;
+      }
     }
     slot.clipId = options.clipId;
     slot.bus = options.bus;
@@ -259,6 +261,7 @@ export class WorldAudioVoices {
   private stopSlot(slot: VoiceSlot): void {
     let firstError: unknown;
     let failed = false;
+    const hadSource = slot.clipId !== undefined || slot.audio.source !== null;
     const attempt = (release: () => void): void => {
       try {
         release();
@@ -272,7 +275,9 @@ export class WorldAudioVoices {
     attempt(() => {
       if (slot.audio.isPlaying) slot.audio.stop();
     });
-    attempt(() => slot.audio.disconnect());
+    if (hadSource) {
+      attempt(() => slot.audio.disconnect());
+    }
     attempt(() => slot.audio.removeFromParent());
     // Three r185 leaves both fields referencing the decoded buffer/source after
     // stop. They are public runtime fields but readonly in the declaration.
