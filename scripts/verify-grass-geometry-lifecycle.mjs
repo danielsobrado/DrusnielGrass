@@ -20,8 +20,10 @@ function assert(condition, message) {
 
 const source = read("src/grass/GrassGeometryFactory.ts");
 const patchSource = read("src/world/grass/WorldGrassPatchGeometryFactory.ts");
+const detailFieldSource = read("src/world/grass/WorldDetailFoliageField.ts");
 const detailMaterialSource = read("src/world/grass/WorldDetailFoliageNodeMaterial.ts");
 const detailNodesSource = read("src/world/grass/WorldDetailFoliageNodes.ts");
+const artPresets = JSON.parse(read("src/grass/GrassArtPresets.json"));
 const trailSource = read("src/grass/interaction/GrassTrailField.ts");
 const trailPassSource = read("src/grass/interaction/GrassTrailNodePass.ts");
 
@@ -110,6 +112,18 @@ assert(
   "Production detail foliage must consume the shared cinematic world-wind field and retain the legacy gust path only as its fallback.",
 );
 
+const maximumArtWindScale = Math.max(
+  ...Object.values(artPresets).map((preset) => preset.windStrengthScale),
+);
+assert(
+  detailNodesSource.includes('const swayLimit = u.number("uWindStrength").mul(WIND_SHEAR_FACTOR).max(0);') &&
+    detailNodesSource.includes("displacement.mulAssign(min(float(1), swayLimit.div(max(swayLength, 0.000001))))") &&
+    detailFieldSource.includes("const MAXIMUM_ART_WIND_SCALE = 2;") &&
+    detailFieldSource.includes("this.grassConfig.wind.strength * DETAIL_FOLIAGE_WIND_SHEAR_FACTOR") &&
+    maximumArtWindScale <= 2,
+  "Detail-foliage cinematic sway must stay inside the same art-directed wind envelope reserved by its static frustum bounds.",
+);
+
 assert(
   /const delta = this\.accumulatedDeltaSeconds;[\s\S]*?const nextCenterX[\s\S]*?backend\.render\(this\.readTarget, writeTarget\)[\s\S]*?this\.previousCenter\.copy\(this\.center\);[\s\S]*?this\.center\.set\(nextCenterX, nextCenterZ\);[\s\S]*?this\.readTarget = writeTarget;[\s\S]*?this\.contactCount = 0;[\s\S]*?this\.accumulatedDeltaSeconds = 0;/.test(
     trailSource,
@@ -132,5 +146,5 @@ assert(
 );
 
 console.log(
-  "[grass-geometry-lifecycle] Clump, instanced, optional shape, shared patch, detail-foliage material/wind, trail transaction, and variant geometry ownership verified.",
+  "[grass-geometry-lifecycle] Clump, instanced, optional shape, shared patch, bounded detail-foliage material/wind, trail transaction, and variant geometry ownership verified.",
 );

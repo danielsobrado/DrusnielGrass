@@ -202,17 +202,23 @@ export function createGrassFoliageNodes(u: GrassNodeUniforms,
         .add(field.flutter.mul(response.tipFlutter)).mul(field.strength)
       : gustNoise.mul(2).sub(1).mul(u.number("uWindStrength")).mul(WIND_SHEAR_FACTOR)
         .mul(mix(GRASS_WEATHER_CALM_FLOOR, 1,
-          float(0.5).add(sin(time.mul(GRASS_WEATHER_PULSE_SPEED)).mul(0.5)))))
-      .mul(species.element(speciesRow)).mul(variation.y).toVar();
-    const motionScale = windRamp.mul(scaleY).mul(mix(float(1), float(0.3), groundcover));
+          float(0.5).add(sin(time.mul(GRASS_WEATHER_PULSE_SPEED)).mul(0.5))))).toVar();
     const activeDirection = field ? field.direction : windDirection;
-    world.addAssign(vec3(activeDirection.x, 0, activeDirection.y).mul(dynamicSway).mul(motionScale));
+    const displacement = vec2(activeDirection.x, activeDirection.y).mul(dynamicSway).toVar();
     if (wind) {
       const restRadians = wind.directionDegrees.mul(DEG_TO_RAD);
-      const restSway = wind.restBendGain.mul(response.bendScale)
-        .mul(species.element(speciesRow)).mul(variation.y);
-      world.addAssign(vec3(cos(restRadians), 0, sin(restRadians)).mul(restSway).mul(motionScale));
+      const restSway = wind.restBendGain.mul(response.bendScale);
+      displacement.addAssign(vec2(cos(restRadians), sin(restRadians)).mul(restSway));
     }
+    // The streamer reserves this exact legacy maximum before per-card wind
+    // variation. Keep cinematic motion inside the same envelope so a gust can
+    // never move an otherwise-visible card beyond its static frustum bounds.
+    const swayLimit = u.number("uWindStrength").mul(WIND_SHEAR_FACTOR).max(0);
+    const swayLength = displacement.length().toVar();
+    displacement.mulAssign(min(float(1), swayLimit.div(max(swayLength, 0.000001))));
+    const motionScale = windRamp.mul(scaleY).mul(mix(float(1), float(0.3), groundcover))
+      .mul(species.element(speciesRow)).mul(variation.y);
+    world.addAssign(vec3(displacement.x, 0, displacement.y).mul(motionScale));
 
     // Groundcover lights from the terrain normal rather than the camera-facing
     // one, so a colony does not change brightness when the player walks around it.
