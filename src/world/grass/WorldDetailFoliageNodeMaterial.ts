@@ -29,20 +29,35 @@ export class WorldDetailFoliageNodeMaterial extends MeshBasicNodeMaterial {
     this.depthTest = true;
     this.fog = true;
     this.toneMapped = true;
-    this.inputs = createGrassNodeUniforms(values);
-    const sun = context.directionalSurfaceLight();
-    const graph = createGrassFoliageNodes(this.inputs, features, {
-      irradiance: normal => context.vertexIrradiance(normal),
-      sunDirection: sun.direction,
-    }, speciesWind);
-    this.world = graph.worldPosition;
-    this.rejected = graph.rejected;
-    this.colorNode = graph.color;
-    // A card the density dither rejects leaves clip space outright, exactly as
-    // the shipped vertex shader's early-out does. Collapsing it to a point
-    // instead would still rasterize wherever the projection put that point.
-    this.vertexNode = this.rejected.greaterThan(0.5)
-      .select(vec4(2, 2, 2, 1), modelViewProjection);
+    const inputs = createGrassNodeUniforms(values);
+    this.inputs = inputs;
+    try {
+      const sun = context.directionalSurfaceLight();
+      const graph = createGrassFoliageNodes(inputs, features, {
+        irradiance: normal => context.vertexIrradiance(normal),
+        sunDirection: sun.direction,
+      }, speciesWind);
+      this.world = graph.worldPosition;
+      this.rejected = graph.rejected;
+      this.colorNode = graph.color;
+      // A card the density dither rejects leaves clip space outright, exactly as
+      // the shipped vertex shader's early-out does. Collapsing it to a point
+      // instead would still rasterize wherever the projection put that point.
+      this.vertexNode = this.rejected.greaterThan(0.5)
+        .select(vec4(2, 2, 2, 1), modelViewProjection);
+    } catch (error) {
+      try {
+        inputs.dispose();
+      } catch (cleanupError) {
+        console.warn("[Drusniel World] Detail foliage input cleanup failed.", cleanupError);
+      }
+      try {
+        super.dispose();
+      } catch (cleanupError) {
+        console.warn("[Drusniel World] Detail foliage material cleanup failed.", cleanupError);
+      }
+      throw error;
+    }
   }
 
   /**

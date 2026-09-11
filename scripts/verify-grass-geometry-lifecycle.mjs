@@ -20,6 +20,7 @@ function assert(condition, message) {
 
 const source = read("src/grass/GrassGeometryFactory.ts");
 const patchSource = read("src/world/grass/WorldGrassPatchGeometryFactory.ts");
+const detailMaterialSource = read("src/world/grass/WorldDetailFoliageNodeMaterial.ts");
 const trailSource = read("src/grass/interaction/GrassTrailField.ts");
 const trailPassSource = read("src/grass/interaction/GrassTrailNodePass.ts");
 
@@ -88,6 +89,13 @@ assert(
 );
 
 assert(
+  /const inputs = createGrassNodeUniforms\(values\);[\s\S]*?this\.inputs = inputs;[\s\S]*?try \{[\s\S]*?createGrassFoliageNodes\(inputs,[\s\S]*?catch \(error\) \{[\s\S]*?inputs\.dispose\(\);[\s\S]*?super\.dispose\(\);[\s\S]*?throw error;/.test(
+    detailMaterialSource,
+  ),
+  "Detail-foliage node material construction must release locally owned uniform bindings and the unpublished material before rethrowing.",
+);
+
+assert(
   /const delta = this\.accumulatedDeltaSeconds;[\s\S]*?const nextCenterX[\s\S]*?backend\.render\(this\.readTarget, writeTarget\)[\s\S]*?this\.previousCenter\.copy\(this\.center\);[\s\S]*?this\.center\.set\(nextCenterX, nextCenterZ\);[\s\S]*?this\.readTarget = writeTarget;[\s\S]*?this\.contactCount = 0;[\s\S]*?this\.accumulatedDeltaSeconds = 0;/.test(
     trailSource,
   ),
@@ -109,5 +117,5 @@ assert(
 );
 
 console.log(
-  "[grass-geometry-lifecycle] Clump, instanced, optional shape, shared patch, trail transaction, and variant geometry ownership verified.",
+  "[grass-geometry-lifecycle] Clump, instanced, optional shape, shared patch, detail-foliage material, trail transaction, and variant geometry ownership verified.",
 );
