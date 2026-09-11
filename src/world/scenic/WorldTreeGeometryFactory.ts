@@ -3,6 +3,7 @@ import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
 import type { WorldTreeAtlasRect } from "./WorldTreeAtlasFactory";
 import {
   TREE_FOLIAGE_NORMALIZED_RADIUS,
+  TREE_OAK_TOP_CARD_SIZE,
   type WorldTreeSpecies,
 } from "./WorldTreeTuning";
 
@@ -68,7 +69,7 @@ export function createWorldTreeFoliageGeometry(
   if (species === "oak") {
     addCrownLayer(parts, leaf, 0.68, TREE_FOLIAGE_NORMALIZED_RADIUS.oak * 2, 0.42, 3, 0);
     addCrownLayer(parts, leaf, 0.82, 1.36, 0.38, 3, Math.PI / 6);
-    parts.push(card(1.18, 1.18, 0.88, Math.PI / 2, 0, leaf));
+    parts.push(card(TREE_OAK_TOP_CARD_SIZE, TREE_OAK_TOP_CARD_SIZE, 0.88, Math.PI / 2, 0, leaf));
   } else if (species === "birch") {
     addCrownLayer(parts, leaf, 0.7, TREE_FOLIAGE_NORMALIZED_RADIUS.birch * 2, 0.48, 3, 0);
     addCrownLayer(parts, leaf, 0.84, 0.86, 0.42, 3, Math.PI / 6);

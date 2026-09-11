@@ -66,12 +66,20 @@ assert(
     tuning.includes("oak: 0.78") &&
     tuning.includes("birch: 0.51") &&
     tuning.includes("evergreen: 0.74") &&
+    tuning.includes("TREE_OAK_TOP_CARD_SIZE = TREE_FOLIAGE_NORMALIZED_RADIUS.oak * Math.SQRT2") &&
     geometry.includes("TREE_FOLIAGE_NORMALIZED_RADIUS.oak * 2") &&
     geometry.includes("TREE_FOLIAGE_NORMALIZED_RADIUS.birch * 2") &&
     geometry.includes("TREE_FOLIAGE_NORMALIZED_RADIUS.evergreen * 2") &&
+    geometry.includes("card(TREE_OAK_TOP_CARD_SIZE, TREE_OAK_TOP_CARD_SIZE") &&
     system.includes("canopyRadius / TREE_FOLIAGE_NORMALIZED_RADIUS[tree.species]") &&
     geometry.includes("card(2, 1.04, 0.52, 0, yaw, far)"),
-  "Near foliage and far impostors must resolve the authored canopy radius to the same physical crown width used by ecology.",
+  "Near foliage and far impostors must resolve the authored canopy radius to the same physical crown width used by ecology, including the oak top-card corners.",
+);
+const oakRadius = 0.78;
+const oakTopCardSize = oakRadius * Math.SQRT2;
+assert(
+  Math.abs(Math.hypot(oakTopCardSize * 0.5, oakTopCardSize * 0.5) - oakRadius) < 1e-12,
+  "The oak horizontal top card must fit inside the same normalized crown radius as the vertical foliage cards.",
 );
 assert(
   tuning.includes("TREE_EVERGREEN_MAX_SHARE") &&
