@@ -33,10 +33,11 @@ export class WorldDetailFoliageNodeMaterial extends MeshBasicNodeMaterial {
     this.inputs = inputs;
     try {
       const sun = context.directionalSurfaceLight();
+      const wind = context.worldWindUniforms();
       const graph = createGrassFoliageNodes(inputs, features, {
         irradiance: normal => context.vertexIrradiance(normal),
         sunDirection: sun.direction,
-      }, speciesWind);
+      }, speciesWind, wind);
       this.world = graph.worldPosition;
       this.rejected = graph.rejected;
       this.colorNode = graph.color;

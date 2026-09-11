@@ -21,6 +21,7 @@ function assert(condition, message) {
 const source = read("src/grass/GrassGeometryFactory.ts");
 const patchSource = read("src/world/grass/WorldGrassPatchGeometryFactory.ts");
 const detailMaterialSource = read("src/world/grass/WorldDetailFoliageNodeMaterial.ts");
+const detailNodesSource = read("src/world/grass/WorldDetailFoliageNodes.ts");
 const trailSource = read("src/grass/interaction/GrassTrailField.ts");
 const trailPassSource = read("src/grass/interaction/GrassTrailNodePass.ts");
 
@@ -96,6 +97,20 @@ assert(
 );
 
 assert(
+  detailMaterialSource.includes("const wind = context.worldWindUniforms();") &&
+    detailMaterialSource.includes("speciesWind, wind") &&
+    detailNodesSource.includes("createBakedWorldWindNodes") &&
+    detailNodesSource.includes("createWorldWindFieldNodes") &&
+    detailNodesSource.includes("WORLD_WIND_RESPONSE.billboard") &&
+    detailNodesSource.includes("positionXZ: root.xz") &&
+    detailNodesSource.includes("field.gust") &&
+    detailNodesSource.includes("field.direction") &&
+    detailNodesSource.includes("field.flutter") &&
+    detailNodesSource.includes("wind.restBendGain"),
+  "Production detail foliage must consume the shared cinematic world-wind field and retain the legacy gust path only as its fallback.",
+);
+
+assert(
   /const delta = this\.accumulatedDeltaSeconds;[\s\S]*?const nextCenterX[\s\S]*?backend\.render\(this\.readTarget, writeTarget\)[\s\S]*?this\.previousCenter\.copy\(this\.center\);[\s\S]*?this\.center\.set\(nextCenterX, nextCenterZ\);[\s\S]*?this\.readTarget = writeTarget;[\s\S]*?this\.contactCount = 0;[\s\S]*?this\.accumulatedDeltaSeconds = 0;/.test(
     trailSource,
   ),
@@ -117,5 +132,5 @@ assert(
 );
 
 console.log(
-  "[grass-geometry-lifecycle] Clump, instanced, optional shape, shared patch, detail-foliage material, trail transaction, and variant geometry ownership verified.",
+  "[grass-geometry-lifecycle] Clump, instanced, optional shape, shared patch, detail-foliage material/wind, trail transaction, and variant geometry ownership verified.",
 );

@@ -1,6 +1,6 @@
 import type { Node, NodeBuilder } from "three/webgpu";
 import {
-  Discard, Fn, If, abs, attribute, cameraPosition, cameraViewMatrix, clamp, cross, float, floor,
+  Discard, Fn, If, abs, attribute, cameraPosition, cameraViewMatrix, clamp, cos, cross, float, floor,
   fract, int, mix, max, min, modelWorldMatrix, positionGeometry, pow, property, sin, smoothstep,
   step, uniformArray, uv, varying, vec2, vec3, vec4,
 } from "three/tsl";
@@ -18,9 +18,16 @@ import {
   GRASS_GUST_FRONT_SCALE, GRASS_GUST_FRONT_SPEED, GRASS_GUST_PRIMARY_WEIGHT,
   GRASS_WEATHER_CALM_FLOOR, GRASS_WEATHER_PULSE_SPEED,
 } from "../../grass/wind/WindNoiseTexture";
+import { WORLD_WIND_RESPONSE } from "../weather/WorldWindMath";
+import {
+  createBakedWorldWindNodes,
+  createWorldWindFieldNodes,
+} from "../weather/WorldWindNodes";
+import type { WorldWindUniforms } from "../weather/WorldWindUniforms";
 
 const WORLD_UP = vec3(0, 1, 0);
 const RECIPROCAL_PI = 0.3183098861837907;
+const DEG_TO_RAD = Math.PI / 180;
 const ALPHA_CUTOFF_FADE = 0.55;
 const WIND_RAMP_POWER = 1.5;
 const GROUNDCOVER_UP = 0.36;
@@ -61,7 +68,7 @@ export interface GrassFoliageLighting {
 
 export function createGrassFoliageNodes(u: GrassNodeUniforms,
   features: GrassFoliageNodeFeatures, lighting: GrassFoliageLighting,
-  speciesWind: ArrayLike<number>) {
+  speciesWind: ArrayLike<number>, wind?: WorldWindUniforms) {
   const time = u.number("uTime");
   const windDirection = u.vector2("uWindDirection");
   const variation = attribute<"vec4">("instanceVariation", "vec4");
@@ -153,15 +160,34 @@ export function createGrassFoliageNodes(u: GrassNodeUniforms,
     const groundcoverAxis = instanceForward.mul(GROUNDCOVER_FORWARD)
       .add(cardUp.mul(GROUNDCOVER_UP)).normalize().toVar();
 
-    const gustNoise = (features.noiseWind
-      ? u.texture("uWindNoise").sample(root.xz.mul(u.number("uWindNoiseScale"))
-        .sub(windDirection.mul(time.mul(u.number("uWindNoiseSpeed"))))).level(float(0)).r
-      : float(0.5).add(float(0.5).mul(
-        sin(root.xz.dot(windDirection).mul(GRASS_GUST_FRONT_SCALE)
-          .sub(time.mul(GRASS_GUST_FRONT_SPEED))).mul(GRASS_GUST_PRIMARY_WEIGHT)
-          .add(sin(root.xz.dot(vec2(windDirection.y.negate(), windDirection.x))
-            .mul(GRASS_GUST_CROSS_SCALE).add(time.mul(GRASS_GUST_CROSS_SPEED))
-            .add(GRASS_GUST_CROSS_PHASE)).mul(GRASS_GUST_CROSS_WEIGHT))))).toVar();
+    const field = !wind ? undefined
+      : wind.bakedField && wind.bakedOriginXZ
+        ? createBakedWorldWindNodes({
+          positionXZ: root.xz,
+          bakedField: wind.bakedField,
+          originXZ: wind.bakedOriginXZ,
+          worldSize: wind.bakedWorldSize,
+          time: wind.time,
+          noiseScale: wind.noiseScale,
+        })
+        : createWorldWindFieldNodes({
+          positionXZ: root.xz,
+          time: wind.time,
+          directionDegrees: wind.directionDegrees,
+          intensity: wind.intensity,
+          noiseScale: wind.noiseScale,
+        });
+    const gustNoise = (field
+      ? field.gust
+      : features.noiseWind
+        ? u.texture("uWindNoise").sample(root.xz.mul(u.number("uWindNoiseScale"))
+          .sub(windDirection.mul(time.mul(u.number("uWindNoiseSpeed"))))).level(float(0)).r
+        : float(0.5).add(float(0.5).mul(
+          sin(root.xz.dot(windDirection).mul(GRASS_GUST_FRONT_SCALE)
+            .sub(time.mul(GRASS_GUST_FRONT_SPEED))).mul(GRASS_GUST_PRIMARY_WEIGHT)
+            .add(sin(root.xz.dot(vec2(windDirection.y.negate(), windDirection.x))
+              .mul(GRASS_GUST_CROSS_SCALE).add(time.mul(GRASS_GUST_CROSS_SPEED))
+              .add(GRASS_GUST_CROSS_PHASE)).mul(GRASS_GUST_CROSS_WEIGHT))))).toVar();
 
     const upright = root.add(cardRight.mul(positionGeometry.x).mul(scaleX))
       .add(cardUp.mul(positionGeometry.y).mul(scaleY));
@@ -170,12 +196,23 @@ export function createGrassFoliageNodes(u: GrassNodeUniforms,
     const world = mix(upright, splayed, groundcover).toVar();
     const speciesRow = int(speciesIndex.clamp(0, GRASS_MAX_ACCENT_SPECIES - 1).add(0.5));
     const windRamp = pow(uv().y, WIND_RAMP_POWER).toVar();
-    const weather = mix(GRASS_WEATHER_CALM_FLOOR, 1,
-      float(0.5).add(sin(time.mul(GRASS_WEATHER_PULSE_SPEED)).mul(0.5))).toVar();
-    const sway = gustNoise.mul(2).sub(1).mul(u.number("uWindStrength")).mul(WIND_SHEAR_FACTOR)
-      .mul(species.element(speciesRow)).mul(variation.y).mul(weather).toVar();
-    world.addAssign(vec3(windDirection.x, 0, windDirection.y).mul(sway).mul(windRamp).mul(scaleY)
-      .mul(mix(float(1), float(0.3), groundcover)));
+    const response = WORLD_WIND_RESPONSE.billboard;
+    const dynamicSway = (field
+      ? field.gust.mul(2).sub(1).mul(response.bendScale)
+        .add(field.flutter.mul(response.tipFlutter)).mul(field.strength)
+      : gustNoise.mul(2).sub(1).mul(u.number("uWindStrength")).mul(WIND_SHEAR_FACTOR)
+        .mul(mix(GRASS_WEATHER_CALM_FLOOR, 1,
+          float(0.5).add(sin(time.mul(GRASS_WEATHER_PULSE_SPEED)).mul(0.5)))))
+      .mul(species.element(speciesRow)).mul(variation.y).toVar();
+    const motionScale = windRamp.mul(scaleY).mul(mix(float(1), float(0.3), groundcover));
+    const activeDirection = field ? field.direction : windDirection;
+    world.addAssign(vec3(activeDirection.x, 0, activeDirection.y).mul(dynamicSway).mul(motionScale));
+    if (wind) {
+      const restRadians = wind.directionDegrees.mul(DEG_TO_RAD);
+      const restSway = wind.restBendGain.mul(response.bendScale)
+        .mul(species.element(speciesRow)).mul(variation.y);
+      world.addAssign(vec3(cos(restRadians), 0, sin(restRadians)).mul(restSway).mul(motionScale));
+    }
 
     // Groundcover lights from the terrain normal rather than the camera-facing
     // one, so a colony does not change brightness when the player walks around it.
